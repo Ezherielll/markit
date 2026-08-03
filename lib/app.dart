@@ -14,11 +14,10 @@ class PdflowApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MaterialApp(
       title: 'pdflow',
+      debugShowCheckedModeBanner: false,
       theme: PdflowTheme.light(),
       darkTheme: PdflowTheme.dark(),
-      home: HomeScreen(
-        controller: controller ?? IsolateConversionController(),
-      ),
+      home: HomeScreen(controller: controller ?? IsolateConversionController()),
     );
   }
 }
