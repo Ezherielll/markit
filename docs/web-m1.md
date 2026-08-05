@@ -83,3 +83,12 @@
 - Flutter web default: hash routing (`#/`) + `base href="/"` — aman untuk deploy root maupun sub-path (M11 `--base-href`).
 - State ephemeral (queue batch) wajar hilang saat refresh browser — tidak ada deep-link yang perlu dipertahankan.
 - Future (opsional): `?pdf=` param untuk deep-link — dicatat, bukan sekarang.
+
+## M9 — Asset & Environment (selesai 2026-08-05)
+
+- Font (Fraunces/Inter/JetBrainsMono) ter-bundle & ter-verifikasi di `build/web/assets/assets/fonts/` (total ~1.4 MB) — dimuat dari lokal, tanpa fetch jaringan.
+- Tidak ada HTTP client di `lib/` — NFR offline tetap berlaku di web (semua sumber lokal: fonts, pdfium.wasm, main.dart.js).
+- Konfigurasi env via `--dart-define` (pola dokumentasi):
+  - `Pdfrx.pdfiumWasmModulesUrl` override — hanya jika butuh wasm dari CDN (tidak direkomendasikan; default local bundle).
+  - Future config lain (mis. analitik lokal) — pakai `String.fromEnvironment`.
+- Catatan bundle web (release): main.dart.js ~2 MB + pdfium.wasm 5.1 MB + fonts 1.4 MB — loading splash (M5) menutupi inisialisasi awal.
