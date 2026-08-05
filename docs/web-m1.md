@@ -92,3 +92,10 @@
   - `Pdfrx.pdfiumWasmModulesUrl` override — hanya jika butuh wasm dari CDN (tidak direkomendasikan; default local bundle).
   - Future config lain (mis. analitik lokal) — pakai `String.fromEnvironment`.
 - Catatan bundle web (release): main.dart.js ~2 MB + pdfium.wasm 5.1 MB + fonts 1.4 MB — loading splash (M5) menutupi inisialisasi awal.
+
+## M10 — Testing (selesai 2026-08-05)
+
+- `flutter analyze` 0 issue; `flutter test` 57 hijau (unit pipeline, InlineExecutor, theme, output, widget flow).
+- Integration test batch di-tag `@Tags(['desktop'])` — memakai IsolateExecutor + dart:io, tidak dijalankan di web test runner.
+- Web logic teruji di VM: InlineExecutor (convert bytes / cancel / corrupt), MemoryOutput, download helper (stub path).
+- Manual checklist browser — dilakukan di M11 pasca deploy (Chrome + Edge, resize, keyboard, drop).

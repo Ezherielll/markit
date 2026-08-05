@@ -1,3 +1,8 @@
+// Integration test desktop-only: memakai IsolateExecutor nyata (dart:isolate)
+// + dart:io. Tidak bisa dijalankan di web test runner.
+@Tags(['desktop'])
+library;
+
 import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
