@@ -397,15 +397,18 @@ class _SummaryState extends StatelessWidget {
           ],
           // Preview lengkap untuk file yang berhasil (FR-09) — tampilkan
           // yang pertama sukses; multi-file tetap punya kartu status di atas.
+          // Tombol Download per-file hanya untuk single-file (done == 1);
+          // multi-file memakai "Download all as ZIP" di bawah.
           if (queue.any((f) => f.status == JobStatus.done)) ...[
             const SizedBox(height: PdflowSpacing.xl),
             ResultPanel(
               job: queue.firstWhere((f) => f.status == JobStatus.done),
+              showDownloadButton: done == 1,
             ),
           ],
           const SizedBox(height: PdflowSpacing.xl),
-          if (kIsWeb && done > 0) ...[
-            // Bug #1 fix: di web, semua hasil digabung jadi satu ZIP
+          if (kIsWeb && done > 1) ...[
+            // Multi-file: semua hasil digabung jadi satu ZIP
             // (browser memblokir banyak download otomatis sekaligus).
             FilledButton.icon(
               onPressed: () => _downloadAllZip(queue, done),

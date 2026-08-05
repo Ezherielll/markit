@@ -211,6 +211,46 @@ void main() {
     expect(controller.queue, isEmpty);
   });
 
+  testWidgets('download: single file → showDownloadButton true (bug fix)',
+      (tester) async {
+    final controller = FakeConversionController();
+    await tester.pumpWidget(MaterialApp(
+      home: HomeScreen(controller: controller),
+    ));
+
+    controller.addFiles([PdfInput(name: 'a.pdf', path: 'a.pdf')]);
+    await tester.pump();
+    controller.convertAll();
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 100));
+    await tester.pump();
+
+    final panel = tester.widget<ResultPanel>(find.byType(ResultPanel));
+    expect(panel.showDownloadButton, isTrue);
+  });
+
+  testWidgets('download: multi-file → showDownloadButton false (bug fix)',
+      (tester) async {
+    final controller = FakeConversionController();
+    await tester.pumpWidget(MaterialApp(
+      home: HomeScreen(controller: controller),
+    ));
+
+    controller.addFiles([
+      PdfInput(name: 'a.pdf', path: 'a.pdf'),
+      PdfInput(name: 'b.pdf', path: 'b.pdf'),
+      PdfInput(name: 'c.pdf', path: 'c.pdf'),
+    ]);
+    await tester.pump();
+    controller.convertAll();
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 100));
+    await tester.pump();
+
+    final panel = tester.widget<ResultPanel>(find.byType(ResultPanel));
+    expect(panel.showDownloadButton, isFalse);
+  });
+
   testWidgets('theme toggle: cycle light → dark → system (M7)', (tester) async {
     final themeController = ThemeController(initial: ThemeMode.light);
     await tester.pumpWidget(MaterialApp(

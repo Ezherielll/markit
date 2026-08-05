@@ -21,10 +21,19 @@ import '../download_text.dart';
 /// Desktop: konten dibaca dari file output; aksi = Open folder + Copy path.
 /// Web: konten dari [QueuedFile.content] (memory); aksi = Download.
 class ResultPanel extends StatefulWidget {
-  const ResultPanel({super.key, required this.job, this.onReset});
+  const ResultPanel({
+    super.key,
+    required this.job,
+    this.onReset,
+    this.showDownloadButton = true,
+  });
 
   final QueuedFile job;
   final VoidCallback? onReset;
+
+  /// Web: tampilkan tombol Download per-file. Di-set false saat multi-file
+  /// (download digabung via "Download all as ZIP").
+  final bool showDownloadButton;
 
   @override
   State<ResultPanel> createState() => _ResultPanelState();
@@ -306,36 +315,39 @@ class _ResultPanelState extends State<ResultPanel> {
           ),
         ],
         const SizedBox(height: PdflowSpacing.lg),
-        Row(
-          children: [
-            if (kIsWeb)
-              OutlinedButton.icon(
-                onPressed: _download,
-                icon: const Icon(Icons.download, size: 16),
-                label: const Text(Strings.download),
-              )
-            else ...[
-              OutlinedButton.icon(
-                onPressed: _openFolder,
-                icon: const Icon(Icons.folder_open, size: 16),
-                label: const Text(Strings.openOutput),
-              ),
-              const SizedBox(width: PdflowSpacing.sm),
-              OutlinedButton.icon(
-                onPressed: _copyName,
-                icon: Icon(_copied ? Icons.check : Icons.copy, size: 16),
-                label: Text(_copied ? Strings.copied : Strings.copyPath),
-              ),
+        // Row aksi: web multi-file (showDownloadButton=false, tanpa onReset)
+        // → tidak dirender sama sekali agar tidak ada baris kosong.
+        if (kIsWeb || widget.showDownloadButton || widget.onReset != null)
+          Row(
+            children: [
+              if (kIsWeb && widget.showDownloadButton)
+                OutlinedButton.icon(
+                  onPressed: _download,
+                  icon: const Icon(Icons.download, size: 16),
+                  label: const Text(Strings.download),
+                )
+              else if (!kIsWeb) ...[
+                OutlinedButton.icon(
+                  onPressed: _openFolder,
+                  icon: const Icon(Icons.folder_open, size: 16),
+                  label: const Text(Strings.openOutput),
+                ),
+                const SizedBox(width: PdflowSpacing.sm),
+                OutlinedButton.icon(
+                  onPressed: _copyName,
+                  icon: Icon(_copied ? Icons.check : Icons.copy, size: 16),
+                  label: Text(_copied ? Strings.copied : Strings.copyPath),
+                ),
+              ],
+              const Spacer(),
+              if (widget.onReset != null)
+                FilledButton.tonalIcon(
+                  onPressed: widget.onReset,
+                  icon: const Icon(Icons.restart_alt, size: 16),
+                  label: const Text(Strings.convertAnother),
+                ),
             ],
-            const Spacer(),
-            if (widget.onReset != null)
-              FilledButton.tonalIcon(
-                onPressed: widget.onReset,
-                icon: const Icon(Icons.restart_alt, size: 16),
-                label: const Text(Strings.convertAnother),
-              ),
-          ],
-        ),
+          ),
       ],
     );
   }
