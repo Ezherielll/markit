@@ -1,31 +1,30 @@
 import 'dart:convert';
 import 'dart:io';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_markdown/flutter_markdown.dart';
 import 'package:pdflow/i18n/strings.dart';
+import 'package:pdflow/isolate/conversion_controller.dart';
 import 'package:pdflow/ui/theme/palette.dart';
 import 'package:pdflow/ui/theme/spacing.dart';
 import 'package:pdflow/ui/theme/typography.dart';
 import 'package:pdflow/ui/widgets/stat_chip.dart';
 import 'package:url_launcher/url_launcher.dart';
 
+import '../download_text.dart';
+
 /// Panel hasil (FR-09): preview markdown di-render seperti halaman kertas
-/// (toggle Rendered/Raw), stat chips, aksi open folder / copy path / ulang.
+/// (toggle Rendered/Raw), stat chips, aksi adaptif platform.
+///
+/// Desktop: konten dibaca dari file output; aksi = Open folder + Copy path.
+/// Web: konten dari [QueuedFile.content] (memory); aksi = Download.
 class ResultPanel extends StatefulWidget {
-  const ResultPanel({
-    super.key,
-    required this.outputPath,
-    required this.onReset,
-    this.failedPages = const [],
-  });
+  const ResultPanel({super.key, required this.job, this.onReset});
 
-  final String outputPath;
-  final VoidCallback onReset;
-
-  /// Halaman gagal (1-based) — ditampilkan sebagai warning (FR-10c).
-  final List<int> failedPages;
+  final QueuedFile job;
+  final VoidCallback? onReset;
 
   @override
   State<ResultPanel> createState() => _ResultPanelState();
@@ -44,36 +43,29 @@ class _ResultPanelState extends State<ResultPanel> {
   }
 
   Future<void> _load() async {
-    final file = File(widget.outputPath);
-    if (!await file.exists()) return;
-
-    // Preview: baca sebagian kecil saja (file bisa ratusan KB/ribuan halaman).
-    final raf = await file.open();
-    String preview;
-    try {
-      final chunk = await raf.read(128 * 1024);
-      preview = utf8.decode(chunk, allowMalformed: true);
-    } finally {
-      await raf.close();
+    String content;
+    if (kIsWeb) {
+      content = widget.job.content ?? '';
+    } else {
+      final file = File(widget.job.outputPath);
+      if (!await file.exists()) return;
+      content = await file.readAsString();
     }
 
-    // Stats struktur: scan streaming seluruh file, hitung per baris.
+    // Stats struktur: hitung per baris dari konten.
     final stats = _MdStats();
-    await for (final line in file
-        .openRead()
-        .transform(utf8.decoder)
-        .transform(const LineSplitter())) {
+    for (final line in const LineSplitter().convert(content)) {
       stats.countLine(line);
     }
     if (!mounted) return;
     setState(() {
-      _content = preview;
+      _content = content;
       _stats = stats;
     });
   }
 
   Future<void> _openFolder() async {
-    final dir = File(widget.outputPath).parent.path;
+    final dir = File(widget.job.outputPath).parent.path;
     final ok = await launchUrl(Uri.file(dir));
     if (!ok && mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -82,8 +74,8 @@ class _ResultPanelState extends State<ResultPanel> {
     }
   }
 
-  Future<void> _copyPath() async {
-    await Clipboard.setData(ClipboardData(text: widget.outputPath));
+  Future<void> _copyName() async {
+    await Clipboard.setData(ClipboardData(text: widget.job.outputPath));
     if (!mounted) return;
     setState(() => _copied = true);
     ScaffoldMessenger.of(context).showSnackBar(
@@ -91,6 +83,18 @@ class _ResultPanelState extends State<ResultPanel> {
     );
     await Future<void>.delayed(const Duration(seconds: 2));
     if (mounted) setState(() => _copied = false);
+  }
+
+  void _download() {
+    final content = _content;
+    if (content == null) return;
+    downloadTextFile(
+      widget.job.input.outputName,
+      content,
+    );
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text(Strings.downloadStarted)),
+    );
   }
 
   MarkdownStyleSheet _mdStyle(BuildContext context) {
@@ -149,7 +153,7 @@ class _ResultPanelState extends State<ResultPanel> {
     final ink = isDark ? PdflowColors.inkDark : PdflowColors.inkLight;
     final hairline = isDark ? PdflowColors.hairlineDark : PdflowColors.hairlineLight;
     final stats = _stats;
-    final name = widget.outputPath.split(Platform.pathSeparator).last;
+    final name = widget.job.input.outputName;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -173,10 +177,11 @@ class _ResultPanelState extends State<ResultPanel> {
             ),
           ],
         ),
-        if (widget.failedPages.isNotEmpty) ...[
+        if (widget.job.failedPages.isNotEmpty) ...[
           const SizedBox(height: PdflowSpacing.sm),
           Text(
-            Strings.warningFailedPages.replaceFirst('%d', '${widget.failedPages.length}'),
+            Strings.warningFailedPages
+                .replaceFirst('%d', '${widget.job.failedPages.length}'),
             style: TextStyle(
               fontSize: 12.5,
               color: isDark ? PdflowColors.stampRedDark : PdflowColors.stampRedLight,
@@ -258,23 +263,32 @@ class _ResultPanelState extends State<ResultPanel> {
         const SizedBox(height: PdflowSpacing.lg),
         Row(
           children: [
-            OutlinedButton.icon(
-              onPressed: _openFolder,
-              icon: const Icon(Icons.folder_open, size: 16),
-              label: const Text(Strings.openOutput),
-            ),
-            const SizedBox(width: PdflowSpacing.sm),
-            OutlinedButton.icon(
-              onPressed: _copyPath,
-              icon: Icon(_copied ? Icons.check : Icons.copy, size: 16),
-              label: Text(_copied ? Strings.copied : Strings.copyPath),
-            ),
+            if (kIsWeb)
+              OutlinedButton.icon(
+                onPressed: _download,
+                icon: const Icon(Icons.download, size: 16),
+                label: const Text(Strings.download),
+              )
+            else ...[
+              OutlinedButton.icon(
+                onPressed: _openFolder,
+                icon: const Icon(Icons.folder_open, size: 16),
+                label: const Text(Strings.openOutput),
+              ),
+              const SizedBox(width: PdflowSpacing.sm),
+              OutlinedButton.icon(
+                onPressed: _copyName,
+                icon: Icon(_copied ? Icons.check : Icons.copy, size: 16),
+                label: Text(_copied ? Strings.copied : Strings.copyPath),
+              ),
+            ],
             const Spacer(),
-            FilledButton.tonalIcon(
-              onPressed: widget.onReset,
-              icon: const Icon(Icons.restart_alt, size: 16),
-              label: const Text(Strings.convertAnother),
-            ),
+            if (widget.onReset != null)
+              FilledButton.tonalIcon(
+                onPressed: widget.onReset,
+                icon: const Icon(Icons.restart_alt, size: 16),
+                label: const Text(Strings.convertAnother),
+              ),
           ],
         ),
       ],

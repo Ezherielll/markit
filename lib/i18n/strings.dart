@@ -25,6 +25,8 @@ class Strings {
   static const phaseConverting = 'Converting page %d of %d';
   static const done = 'Done';
   static const openOutput = 'Open folder';
+  static const download = 'Download';
+  static const downloadStarted = 'Download started';
   static const copyPath = 'Copy path';
   static const copied = 'Path copied';
   static const convertAnother = 'Convert another';

@@ -5,6 +5,7 @@ import 'package:pdflow/models/pdf_input.dart';
 import 'package:pdflow/ui/screens/home_screen.dart';
 import 'package:pdflow/ui/widgets/drop_zone.dart';
 import 'package:pdflow/ui/widgets/progress_panel.dart';
+import 'package:pdflow/ui/widgets/result_panel.dart';
 
 /// Fake controller: simulasi batch tanpa isolate.
 class FakeConversionController extends ConversionController {
@@ -193,7 +194,14 @@ void main() {
     await tester.pump();
 
     expect(find.text('Clear all'), findsOneWidget);
+    // FR-09: preview result panel untuk file yang berhasil.
+    expect(find.byType(ResultPanel), findsOneWidget);
 
+    await tester.scrollUntilVisible(
+      find.text('Clear all'),
+      200,
+      scrollable: find.byType(Scrollable).last,
+    );
     await tester.tap(find.text('Clear all'));
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 350));

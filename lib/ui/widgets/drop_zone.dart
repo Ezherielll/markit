@@ -63,21 +63,54 @@ class _DropZoneState extends State<DropZone> {
     for (final item in event.session.items) {
       final reader = item.dataReader;
       if (reader == null) continue;
-      if (!reader.canProvide(Formats.fileUri)) continue;
-      final completer = Completer<Uri?>();
-      reader.getValue<Uri>(Formats.fileUri, (uri) {
-        completer.complete(uri);
-      }, onError: (_) {
-        if (!completer.isCompleted) completer.complete(null);
-      });
-      final uri = await completer.future;
-      final path = uri?.toFilePath();
-      if (path != null) {
-        inputs.add(PdfInput(name: path.split(RegExp(r'[\\/]')).last, path: path));
+
+      if (reader.canProvide(Formats.fileUri)) {
+        final completer = Completer<Uri?>();
+        reader.getValue<Uri>(Formats.fileUri, (uri) {
+          completer.complete(uri);
+        }, onError: (_) {
+          if (!completer.isCompleted) completer.complete(null);
+        });
+        final uri = await completer.future;
+        final path = uri?.toFilePath();
+        if (path != null) {
+          inputs.add(
+            PdfInput(name: path.split(RegExp(r'[\\/]')).last, path: path),
+          );
+        }
+      } else if (kIsWeb && reader.canProvide(Formats.plainText)) {
+        // Web: browser memberi File object — coba lewat uri-list text.
+        final completer = Completer<String?>();
+        reader.getValue<String>(Formats.plainText, (text) {
+          completer.complete(text);
+        }, onError: (_) {
+          if (!completer.isCompleted) completer.complete(null);
+        });
+        final text = await completer.future;
+        for (final line in (text ?? '').split('\n')) {
+          final uri = Uri.tryParse(line.trim());
+          if (uri == null) continue;
+          final path = uri.toFilePath();
+          if (path.endsWith('.pdf')) {
+            inputs.add(
+              PdfInput(name: path.split(RegExp(r'[\\/]')).last, path: path),
+            );
+          }
+        }
       }
     }
     if (inputs.isNotEmpty && mounted) {
       widget.onFilesPicked(inputs);
+    } else if (kIsWeb && mounted) {
+      // Fallback: drag & drop file browser belum tentu menyediakan path
+      // — arahkan user ke tombol picker.
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'Browser drop needs a file URI. Use "Choose PDF files" instead.',
+          ),
+        ),
+      );
     }
   }
 

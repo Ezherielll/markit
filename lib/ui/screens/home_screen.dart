@@ -10,6 +10,7 @@ import 'package:pdflow/ui/widgets/app_header.dart';
 import 'package:pdflow/ui/widgets/drop_zone.dart';
 import 'package:pdflow/ui/widgets/file_card.dart';
 import 'package:pdflow/ui/widgets/progress_panel.dart';
+import 'package:pdflow/ui/widgets/result_panel.dart';
 
 import '../../isolate/conversion_controller.dart';
 
@@ -381,6 +382,14 @@ class _SummaryState extends StatelessWidget {
               showStatus: true,
             ),
             if (i < queue.length - 1) const SizedBox(height: PdflowSpacing.sm),
+          ],
+          // Preview lengkap untuk file yang berhasil (FR-09) — tampilkan
+          // yang pertama sukses; multi-file tetap punya kartu status di atas.
+          if (queue.any((f) => f.status == JobStatus.done)) ...[
+            const SizedBox(height: PdflowSpacing.xl),
+            ResultPanel(
+              job: queue.firstWhere((f) => f.status == JobStatus.done),
+            ),
           ],
           const SizedBox(height: PdflowSpacing.xl),
           Row(

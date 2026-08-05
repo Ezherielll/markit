@@ -55,8 +55,17 @@
 
 ## M5 — Web Config & pdfrx Init (selesai 2026-08-05)
 
-- \main.dart\: panggil \pdfrxFlutterInitialize()\ sebelum runApp (idempotent; desktop: cache dir, web: WASM engine worker)
-- \web/index.html\: meta description, theme-color (\#274C8A), splash loading (wordmark + spinner, hidden via flutter-first-frame event)
-- \web/manifest.json\: nama 'pdflow — PDF to Markdown', warna ink/paper, orientation any
+- `main.dart`: panggil `pdfrxFlutterInitialize()` sebelum runApp (idempotent; desktop: cache dir, web: WASM engine worker)
+- `web/index.html`: meta description, theme-color (#274C8A), splash loading (wordmark + spinner, hidden via flutter-first-frame event)
+- `web/manifest.json`: nama 'pdflow — PDF to Markdown', warna ink/paper, orientation any
 - Verifikasi build: pdfium.wasm 5.1 MB ter-bundle; serve lokal → index 200, wasm 200 MIME application/wasm ✓
 - 53 test hijau
+
+## M6 — Responsive UI + Download + Drop Fallback (selesai 2026-08-05)
+
+- Baru: `ui/download_text.dart` (conditional import) — web: Blob + anchor download via dart:js_interop; desktop: no-op (file sudah di disk)
+- `ResultPanel` refactor: terima `QueuedFile`; konten dari memory (web) / file (desktop); aksi adaptif — web: Download; desktop: Open folder + Copy path; preview + stat chips tetap (FR-09)
+- `_SummaryState`: tampilkan ResultPanel untuk file sukses pertama di bawah daftar status
+- `DropZone._onDrop`: fallback web — fileUri tidak tersedia → coba plainText uri-list; gagal → SnackBar arahkan ke picker
+- Dep baru: `web` (dart:js_interop untuk download)
+- 53 test hijau (+1 assertion FR-09); build Windows & web sukses
