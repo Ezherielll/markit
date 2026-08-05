@@ -18,8 +18,12 @@ indexed, and fed to AI systems as input (RAG / LLM).
   from the document itself, not hardcoded.
 - **Streaming output** — pages are written and flushed as they are converted,
   so memory stays flat even on 800-page documents (measured ΔRSS ≈ 10 MB).
+- **Multi-file batch queue** — drop or pick any number of PDFs, review the queue
+  (per-file status, remove), then convert them all sequentially with a single
+  "Convert all" action.
 - **Background isolate** — the UI stays responsive while conversion runs, with
-  per-page progress, elapsed time, pages/s, and a cancel button.
+  per-file progress (file N of M), per-page progress, elapsed time, pages/s,
+  and a cancel button.
 
 ## Screenshots
 
@@ -44,12 +48,20 @@ indexed, and fed to AI systems as input (RAG / LLM).
 - Simple **bullet lists**, including continuation lines.
 
 ### UX & robustness
-- Per-page progress, elapsed time, pages/s, and a **cancel** action
-  (completes in < 1 s; the partial `.partial` file is removed).
-- **Error handling** for corrupt / encrypted / password-protected / scanned
-  (no-text) PDFs, plus failed-page collection.
-- Result **preview** (rendered Markdown) with structure statistics
-  (heading / paragraph / list counts) and an **overwrite confirmation** dialog.
+- **Batch queue** — add files via drag & drop (multi-file) or the file
+  selector; dedupe by path; remove individual files; per-file status chips
+  (queued / converting / done / failed / cancelled).
+- **Sequential batch processing** — one file at a time on a single persistent
+  background isolate (pdfrx/PDFium is not safe to spawn/teardown repeatedly
+  within one process — see `docs/spike-pdfrx.md`).
+- Per-file progress, elapsed time, pages/s, and a **cancel** action
+  (completes in < 1 s; the partial `.partial` file is removed; the rest of the
+  queue is marked cancelled).
+- **Error handling** per file — corrupt / encrypted / password-protected /
+  scanned (no-text) PDFs fail individually without stopping the batch, plus
+  failed-page collection.
+- Result **summary** — per-file status, structure statistics, and an
+  **overwrite confirmation** dialog (once per batch).
 - **100% offline** — fonts are bundled as assets; conversion runs entirely in a
   background isolate.
 
@@ -111,12 +123,13 @@ PdfSource (pdfrx)  →  LineGrouper  →  ParagraphJoiner  →  StructureClassif
 lib/
   core/     pure Dart pipeline (pdf source, line grouper, joiner,
             classifier, writer, converter) — unit-testable without Flutter
-  isolate/  worker isolate + controller (keeps the UI responsive)
+  isolate/  persistent worker isolate + batch controller (queue, cancel,
+            keeps the UI responsive)
   models/   TextSpan / Line / Block
   ui/
-    screens/     home screen (state machine: empty → selected → running → done)
+    screens/     home screen (state machine: empty → queue → running → summary)
     widgets/     app header, drop zone, file card, progress panel,
-                 result panel (rendered Markdown), stat chips
+                 result summary, stat chips
     theme/       ink/paper palette, typography (Fraunces / Inter / JetBrains Mono),
                  spacing, PdflowTheme light & dark
   i18n/     string tables (localization)
@@ -131,7 +144,7 @@ docs/       benchmark results, MVP checklist, pdfrx spike notes
 
 - Paper-and-ink palette with a serif display face (**Fraunces**).
 - The Markdown preview is rendered like a printed page.
-- Drag & drop PDF file loading, or pick via the file selector.
+- Drag & drop **multiple** PDF files, or pick them via the file selector.
 - 100% offline — all fonts are bundled as assets.
 
 ## Benchmark summary (M0)
@@ -155,5 +168,6 @@ scores 28.6% as expected — table support is a v2 baseline (see
 - `docs/mvp_checklist.md` — M0 exit criteria (FR-01…12) and confirmed technical
   decisions.
 - `docs/benchmark.md` — performance decision gate and corpus evaluation runs.
-- `docs/spike-pdfrx.md` — pdfrx API spike notes (e.g. no `fontSize` API → the
-  line-height proxy).
+- `docs/spike-pdfrx.md` — pdfrx API spike notes (no `fontSize` API → the
+  line-height proxy; PDFium is not safe to spawn/teardown repeatedly in one
+  process → one persistent worker + probe only before the first worker).

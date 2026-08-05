@@ -55,3 +55,7 @@ Catatan:
 ## Corpus run 2026-08-03T15:53:07.616186
 - book_single: F1 100.0% (threshold 90%) PASS · 598 ms
 - with_tables: F1 28.6% (threshold 60%) FAIL · 6 ms
+
+## Corpus run 2026-08-05T11:38:41.957016
+- book_single: F1 100.0% (threshold 90%) PASS · 579 ms
+- with_tables: F1 28.6% (threshold 60%) FAIL · 26 ms

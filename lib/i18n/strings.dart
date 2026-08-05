@@ -5,15 +5,19 @@ class Strings {
   static const appTitle = 'pdflow';
   static const tagline = 'PDF → Markdown, on your machine';
   static const heroHeadline = 'Turn documents into clean markdown';
-  static const heroSub = 'Fast, private, and fully offline. Drop a PDF and get '
+  static const heroSub = 'Fast, private, and fully offline. Drop your PDFs and get '
       'structured markdown — headings, paragraphs and lists, ready for reading '
       'or feeding your AI tools.';
-  static const dropHere = 'Drop your PDF here';
+  static const dropHere = 'Drop your PDFs here';
   static const dropSub = 'or';
-  static const pickFile = 'Choose a PDF file';
+  static const pickFile = 'Choose PDF files';
+  static const pickFileSingular = 'Choose a PDF file';
+  static const addFiles = 'Add files';
   static const convert = 'Convert';
+  static const convertAll = 'Convert all';
   static const cancel = 'Cancel';
   static const reset = 'Start over';
+  static const removeFile = 'Remove';
   static const pagesLabel = 'pages';
   static const sizeLabel = 'Size';
   static const converting = 'Converting';
@@ -24,6 +28,13 @@ class Strings {
   static const copyPath = 'Copy path';
   static const copied = 'Path copied';
   static const convertAnother = 'Convert another';
+  static const clearAll = 'Clear all';
+  static const filesDone = '%d of %d converted';
+  static const fileQueued = 'Queued';
+  static const fileRunning = 'Converting…';
+  static const fileFailed = 'Failed';
+  static const fileCancelled = 'Cancelled';
+  static const fileDone = 'Done';
   static const previewTitle = 'Preview';
   static const previewRawTitle = 'Raw markdown';
   static const showRendered = 'Rendered';
@@ -44,9 +55,10 @@ class Strings {
       'scanned document (OCR is not supported).';
   static const errorGeneric = 'Something went wrong: %s';
   static const pickFileFilterName = 'PDF files';
-  static const overwriteTitle = 'Overwrite existing file?';
-  static const overwriteBody = 'This file already exists. Continue and replace it?';
-  static const overwriteConfirm = 'Overwrite';
+  static const overwriteTitle = 'Overwrite existing files?';
+  static const overwriteBody = '%d file(s) already have a .md output. '
+      'Continue and replace them?';
+  static const overwriteConfirm = 'Overwrite all';
   static const featureFast = 'Fast';
   static const featureFastSub = 'Hundreds of pages in seconds';
   static const featureOffline = 'Private';

@@ -2,18 +2,17 @@ import 'dart:async';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
-import 'package:pdflow/core/pdfrx_source.dart';
 import 'package:pdflow/i18n/strings.dart';
 import 'package:pdflow/ui/theme/spacing.dart';
 import 'package:pdflow/ui/widgets/app_header.dart';
 import 'package:pdflow/ui/widgets/drop_zone.dart';
 import 'package:pdflow/ui/widgets/file_card.dart';
 import 'package:pdflow/ui/widgets/progress_panel.dart';
-import 'package:pdflow/ui/widgets/result_panel.dart';
 
 import '../../isolate/conversion_controller.dart';
 
-/// Layar utama — state machine: empty → selected → running → done/error.
+/// Layar utama — state machine batch:
+/// empty → queue → running → summary.
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key, required this.controller});
 
@@ -24,13 +23,9 @@ class HomeScreen extends StatefulWidget {
 }
 
 class _HomeScreenState extends State<HomeScreen> {
-  String? _pdfPath;
-  int? _pageCount;
-  double? _bodyFontSize;
-  String? _errorMessage;
-  List<int> _failedPages = const [];
   DateTime? _startTime;
   Timer? _ticker;
+  bool _overwriteConfirmed = false;
 
   @override
   void initState() {
@@ -45,58 +40,44 @@ class _HomeScreenState extends State<HomeScreen> {
     super.dispose();
   }
 
-  void _onFilePicked(String path) {
-    setState(() {
-      _pdfPath = path;
-      _pageCount = null;
-      _bodyFontSize = null;
-      _errorMessage = null;
-      _failedPages = const [];
-    });
-    _probe(path);
+  void _onFilesPicked(List<String> paths) {
+    widget.controller.addFiles(paths);
   }
 
-  /// Estimasi halaman dari metadata (FR-01: < 2 s).
-  Future<void> _probe(String path) async {
-    try {
-      final count = await PdfrxSource.probePageCount(path);
-      if (mounted && _pdfPath == path) {
-        setState(() => _pageCount = count);
+  Future<void> _convertAll() async {
+    final controller = widget.controller;
+    if (controller.queue.isEmpty) return;
+
+    // Konfirmasi overwrite sekali per batch (FR-12).
+    if (!_overwriteConfirmed) {
+      final conflicts = <String>[];
+      for (final job in controller.queue) {
+        if (await File(job.outputPath).exists()) {
+          conflicts.add(job.outputPath);
+        }
       }
-    } catch (_) {
-      // Divalidasi saat convert; probe gagal tidak fatal.
-    }
-  }
-
-  Future<void> _convert() async {
-    final path = _pdfPath;
-    if (path == null) return;
-
-    final outPath = path.replaceFirst(
-      RegExp(r'\.pdf$', caseSensitive: false),
-      '.md',
-    );
-
-    // FR-12: konfirmasi overwrite bila file tujuan sudah ada.
-    if (await File(outPath).exists() && mounted) {
-      final proceed = await showDialog<bool>(
-        context: context,
-        builder: (ctx) => AlertDialog(
-          title: const Text(Strings.overwriteTitle),
-          content: const Text(Strings.overwriteBody),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(ctx, false),
-              child: const Text(Strings.cancel),
-            ),
-            FilledButton(
-              onPressed: () => Navigator.pop(ctx, true),
-              child: const Text(Strings.overwriteConfirm),
-            ),
-          ],
-        ),
-      );
-      if (proceed != true || !mounted) return;
+      if (conflicts.isNotEmpty && mounted) {
+        final proceed = await showDialog<bool>(
+          context: context,
+          builder: (ctx) => AlertDialog(
+            title: const Text(Strings.overwriteTitle),
+            content: Text(Strings.overwriteBody
+                .replaceFirst('%d', '${conflicts.length}')),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(ctx, false),
+                child: const Text(Strings.cancel),
+              ),
+              FilledButton(
+                onPressed: () => Navigator.pop(ctx, true),
+                child: const Text(Strings.overwriteConfirm),
+              ),
+            ],
+          ),
+        );
+        if (proceed != true || !mounted) return;
+      }
+      _overwriteConfirmed = true;
     }
 
     _startTime = DateTime.now();
@@ -104,38 +85,25 @@ class _HomeScreenState extends State<HomeScreen> {
     _ticker = Timer.periodic(const Duration(milliseconds: 250), (_) {
       if (mounted) setState(() {});
     });
-    await widget.controller.convert(pdfPath: path, outputPath: outPath);
+    await controller.convertAll();
   }
 
   void _reset() {
     _ticker?.cancel();
+    _overwriteConfirmed = false;
     widget.controller.reset();
-    setState(() {
-      _pdfPath = null;
-      _pageCount = null;
-      _bodyFontSize = null;
-      _errorMessage = null;
-      _failedPages = const [];
-    });
+  }
+
+  Future<void> _addMoreFiles() async {
+    final paths = await pickPdfFiles();
+    if (paths.isEmpty) return;
+    widget.controller.addFiles(paths);
   }
 
   void _onControllerChanged() {
     if (!mounted) return;
-    final c = widget.controller;
     setState(() {
-      if (c.errorType != null) {
-        _errorMessage = switch (c.errorType) {
-          'encrypted' => Strings.errorEncrypted,
-          'noText' => Strings.errorNoText,
-          'corrupt' => Strings.errorCorrupt,
-          _ => c.errorMessage ??
-              Strings.errorGeneric.replaceFirst('%s', c.errorMessage ?? ''),
-        };
-        _ticker?.cancel();
-      } else if (c.outputPath != null) {
-        _errorMessage = null;
-        _failedPages = c.failedPages;
-        _bodyFontSize = c.bodyFontSize;
+      if (!widget.controller.isRunning) {
         _ticker?.cancel();
       }
     });
@@ -144,14 +112,13 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   Widget build(BuildContext context) {
     final c = widget.controller;
-    final idle = !c.isRunning;
 
     return Scaffold(
       body: Column(
         children: [
           AppHeader(
-            onReset: idle ? _reset : () {},
-            resetEnabled: idle,
+            onReset: !c.isRunning ? _reset : () {},
+            resetEnabled: !c.isRunning,
           ),
           Expanded(
             child: Center(
@@ -199,49 +166,40 @@ class _HomeScreenState extends State<HomeScreen> {
       );
     }
 
-    if (c.errorType != null || _errorMessage != null) {
-      return _DoneState(
-        key: const ValueKey('error'),
-        outputPath: null,
-        errorMessage: _errorMessage,
-        failedPages: const [],
-        onReset: _reset,
+    // Summary: semua job berstatus final (done/failed/cancelled) & queue tidak kosong.
+    final allFinal = c.queue.isNotEmpty &&
+        c.queue.every((f) => f.status != JobStatus.queued);
+    if (allFinal) {
+      return _SummaryState(
+        key: const ValueKey('summary'),
+        controller: c,
+        onAddMore: _addMoreFiles,
+        onClear: _reset,
       );
     }
 
-    if (c.outputPath != null) {
-      return _DoneState(
-        key: const ValueKey('done'),
-        outputPath: c.outputPath,
-        errorMessage: null,
-        failedPages: _failedPages,
-        onReset: _reset,
-      );
-    }
-
-    if (_pdfPath == null) {
+    if (c.queue.isEmpty) {
       return _EmptyState(
         key: const ValueKey('empty'),
-        onFilePicked: _onFilePicked,
+        onFilesPicked: _onFilesPicked,
       );
     }
 
-    return _SelectedState(
-      key: const ValueKey('selected'),
-      path: _pdfPath!,
-      pageCount: _pageCount,
-      bodyFontSize: _bodyFontSize,
-      onConvert: _convert,
-      onReset: _reset,
-      canConvert: _pageCount != null,
+    // Queue menunggu konversi.
+    return _QueueState(
+      key: const ValueKey('queue'),
+      controller: c,
+      onAddMore: _addMoreFiles,
+      onConvertAll: _convertAll,
+      onRemove: c.removeFile,
     );
   }
 }
 
 class _EmptyState extends StatelessWidget {
-  const _EmptyState({super.key, required this.onFilePicked});
+  const _EmptyState({super.key, required this.onFilesPicked});
 
-  final ValueChanged<String> onFilePicked;
+  final ValueChanged<List<String>> onFilesPicked;
 
   @override
   Widget build(BuildContext context) {
@@ -249,7 +207,7 @@ class _EmptyState extends StatelessWidget {
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          DropZone(onFilePicked: onFilePicked),
+          DropZone(onFilesPicked: onFilesPicked),
           const SizedBox(height: PdflowSpacing.xxl),
           const _FeatureRow(),
         ],
@@ -258,60 +216,63 @@ class _EmptyState extends StatelessWidget {
   }
 }
 
-class _SelectedState extends StatelessWidget {
-  const _SelectedState({
+class _QueueState extends StatelessWidget {
+  const _QueueState({
     super.key,
-    required this.path,
-    this.pageCount,
-    this.bodyFontSize,
-    required this.onConvert,
-    required this.onReset,
-    required this.canConvert,
+    required this.controller,
+    required this.onAddMore,
+    required this.onConvertAll,
+    required this.onRemove,
   });
 
-  final String path;
-  final int? pageCount;
-  final double? bodyFontSize;
-  final VoidCallback onConvert;
-  final VoidCallback onReset;
-  final bool canConvert;
+  final ConversionController controller;
+  final VoidCallback onAddMore;
+  final VoidCallback onConvertAll;
+  final void Function(String id) onRemove;
 
   @override
   Widget build(BuildContext context) {
-    return Column(
-      mainAxisSize: MainAxisSize.min,
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        Text(
-          'Ready to convert',
-          style: Theme.of(context).textTheme.headlineMedium,
-        ),
-        const SizedBox(height: PdflowSpacing.sm),
-        Text(
-          'The PDF will be converted to Markdown in the same folder.',
-          style: Theme.of(context).textTheme.bodySmall,
-        ),
-        const SizedBox(height: PdflowSpacing.xl),
-        FileCard(path: path, pageCount: pageCount, bodyFontSize: bodyFontSize),
-        const SizedBox(height: PdflowSpacing.xl),
-        Row(
-          children: [
-            Expanded(
-              child: FilledButton.icon(
-                onPressed: canConvert ? onConvert : null,
-                icon: const Icon(Icons.auto_awesome, size: 18),
-                label: const Text(Strings.convert),
-              ),
+    final queue = controller.queue;
+    return SingleChildScrollView(
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Text(
+            '${queue.length} ${queue.length == 1 ? Strings.pickFileSingular : 'files'}',
+            style: Theme.of(context).textTheme.headlineMedium,
+          ),
+          const SizedBox(height: PdflowSpacing.lg),
+          for (var i = 0; i < queue.length; i++) ...[
+            FileCard(
+              job: queue[i],
+              showStatus: true,
+              onRemove: () => onRemove(queue[i].id),
             ),
-            const SizedBox(width: PdflowSpacing.sm),
-            IconButton(
-              onPressed: onReset,
-              icon: const Icon(Icons.restart_alt),
-              tooltip: Strings.reset,
-            ),
+            if (i < queue.length - 1) const SizedBox(height: PdflowSpacing.sm),
           ],
-        ),
-      ],
+          const SizedBox(height: PdflowSpacing.xl),
+          Row(
+            children: [
+              Expanded(
+                child: FilledButton.icon(
+                  onPressed: onConvertAll,
+                  icon: const Icon(Icons.auto_awesome, size: 18),
+                  label: Text(
+                    '${Strings.convertAll} (${queue.length})',
+                  ),
+                ),
+              ),
+              const SizedBox(width: PdflowSpacing.sm),
+              IconButton(
+                onPressed: onAddMore,
+                icon: const Icon(Icons.add),
+                tooltip: Strings.addFiles,
+              ),
+            ],
+          ),
+        ],
+      ),
     );
   }
 }
@@ -330,67 +291,113 @@ class _RunningState extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Column(
-      mainAxisSize: MainAxisSize.min,
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        if (controller.currentPage == null || controller.currentPage == 0) ...[
+    final queue = controller.queue;
+    final active = controller.activeJob;
+    final done = controller.doneCount;
+
+    return SingleChildScrollView(
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
           Text(
-            Strings.phaseReading,
+            '${done + 1} of ${queue.length}',
             style: Theme.of(context).textTheme.headlineMedium,
           ),
-          const SizedBox(height: PdflowSpacing.xl),
+          const SizedBox(height: PdflowSpacing.md),
+          ProgressPanel(
+            currentPage: controller.currentPage ?? 0,
+            totalPages: controller.totalPages ?? 0,
+            elapsed: elapsed,
+            onCancel: onCancel,
+            passTwo: controller.phase == 1 && (controller.currentPage ?? 0) > 0,
+          ),
+          if (active != null) ...[
+            const SizedBox(height: PdflowSpacing.lg),
+            FileCard(job: active, showStatus: true),
+          ],
+          const SizedBox(height: PdflowSpacing.lg),
+          for (final job in queue)
+            if (job.status != JobStatus.queued) ...[
+              FileCard(job: job, showStatus: true),
+              const SizedBox(height: PdflowSpacing.sm),
+            ],
         ],
-        ProgressPanel(
-          currentPage: controller.currentPage ?? 0,
-          totalPages: controller.totalPages ?? 0,
-          elapsed: elapsed,
-          onCancel: onCancel,
-          passTwo: controller.phase == 1 && (controller.currentPage ?? 0) > 0,
-        ),
-      ],
+      ),
     );
   }
 }
 
-class _DoneState extends StatelessWidget {
-  const _DoneState({
+class _SummaryState extends StatelessWidget {
+  const _SummaryState({
     super.key,
-    this.outputPath,
-    this.errorMessage,
-    this.failedPages = const [],
-    required this.onReset,
+    required this.controller,
+    required this.onAddMore,
+    required this.onClear,
   });
 
-  final String? outputPath;
-  final String? errorMessage;
-  final List<int> failedPages;
-  final VoidCallback onReset;
+  final ConversionController controller;
+  final VoidCallback onAddMore;
+  final VoidCallback onClear;
 
   @override
   Widget build(BuildContext context) {
-    if (outputPath != null) {
-      return SingleChildScrollView(
-        child: ResultPanel(
-          outputPath: outputPath!,
-          failedPages: failedPages,
-          onReset: onReset,
-        ),
-      );
-    }
-    return Column(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        const Icon(Icons.error_outline, size: 48),
-        const SizedBox(height: PdflowSpacing.lg),
-        Text(errorMessage ?? Strings.errorGeneric.replaceFirst('%s', '')),
-        const SizedBox(height: PdflowSpacing.xl),
-        FilledButton.icon(
-          onPressed: onReset,
-          icon: const Icon(Icons.folder_open),
-          label: const Text(Strings.pickFile),
-        ),
-      ],
+    final queue = controller.queue;
+    final done = controller.doneCount;
+    final failed = queue.where((f) => f.status == JobStatus.failed).length;
+
+    return SingleChildScrollView(
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Row(
+            children: [
+              Icon(
+                failed > 0 ? Icons.warning_amber : Icons.check_circle,
+                color: failed > 0
+                    ? Theme.of(context).colorScheme.error
+                    : (Theme.of(context).brightness == Brightness.dark
+                        ? const Color(0xFF7FB590)
+                        : const Color(0xFF3D6B4F)),
+              ),
+              const SizedBox(width: PdflowSpacing.sm),
+              Text(
+                failed > 0
+                    ? '$done converted, $failed failed'
+                    : Strings.filesDone.replaceFirst('%d', '$done')
+                        .replaceFirst('%d', '${queue.length}'),
+                style: Theme.of(context).textTheme.headlineMedium,
+              ),
+            ],
+          ),
+          const SizedBox(height: PdflowSpacing.lg),
+          for (var i = 0; i < queue.length; i++) ...[
+            FileCard(
+              job: queue[i],
+              showStatus: true,
+            ),
+            if (i < queue.length - 1) const SizedBox(height: PdflowSpacing.sm),
+          ],
+          const SizedBox(height: PdflowSpacing.xl),
+          Row(
+            children: [
+              Expanded(
+                child: FilledButton.tonalIcon(
+                  onPressed: onAddMore,
+                  icon: const Icon(Icons.add),
+                  label: const Text(Strings.addFiles),
+                ),
+              ),
+              const SizedBox(width: PdflowSpacing.sm),
+              OutlinedButton(
+                onPressed: onClear,
+                child: const Text(Strings.clearAll),
+              ),
+            ],
+          ),
+        ],
+      ),
     );
   }
 }

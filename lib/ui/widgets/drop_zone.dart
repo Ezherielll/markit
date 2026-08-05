@@ -8,13 +8,23 @@ import 'package:pdflow/ui/theme/spacing.dart';
 import 'package:pdflow/ui/theme/typography.dart';
 import 'package:super_drag_and_drop/super_drag_and_drop.dart';
 
-/// Drop zone besar — menerima file PDF via drag & drop (desktop) atau
-/// tombol "Choose a PDF file". Menampilkan visual "tumpukan lembaran".
-class DropZone extends StatefulWidget {
-  const DropZone({super.key, required this.onFilePicked});
+/// Buka dialog picker PDF (multi-select). Dipakai drop zone & tombol "Add files".
+Future<List<String>> pickPdfFiles() async {
+  const typeGroup = XTypeGroup(
+    label: Strings.pickFileFilterName,
+    extensions: ['pdf'],
+  );
+  final files = await openFiles(acceptedTypeGroups: const [typeGroup]);
+  return files.map((f) => f.path).toList();
+}
 
-  /// Dipanggil dengan path file PDF yang dipilih/di-drop.
-  final ValueChanged<String> onFilePicked;
+/// Drop zone besar — menerima banyak file PDF via drag & drop (desktop) atau
+/// tombol "Choose PDF files". Menampilkan visual "tumpukan lembaran".
+class DropZone extends StatefulWidget {
+  const DropZone({super.key, required this.onFilesPicked});
+
+  /// Dipanggil dengan daftar path file PDF yang dipilih/di-drop.
+  final ValueChanged<List<String>> onFilesPicked;
 
   @override
   State<DropZone> createState() => _DropZoneState();
@@ -24,16 +34,13 @@ class _DropZoneState extends State<DropZone> {
   bool _dragActive = false;
 
   Future<void> _pick() async {
-    const typeGroup = XTypeGroup(
-      label: Strings.pickFileFilterName,
-      extensions: ['pdf'],
-    );
-    final file = await openFile(acceptedTypeGroups: const [typeGroup]);
-    if (file == null) return;
-    widget.onFilePicked(file.path);
+    final paths = await pickPdfFiles();
+    if (paths.isEmpty) return;
+    widget.onFilesPicked(paths);
   }
 
   Future<void> _onDrop(PerformDropEvent event) async {
+    final paths = <String>[];
     for (final item in event.session.items) {
       final reader = item.dataReader;
       if (reader == null) continue;
@@ -45,10 +52,10 @@ class _DropZoneState extends State<DropZone> {
         if (!completer.isCompleted) completer.complete(null);
       });
       final path = await completer.future;
-      if (path != null && mounted) {
-        widget.onFilePicked(path);
-        return;
-      }
+      if (path != null) paths.add(path);
+    }
+    if (paths.isNotEmpty && mounted) {
+      widget.onFilesPicked(paths);
     }
   }
 

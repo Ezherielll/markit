@@ -9,11 +9,24 @@ void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
   late Directory tmp;
+  late IsolateConversionController controller;
+
+  // Satu controller untuk SEMUA test — worker persist tunggal, seperti app
+  // nyata. pdfrx (PDFium) tidak aman di-spawn/teardown berulang dalam satu
+  // proses ("Cannot invoke native callback from a different isolate").
+  setUpAll(() {
+    controller = IsolateConversionController();
+  });
+
+  tearDownAll(() async {
+    await controller.shutdown();
+  });
+
   setUp(() async {
     tmp = await Directory.systemTemp.createTemp('pdflow_iso_test');
   });
   tearDown(() async {
-    // Isolate worker mungkin masih melepas handle file — retry beberapa kali.
+    controller.reset();
     for (var i = 0; i < 5; i++) {
       try {
         await tmp.delete(recursive: true);
@@ -24,52 +37,93 @@ void main() {
     }
   });
 
-  test('isolate: convert PDF → markdown via worker (FR-08)', () async {
-    final pdfPath = '${tmp.path}/book.pdf';
-    File(pdfPath).writeAsBytesSync(buildTestPdf());
-    final outPath = '${tmp.path}/book.md';
-
-    final controller = IsolateConversionController();
-    final progress = <int>[];
-    controller.addListener(() {
-      if (controller.currentPage != null) progress.add(controller.currentPage!);
-    });
-
-    await controller.convert(pdfPath: pdfPath, outputPath: outPath);
-
-    // Tunggu selesai (worker async) dengan timeout.
-    final deadline = DateTime.now().add(const Duration(seconds: 20));
-    while (controller.isRunning && DateTime.now().isBefore(deadline)) {
+  Future<void> waitUntil(Future<bool> Function() cond) async {
+    final deadline = DateTime.now().add(const Duration(seconds: 30));
+    while (DateTime.now().isBefore(deadline)) {
+      if (await cond()) return;
       await Future<void>.delayed(const Duration(milliseconds: 50));
     }
+    fail('timeout waiting for condition');
+  }
 
-    expect(controller.isRunning, isFalse);
-    expect(controller.errorType, isNull);
-    expect(controller.outputPath, outPath);
-    expect(File(outPath).existsSync(), isTrue);
+  test('batch: 3 file valid → semua done, output ada (FR-08)', () async {
+    final pdfs = [
+      '${tmp.path}/a.pdf',
+      '${tmp.path}/b.pdf',
+      '${tmp.path}/c.pdf',
+    ];
+    for (final p in pdfs) {
+      File(p).writeAsBytesSync(buildTestPdf());
+    }
 
-    final md = File(outPath).readAsStringSync();
-    expect(md, contains('# The Quick Brown Fox'));
-    expect(md, contains('# Chapter Two'));
-    expect(md, contains('- Item one'));
-    controller.dispose();
+    controller.addFiles(pdfs);
+    await controller.convertAll();
+
+    expect(controller.doneCount, 3);
+    for (final job in controller.queue) {
+      expect(job.status, JobStatus.done);
+      expect(File(job.outputPath).existsSync(), isTrue);
+    }
   });
 
-  test('isolate: error corrupt → errorType corrupt (FR-10a)', () async {
-    final pdfPath = '${tmp.path}/bad.pdf';
-    File(pdfPath).writeAsBytesSync(List.filled(1024, 0x42));
-    final outPath = '${tmp.path}/bad.md';
+  test('batch: 1 corrupt + 2 valid → 1 failed, 2 done, batch lanjut (FR-10c)',
+      () async {
+    final pdfs = [
+      '${tmp.path}/bad.pdf',
+      '${tmp.path}/good1.pdf',
+      '${tmp.path}/good2.pdf',
+    ];
+    File(pdfs[0]).writeAsBytesSync(List.filled(1024, 0x42));
+    File(pdfs[1]).writeAsBytesSync(buildTestPdf());
+    File(pdfs[2]).writeAsBytesSync(buildTestPdf());
 
-    final controller = IsolateConversionController();
-    await controller.convert(pdfPath: pdfPath, outputPath: outPath);
+    controller.addFiles(pdfs);
+    await controller.convertAll();
 
-    final deadline = DateTime.now().add(const Duration(seconds: 20));
-    while (controller.isRunning && DateTime.now().isBefore(deadline)) {
-      await Future<void>.delayed(const Duration(milliseconds: 50));
+    final bad = controller.queue.firstWhere((f) => f.pdfPath.endsWith('bad.pdf'));
+    expect(bad.status, JobStatus.failed);
+    expect(controller.doneCount, 2);
+  });
+
+  test('batch: cancel di tengah → sisa cancelled, .partial hilang (FR-11)',
+      () async {
+    // PDF besar sintetis agar ada waktu untuk cancel.
+    final pdfs = [
+      '${tmp.path}/big.pdf',
+      '${tmp.path}/second.pdf',
+    ];
+    File(pdfs[0]).writeAsBytesSync(
+      buildTestPdf(pages: largeBookPages(300)),
+    );
+    File(pdfs[1]).writeAsBytesSync(buildTestPdf());
+
+    controller.addFiles(pdfs);
+
+    final batchFuture = controller.convertAll();
+    // Tunggu batch mulai, lalu cancel.
+    await waitUntil(() async => controller.isRunning);
+    await Future<void>.delayed(const Duration(milliseconds: 300));
+    controller.cancel();
+    await batchFuture;
+
+    // Job aktif dibatalkan (bukan done), sisanya cancelled.
+    for (final job in controller.queue) {
+      expect(job.status, isNot(JobStatus.queued));
+      expect(job.status, isNot(JobStatus.done));
+      expect(File('${job.outputPath}.partial').existsSync(), isFalse);
     }
+  });
 
-    expect(controller.errorType, isNotNull);
-    expect(File(outPath).existsSync(), isFalse);
-    controller.dispose();
+  test('batch ulang setelah cancel → worker persist dipakai lagi (ResetCancel)',
+      () async {
+    final pdf = '${tmp.path}/again.pdf';
+    File(pdf).writeAsBytesSync(buildTestPdf());
+
+    controller.addFiles([pdf]);
+    await controller.convertAll();
+
+    expect(controller.doneCount, 1);
+    expect(controller.queue.single.status, JobStatus.done);
+    expect(File(controller.queue.single.outputPath).existsSync(), isTrue);
   });
 }

@@ -4,21 +4,17 @@ import 'package:pdflow/isolate/conversion_controller.dart';
 import 'package:pdflow/ui/screens/home_screen.dart';
 import 'package:pdflow/ui/widgets/drop_zone.dart';
 import 'package:pdflow/ui/widgets/progress_panel.dart';
-import 'package:pdflow/ui/widgets/result_panel.dart';
 
-/// Fake controller: simulasi konversi tanpa isolate.
+/// Fake controller: simulasi batch tanpa isolate.
 class FakeConversionController extends ConversionController {
+  final List<QueuedFile> _queue = [];
   bool _isRunning = false;
   int? _page;
   int? _total;
   int _phase = 1;
-  String? _out;
-  String? _errType;
-  String? _errMsg;
-  List<int> _failedPages = const [];
-  double? _bodyFontSize;
   bool cancelCalled = false;
-  bool fail = false;
+  bool failAll = false;
+  int _id = 0;
 
   @override
   bool get isRunning => _isRunning;
@@ -33,41 +29,64 @@ class FakeConversionController extends ConversionController {
   int get phase => _phase;
 
   @override
-  String? get outputPath => _out;
+  List<QueuedFile> get queue => List.unmodifiable(_queue);
 
   @override
-  List<int> get failedPages => _failedPages;
+  QueuedFile? get activeJob =>
+      _queue.where((f) => f.status == JobStatus.running).firstOrNull;
 
   @override
-  double? get bodyFontSize => _bodyFontSize;
+  int get completedCount =>
+      _queue.where((f) => f.status != JobStatus.queued).length;
 
   @override
-  String? get errorType => _errType;
+  int get doneCount => _queue.where((f) => f.status == JobStatus.done).length;
 
   @override
-  String? get errorMessage => _errMsg;
+  void addFiles(List<String> paths) {
+    for (final path in paths) {
+      final job = QueuedFile(
+        id: 'j${_id++}',
+        pdfPath: path,
+      );
+      job.pageCount = 10;
+      _queue.add(job);
+    }
+    notifyListeners();
+  }
 
   @override
-  Future<void> convert({
-    required String pdfPath,
-    required String outputPath,
-  }) async {
+  void removeFile(String id) {
+    _queue.removeWhere((f) => f.id == id);
+    notifyListeners();
+  }
+
+  @override
+  Future<void> convertAll() async {
     _isRunning = true;
-    _page = 0;
-    _total = 10;
-    _phase = 0;
     notifyListeners();
-    await Future<void>.delayed(const Duration(milliseconds: 10));
-    _page = 5;
-    _phase = 1;
-    notifyListeners();
-    await Future<void>.delayed(const Duration(milliseconds: 10));
-    if (fail) {
-      _errType = 'corrupt';
-      _errMsg = 'Corrupt file';
-    } else {
-      _out = outputPath;
-      _failedPages = const [3];
+    for (final job in [..._queue]) {
+      if (cancelCalled) {
+        job.status = JobStatus.cancelled;
+        continue;
+      }
+      job.status = JobStatus.running;
+      _page = 0;
+      _total = 10;
+      _phase = 0;
+      notifyListeners();
+      await Future<void>.delayed(const Duration(milliseconds: 10));
+      _page = 5;
+      _phase = 1;
+      notifyListeners();
+      await Future<void>.delayed(const Duration(milliseconds: 10));
+      if (failAll) {
+        job.status = JobStatus.failed;
+        job.errorType = 'corrupt';
+      } else {
+        job.status = JobStatus.done;
+      }
+      notifyListeners();
     }
     _isRunning = false;
     notifyListeners();
@@ -76,96 +95,70 @@ class FakeConversionController extends ConversionController {
   @override
   void cancel() {
     cancelCalled = true;
+    notifyListeners();
   }
 
   @override
   void reset() {
-    _out = null;
-    _errType = null;
-    _errMsg = null;
-    _failedPages = const [];
-    _bodyFontSize = null;
+    _queue.clear();
+    _isRunning = false;
     notifyListeners();
   }
 }
 
 void main() {
-  testWidgets('empty state: drop zone + pick button visible (FR-01)',
-      (tester) async {
+  testWidgets('empty state: drop zone visible (FR-01)', (tester) async {
     await tester.pumpWidget(MaterialApp(
       home: HomeScreen(controller: FakeConversionController()),
     ));
     expect(find.byType(DropZone), findsOneWidget);
-    expect(find.text('Choose a PDF file'), findsOneWidget);
+    expect(find.text('Choose PDF files'), findsOneWidget);
     expect(find.byType(ProgressPanel), findsNothing);
   });
 
-  testWidgets('error state: message shown, no crash (FR-10)', (tester) async {
-    final controller = FakeConversionController()..fail = true;
-    await tester.pumpWidget(MaterialApp(
-      home: HomeScreen(controller: controller),
-    ));
-
-    controller.convert(pdfPath: 'x.pdf', outputPath: 'x.md');
-    await tester.pump();
-    await tester.pump(const Duration(milliseconds: 100));
-    await tester.pump();
-
-    expect(
-      find.textContaining('Could not open the PDF'),
-      findsOneWidget,
-    );
-  });
-
-  testWidgets('done state: result panel rendered (FR-09)', (tester) async {
+  testWidgets('queue state: file cards + convert all button', (tester) async {
     final controller = FakeConversionController();
     await tester.pumpWidget(MaterialApp(
       home: HomeScreen(controller: controller),
     ));
 
-    controller.convert(pdfPath: 'x.pdf', outputPath: 'x.md');
-    await tester.pump();
-    await tester.pump(const Duration(milliseconds: 100));
+    controller.addFiles(['a.pdf', 'b.pdf']);
     await tester.pump();
 
-    expect(find.byType(ResultPanel), findsOneWidget);
-    expect(find.text('x.md'), findsOneWidget);
+    expect(find.text('a.pdf'), findsOneWidget);
+    expect(find.text('b.pdf'), findsOneWidget);
+    expect(find.text('Convert all (2)'), findsOneWidget);
   });
 
-  testWidgets('convert another: reset kembali ke empty state', (tester) async {
+  testWidgets('remove file from queue', (tester) async {
     final controller = FakeConversionController();
     await tester.pumpWidget(MaterialApp(
       home: HomeScreen(controller: controller),
     ));
 
-    controller.convert(pdfPath: 'x.pdf', outputPath: 'x.md');
+    controller.addFiles(['a.pdf', 'b.pdf']);
     await tester.pump();
-    await tester.pump(const Duration(milliseconds: 100));
-    await tester.pump();
-    expect(find.byType(ResultPanel), findsOneWidget);
 
-    await tester.scrollUntilVisible(
-      find.text('Convert another'),
-      200,
-      scrollable: find.byType(Scrollable).last,
-    );
-    await tester.tap(find.text('Convert another'));
+    // Hapus 'b.pdf' via tombol remove pertama yang cocok.
+    final removeButtons = find.byIcon(Icons.close);
+    expect(removeButtons, findsNWidgets(2));
+    await tester.tap(removeButtons.last);
     await tester.pump();
-    await tester.pump(const Duration(milliseconds: 350)); // AnimatedSwitcher
 
-    expect(find.byType(ResultPanel), findsNothing);
-    expect(find.byType(DropZone), findsOneWidget);
-    expect(controller.outputPath, isNull);
+    expect(find.text('b.pdf'), findsNothing);
+    expect(find.text('Convert all (1)'), findsOneWidget);
   });
 
-  testWidgets('running state: progress panel + cancel button (FR-08, FR-11)',
+  testWidgets('running state: progress + file status (FR-08, FR-11)',
       (tester) async {
     final controller = FakeConversionController();
     await tester.pumpWidget(MaterialApp(
       home: HomeScreen(controller: controller),
     ));
 
-    controller.convert(pdfPath: 'x.pdf', outputPath: 'x.md');
+    controller.addFiles(['a.pdf', 'b.pdf']);
+    await tester.pump();
+    controller.convertAll();
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 5));
 
@@ -177,6 +170,31 @@ void main() {
 
     await tester.pump(const Duration(milliseconds: 100));
     await tester.pump();
-    expect(find.text('x.md'), findsOneWidget);
+    // Setelah batch selesai (cancelled) → summary tampil.
+    expect(find.text('Clear all'), findsOneWidget);
+  });
+
+  testWidgets('summary state: done files shown, clear resets to empty',
+      (tester) async {
+    final controller = FakeConversionController();
+    await tester.pumpWidget(MaterialApp(
+      home: HomeScreen(controller: controller),
+    ));
+
+    controller.addFiles(['a.pdf', 'b.pdf']);
+    await tester.pump();
+    controller.convertAll();
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 100));
+    await tester.pump();
+
+    expect(find.text('Clear all'), findsOneWidget);
+
+    await tester.tap(find.text('Clear all'));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 350));
+
+    expect(find.byType(DropZone), findsOneWidget);
+    expect(controller.queue, isEmpty);
   });
 }

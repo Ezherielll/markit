@@ -42,3 +42,12 @@ Tanggal: 2026-08-03 · paket: `pdfrx 2.4.7` + `pdfrx_engine 0.4.6` + `pdfium_dar
 - ✅ API surface tervalidasi (open, pages, isEncrypted, structuredText, loadText, timing)
 - ✅ Keputusan: pdfrx 2.4.7 LANJUT dipakai; proxy fontSize via char height
 - Keputusan Y-flip: koordinat PDF bottom-left; line grouping akan pakai y-asli PDF lalu di-flip saat perlu — dicatat di `models/layout.dart`
+
+## Temuan tambahan (multi-file batch, 2026-08)
+
+1. **PDFium tidak aman di-spawn/teardown berulang dalam satu proses.**
+   - Gejala: worker kedua (batch berikutnya) crash `Cannot invoke native callback from a different isolate` — pdfrx membuat `PdfrxEngineWorker` internal (isolate FFI) yang hidup bersama.
+   - Solusi: **satu worker isolate PERSIST untuk seluruh umur aplikasi** (`IsolateConversionController`), batch berikutnya reuse worker + `ResetCancel`.
+2. **Probe page count (PDFium di main isolate) hanya boleh SEBELUM worker pertama di-spawn.** Setelah worker hidup, dua engine worker bersamaan → crash yang sama. Setelahnya pageCount diisi dari `ConvertDone.pageCount`.
+3. Worker harus `source.dispose()` sebelum job selesai — handle native PDFium per-job wajib dibebaskan.
+4. `PdfrxEntryFunctions.instance.stopBackgroundWorker()` ada tapi tidak menyelesaikan masalah teardown — pendekatan persist-worker lebih aman.
