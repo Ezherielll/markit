@@ -11,6 +11,7 @@ import 'package:pdflow/ui/widgets/drop_zone.dart';
 import 'package:pdflow/ui/widgets/file_card.dart';
 import 'package:pdflow/ui/widgets/progress_panel.dart';
 import 'package:pdflow/ui/widgets/result_panel.dart';
+import 'package:pdflow/ui/download_zip.dart';
 
 import '../../isolate/conversion_controller.dart';
 import '../../theme/theme_controller.dart';
@@ -403,6 +404,16 @@ class _SummaryState extends StatelessWidget {
             ),
           ],
           const SizedBox(height: PdflowSpacing.xl),
+          if (kIsWeb && done > 0) ...[
+            // Bug #1 fix: di web, semua hasil digabung jadi satu ZIP
+            // (browser memblokir banyak download otomatis sekaligus).
+            FilledButton.icon(
+              onPressed: () => _downloadAllZip(queue, done),
+              icon: const Icon(Icons.archive_outlined, size: 18),
+              label: Text('${Strings.downloadAllZip} ($done)'),
+            ),
+            const SizedBox(height: PdflowSpacing.md),
+          ],
           Row(
             children: [
               Expanded(
@@ -428,7 +439,6 @@ class _SummaryState extends StatelessWidget {
 /// Tiga poin fitur kecil di bawah drop zone.
 class _FeatureRow extends StatelessWidget {
   const _FeatureRow();
-
   @override
   Widget build(BuildContext context) {
     final items = [
@@ -466,4 +476,18 @@ class _FeatureRow extends StatelessWidget {
       ],
     );
   }
+}
+
+/// Kumpulkan semua output sukses (web) → unduh sebagai satu ZIP.
+/// Bug #1 fix: browser memblokir banyak download otomatis tanpa gesture,
+/// jadi semua file digabung dalam satu arsip.
+void _downloadAllZip(List<QueuedFile> queue, int done) {
+  final files = <String, String>{};
+  for (final job in queue) {
+    if (job.status == JobStatus.done && job.content != null) {
+      files[job.input.outputName] = job.content!;
+    }
+  }
+  if (files.isEmpty) return;
+  downloadZipFile('pdflow-converted.zip', files);
 }

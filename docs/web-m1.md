@@ -100,6 +100,20 @@
 - Web logic teruji di VM: InlineExecutor (convert bytes / cancel / corrupt), MemoryOutput, download helper (stub path).
 - Manual checklist browser — dilakukan di M11 pasca deploy (Chrome + Edge, resize, keyboard, drop).
 
+## M12 — Bug Fixes Web (selesai 2026-08-05)
+
+### Bug #1: download multi-file hanya 1 file
+- Penyebab: summary hanya merender 1 ResultPanel (job done pertama) + tombol download per-file.
+- Fix: tombol **"Download all as ZIP (N)"** di summary (web) — semua `job.content` done digabung jadi satu ZIP via `package:archive` (Blob download), pola conditional import (`download_zip.dart`/`_web.dart`/`_stub.dart`). Per-file download tetap ada.
+- `archive` jadi direct dependency. Test: unit ZIP encode/decode + koleksi job done.
+
+### Bug #2: lambat ganti theme di halaman convert
+- Penyebab: `MarkdownBody` meng-parse ulang SELURUH konten tiap rebuild (termasuk toggle theme) — mahal untuk dokumen besar.
+- Fix: preview di-truncate di batas baris (max 64 KB, `truncateMarkdownPreview`) + `RepaintBoundary` di sekitar preview + indikator "Preview truncated". Download tetap full content.
+- Test: unit truncation (batas baris, baris panjang, konten asli utuh).
+
+- Verifikasi: 63 test hijau; build Windows & web sukses; deploy otomatis via Actions.
+
 ## M11 — Build & Deployment (selesai 2026-08-05)
 
 - Build release web: \lutter build web --release --base-href /pdflow/\ (bundle ±47 MB: main.dart.js ~2 MB + pdfium.wasm 5.1 MB + canvaskit variants)

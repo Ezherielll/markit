@@ -31,10 +31,20 @@ class ResultPanel extends StatefulWidget {
 }
 
 class _ResultPanelState extends State<ResultPanel> {
+  /// Konten penuh (untuk download & stats).
   String? _content;
+
+  /// Preview terpotong (bug #2 fix): MarkdownBody meng-parse ulang seluruh
+  /// data setiap rebuild (termasuk saat ganti theme) — membatasi ukuran
+  /// preview menjaga toggle theme tetap responsif pada dokumen besar.
+  String? _preview;
+  bool _previewTruncated = false;
   _MdStats? _stats;
   bool _showRaw = false;
   bool _copied = false;
+
+  /// Batas maksimal karakter preview (dipotong di batas baris).
+  static const int maxPreviewChars = 64 * 1024;
 
   @override
   void initState() {
@@ -52,14 +62,23 @@ class _ResultPanelState extends State<ResultPanel> {
       content = await file.readAsString();
     }
 
-    // Stats struktur: hitung per baris dari konten.
+    // Stats struktur: hitung per baris dari konten penuh.
     final stats = _MdStats();
     for (final line in const LineSplitter().convert(content)) {
       stats.countLine(line);
     }
+
+    // Preview terpotong di batas baris (markdown tetap valid).
+    final truncated = truncateMarkdownPreview(
+      content,
+      maxChars: maxPreviewChars,
+    );
+
     if (!mounted) return;
     setState(() {
       _content = content;
+      _preview = truncated.preview;
+      _previewTruncated = truncated.truncated;
       _stats = stats;
     });
   }
@@ -232,34 +251,60 @@ class _ResultPanelState extends State<ResultPanel> {
         ),
         const SizedBox(height: PdflowSpacing.md),
         // "Halaman kertas": preview dalam kartu putih dengan margin kertas.
-        Container(
-          height: 320,
-          width: double.infinity,
-          decoration: BoxDecoration(
-            color: isDark ? PdflowColors.paperDark : PdflowColors.paperLight,
-            borderRadius: BorderRadius.circular(PdflowSpacing.radiusCard),
-            border: Border.all(color: hairline),
-          ),
-          padding: const EdgeInsets.all(PdflowSpacing.xl),
-          child: _content == null
-              ? const Center(child: CircularProgressIndicator())
-              : SingleChildScrollView(
-                  child: _showRaw
-                      ? SelectableText(
-                          _content!,
-                          style: TextStyle(
-                            fontFamily: PdflowTypography.mono,
-                            fontSize: 12,
-                            height: 1.5,
-                            color: ink,
+        // RepaintBoundary (bug #2 fix): isolasi repaint preview dari rebuild
+        // tema agar toggle theme tidak me-render ulang subtree lain.
+        RepaintBoundary(
+          child: Container(
+            height: 320,
+            width: double.infinity,
+            decoration: BoxDecoration(
+              color: isDark ? PdflowColors.paperDark : PdflowColors.paperLight,
+              borderRadius: BorderRadius.circular(PdflowSpacing.radiusCard),
+              border: Border.all(color: hairline),
+            ),
+            padding: const EdgeInsets.all(PdflowSpacing.xl),
+            child: _preview == null
+                ? const Center(child: CircularProgressIndicator())
+                : SingleChildScrollView(
+                    child: _showRaw
+                        ? SelectableText(
+                            _preview!,
+                            style: TextStyle(
+                              fontFamily: PdflowTypography.mono,
+                              fontSize: 12,
+                              height: 1.5,
+                              color: ink,
+                            ),
+                          )
+                        : MarkdownBody(
+                            data: _preview!,
+                            styleSheet: _mdStyle(context),
                           ),
-                        )
-                      : MarkdownBody(
-                          data: _content!,
-                          styleSheet: _mdStyle(context),
-                        ),
-                ),
+                  ),
+          ),
         ),
+        if (_previewTruncated) ...[
+          const SizedBox(height: PdflowSpacing.sm),
+          Row(
+            children: [
+              Icon(Icons.info_outline,
+                  size: 14,
+                  color: isDark
+                      ? PdflowColors.inkMutedDark
+                      : PdflowColors.inkMutedLight),
+              const SizedBox(width: PdflowSpacing.xs),
+              Text(
+                Strings.previewTruncated,
+                style: TextStyle(
+                  fontSize: 12,
+                  color: isDark
+                      ? PdflowColors.inkMutedDark
+                      : PdflowColors.inkMutedLight,
+                ),
+              ),
+            ],
+          ),
+        ],
         const SizedBox(height: PdflowSpacing.lg),
         Row(
           children: [
@@ -294,6 +339,25 @@ class _ResultPanelState extends State<ResultPanel> {
       ],
     );
   }
+}
+
+/// Potong konten untuk preview (bug #2 fix) — memotong di batas baris agar
+/// markdown tetap valid. Return (preview, apakah terpotong).
+({String preview, bool truncated}) truncateMarkdownPreview(
+  String content, {
+  required int maxChars,
+}) {
+  if (content.length <= maxChars) {
+    return (preview: content, truncated: false);
+  }
+  var cut = content.lastIndexOf('\n', maxChars);
+  if (cut <= 0) cut = maxChars;
+  // Potong di akhir baris (termasuk newline) agar baris terakhir utuh.
+  if (cut < content.length && content[cut] == '\n') cut++;
+  return (
+    preview: content.substring(0, cut),
+    truncated: true,
+  );
 }
 
 /// Penghitung struktur markdown sederhana (FR-09 preview stats).

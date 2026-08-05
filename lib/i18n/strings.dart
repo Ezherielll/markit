@@ -31,6 +31,8 @@ class Strings {
   static const openOutput = 'Open folder';
   static const download = 'Download';
   static const downloadStarted = 'Download started';
+  static const downloadAll = 'Download all';
+  static const downloadAllZip = 'Download all as ZIP';
   static const copyPath = 'Copy path';
   static const copied = 'Path copied';
   static const convertAnother = 'Convert another';
@@ -43,6 +45,8 @@ class Strings {
   static const fileDone = 'Done';
   static const previewTitle = 'Preview';
   static const previewRawTitle = 'Raw markdown';
+  static const previewTruncated =
+      'Preview truncated for performance — download for the full content.';
   static const showRendered = 'Rendered';
   static const showRaw = 'Raw';
   static const statsHeading = 'Headings';
