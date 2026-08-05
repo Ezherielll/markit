@@ -77,9 +77,22 @@ indexed, and fed to AI systems as input (RAG / LLM).
 flutter pub get
 flutter run -d windows        # run in debug mode
 flutter build windows         # build a release binary
+flutter run -d chrome         # run the web version (also: macos / linux)
+flutter build web --release   # build the web release
 ```
 
 Replace `windows` with `macos` or `linux` for other platforms.
+
+### Web
+
+- **Live demo (GitHub Pages):** https://ezherielll.github.io/pdflow/
+- Deploy otomatis via GitHub Actions saat push ke `master` (lihat
+  `docs/web-deploy.md`).
+- Web mendukung: multi-file, drag & drop, preview rendered markdown,
+  **download output** (Blob), theme switcher, 100% offline (wasm + fonts
+  lokal).
+- Perbedaan web vs desktop: output di-download (bukan disimpan ke disk);
+  konversi inline di main isolate; file dibaca ke memory.
 
 ### Test, analyze & benchmark
 
@@ -122,22 +135,24 @@ PdfSource (pdfrx)  →  LineGrouper  →  ParagraphJoiner  →  StructureClassif
 ```
 lib/
   core/     pure Dart pipeline (pdf source, line grouper, joiner,
-            classifier, writer, converter) — unit-testable without Flutter
-  isolate/  persistent worker isolate + batch controller (queue, cancel,
-            keeps the UI responsive)
-  models/   TextSpan / Line / Block
+            classifier, writer, converter, output target) — unit-testable
+  isolate/  ConversionExecutor (isolate persist / inline web) + batch
+            controller (queue, cancel) — conditional import per platform
+  models/   TextSpan / Line / Block / PdfInput (path | bytes)
+  theme/    ThemeController (light/dark/system, persisted)
   ui/
     screens/     home screen (state machine: empty → queue → running → summary)
-    widgets/     app header, drop zone, file card, progress panel,
-                 result summary, stat chips
+    widgets/     app header (theme toggle), drop zone, file card, progress
+                 panel, result panel (preview + download), stat chips
     theme/       ink/paper palette, typography (Fraunces / Inter / JetBrains Mono),
                  spacing, PdflowTheme light & dark
   i18n/     string tables (localization)
 assets/fonts/  bundled font assets (offline-safe)
+web/        web entry (index.html splash, manifest, icons)
 benchmark/  headless harness + golden evaluator
 corpus/     synthetic PDFs, golden files, and conversion output
-test/       unit / widget / integration / spike tests
-docs/       benchmark results, MVP checklist, pdfrx spike notes
+test/       unit / widget / integration (desktop-tagged) / spike tests
+docs/       benchmark results, MVP checklist, pdfrx spike notes, web deploy
 ```
 
 ## UI design ("Document Studio")
