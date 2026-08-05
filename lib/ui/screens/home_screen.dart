@@ -1,8 +1,10 @@
 import 'dart:async';
 import 'dart:io';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:pdflow/i18n/strings.dart';
+import 'package:pdflow/models/pdf_input.dart';
 import 'package:pdflow/ui/theme/spacing.dart';
 import 'package:pdflow/ui/widgets/app_header.dart';
 import 'package:pdflow/ui/widgets/drop_zone.dart';
@@ -40,16 +42,17 @@ class _HomeScreenState extends State<HomeScreen> {
     super.dispose();
   }
 
-  void _onFilesPicked(List<String> paths) {
-    widget.controller.addFiles(paths);
+  void _onFilesPicked(List<PdfInput> inputs) {
+    widget.controller.addFiles(inputs);
   }
 
   Future<void> _convertAll() async {
     final controller = widget.controller;
     if (controller.queue.isEmpty) return;
 
-    // Konfirmasi overwrite sekali per batch (FR-12).
-    if (!_overwriteConfirmed) {
+    // Konfirmasi overwrite sekali per batch (FR-12) — hanya desktop;
+    // di web output selalu di memory (tidak ada filesystem).
+    if (!kIsWeb && !_overwriteConfirmed) {
       final conflicts = <String>[];
       for (final job in controller.queue) {
         if (await File(job.outputPath).exists()) {
@@ -199,7 +202,7 @@ class _HomeScreenState extends State<HomeScreen> {
 class _EmptyState extends StatelessWidget {
   const _EmptyState({super.key, required this.onFilesPicked});
 
-  final ValueChanged<List<String>> onFilesPicked;
+  final ValueChanged<List<PdfInput>> onFilesPicked;
 
   @override
   Widget build(BuildContext context) {

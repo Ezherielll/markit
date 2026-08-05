@@ -42,3 +42,13 @@
 - \IsolateConversionController\ → \BatchConversionController\ — controller TIDAK lagi memegang isolate logic; hanya orchestrasi queue + delegate ke executor
 - Web path (factory_web + inline_executor) BEBAS dart:isolate/dart:io ✓ — \lutter build web\ sukses
 - Test: +3 InlineExecutor (convert bytes, cancel, corrupt) — 53 hijau; integration desktop tetap pakai IsolateExecutor via factory
+
+## M4 — Input Abstraction (selesai 2026-08-05)
+
+- Baru: \models/pdf_input.dart\ — PdfInput {name, sizeBytes, path (desktop) | bytes (web)}, dedupeKey, outputName
+- \QueuedFile\ simpan \PdfInput\ (bukan pdfPath); outputPath = path→.md (desktop) / name→.md (web)
+- \ddFiles(List<PdfInput>)\; probe: probePageCountData(bytes) untuk web, probePageCount(path) untuk desktop
+- \PdfrxSource.probePageCountData(Uint8List)\ baru
+- \pickPdfFiles()\ → List<PdfInput>: kIsWeb → readAsBytes; desktop → path
+- \FileCard\ pakai input.sizeBytes (hapus File(path)); overwrite check di-skip di web (kIsWeb)
+- \lib/ui/\ bebas File() untuk input ✓; 53 test hijau; build Windows & web sukses

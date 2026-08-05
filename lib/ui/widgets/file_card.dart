@@ -1,5 +1,3 @@
-import 'dart:io';
-
 import 'package:flutter/material.dart';
 import 'package:pdflow/i18n/strings.dart';
 import 'package:pdflow/isolate/conversion_controller.dart';
@@ -9,7 +7,7 @@ import 'package:pdflow/ui/theme/typography.dart';
 
 /// Kartu satu file dalam queue batch: nama, ukuran, pages, status chip,
 /// tombol hapus (opsional).
-class FileCard extends StatefulWidget {
+class FileCard extends StatelessWidget {
   const FileCard({
     super.key,
     required this.job,
@@ -26,36 +24,17 @@ class FileCard extends StatefulWidget {
   final VoidCallback? onRemove;
 
   @override
-  State<FileCard> createState() => _FileCardState();
-}
-
-class _FileCardState extends State<FileCard> {
-  int? _sizeBytes;
-
-  @override
-  void initState() {
-    super.initState();
-    _loadSize();
-  }
-
-  Future<void> _loadSize() async {
-    final f = File(widget.job.pdfPath);
-    if (!await f.exists()) return;
-    final size = await f.length();
-    if (mounted) setState(() => _sizeBytes = size);
-  }
-
-  @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final ink = isDark ? PdflowColors.inkDark : PdflowColors.inkLight;
     final inkMuted = isDark ? PdflowColors.inkMutedDark : PdflowColors.inkMutedLight;
     final hairline = isDark ? PdflowColors.hairlineDark : PdflowColors.hairlineLight;
 
-    final size = _sizeBytes == null
+    final job = this.job;
+    final sizeBytes = job.input.sizeBytes;
+    final size = sizeBytes == null
         ? null
-        : '${(_sizeBytes! / (1024 * 1024)).toStringAsFixed(1)} MB';
-    final job = widget.job;
+        : '${(sizeBytes / (1024 * 1024)).toStringAsFixed(1)} MB';
 
     return Container(
       padding: const EdgeInsets.all(PdflowSpacing.lg),
@@ -106,7 +85,7 @@ class _FileCardState extends State<FileCard> {
                   ].join('  ·  '),
                   style: TextStyle(fontSize: 12.5, color: inkMuted),
                 ),
-                if (widget.showStatus && job.status == JobStatus.failed) ...[
+                if (showStatus && job.status == JobStatus.failed) ...[
                   const SizedBox(height: 4),
                   Text(
                     _errorText(job),
@@ -121,14 +100,14 @@ class _FileCardState extends State<FileCard> {
               ],
             ),
           ),
-          if (widget.showStatus) ...[
+          if (showStatus) ...[
             const SizedBox(width: PdflowSpacing.md),
             _StatusChip(status: job.status),
           ],
-          if (widget.onRemove != null) ...[
+          if (onRemove != null) ...[
             const SizedBox(width: PdflowSpacing.xs),
             IconButton(
-              onPressed: widget.onRemove,
+              onPressed: onRemove,
               icon: const Icon(Icons.close, size: 18),
               tooltip: Strings.removeFile,
             ),

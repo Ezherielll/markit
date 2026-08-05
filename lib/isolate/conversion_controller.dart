@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/foundation.dart';
 
 import '../core/pdfrx_source.dart';
+import '../models/pdf_input.dart';
 import 'conversion_executor.dart';
 import 'conversion_executor_factory.dart';
 
@@ -13,12 +14,12 @@ enum JobStatus { queued, running, done, failed, cancelled }
 class QueuedFile {
   QueuedFile({
     required this.id,
-    required this.pdfPath,
+    required this.input,
     this.status = JobStatus.queued,
   });
 
   final String id;
-  final String pdfPath;
+  final PdfInput input;
   JobStatus status;
 
   /// Hasil probe page count (nullable sampai probe selesai).
@@ -35,12 +36,19 @@ class QueuedFile {
   /// Isi markdown hasil konversi (web/MemoryOutput); null di desktop.
   String? content;
 
-  String get outputPath => pdfPath.replaceFirst(
+  /// Path output (desktop: path .pdf → .md) atau nama file output (web).
+  String get outputPath {
+    final path = input.path;
+    if (path != null) {
+      return path.replaceFirst(
         RegExp(r'\.pdf$', caseSensitive: false),
         '.md',
       );
+    }
+    return input.outputName;
+  }
 
-  String get fileName => pdfPath.split(RegExp(r'[\\/]')).last;
+  String get fileName => input.name;
 }
 
 /// Controller konversi batch (multi-file) yang bisa di-fake untuk widget test.
@@ -73,7 +81,7 @@ abstract class ConversionController extends ChangeNotifier {
   /// Jumlah job sukses.
   int get doneCount;
 
-  void addFiles(List<String> paths);
+  void addFiles(List<PdfInput> inputs);
 
   /// Hapus file dari queue. Ditolak saat batch berjalan.
   void removeFile(String id);
@@ -138,15 +146,15 @@ class BatchConversionController extends ConversionController {
   int get doneCount => _queue.where((f) => f.status == JobStatus.done).length;
 
   @override
-  void addFiles(List<String> paths) {
+  void addFiles(List<PdfInput> inputs) {
     if (_isRunning) return;
-    final existing = _queue.map((f) => f.pdfPath).toSet();
-    for (final path in paths) {
-      if (existing.contains(path)) continue;
-      existing.add(path);
+    final existing = _queue.map((f) => f.input.dedupeKey).toSet();
+    for (final input in inputs) {
+      if (existing.contains(input.dedupeKey)) continue;
+      existing.add(input.dedupeKey);
       _queue.add(QueuedFile(
         id: 'job-${DateTime.now().microsecondsSinceEpoch}-${_idCounter++}',
-        pdfPath: path,
+        input: input,
       ));
     }
     notifyListeners();
@@ -167,7 +175,10 @@ class BatchConversionController extends ConversionController {
 
   Future<void> _doProbe(QueuedFile job) async {
     try {
-      final count = await PdfrxSource.probePageCount(job.pdfPath);
+      final input = job.input;
+      final count = input.isBytes
+          ? await PdfrxSource.probePageCountData(input.bytes!)
+          : await PdfrxSource.probePageCount(input.path!);
       job.pageCount = count;
       notifyListeners();
     } catch (_) {
@@ -219,7 +230,8 @@ class BatchConversionController extends ConversionController {
 
         final result = await _executor.runJob(
           jobId: job.id,
-          pdfPath: job.pdfPath,
+          pdfPath: job.input.path ?? '',
+          pdfBytes: job.input.bytes,
           outputPath: job.outputPath,
           onProgress: (page, total, phase, elapsedMs) {
             _currentPage = page;

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:pdflow/isolate/conversion_controller.dart';
+import 'package:pdflow/models/pdf_input.dart';
 import 'package:pdflow/ui/screens/home_screen.dart';
 import 'package:pdflow/ui/widgets/drop_zone.dart';
 import 'package:pdflow/ui/widgets/progress_panel.dart';
@@ -43,11 +44,11 @@ class FakeConversionController extends ConversionController {
   int get doneCount => _queue.where((f) => f.status == JobStatus.done).length;
 
   @override
-  void addFiles(List<String> paths) {
-    for (final path in paths) {
+  void addFiles(List<PdfInput> inputs) {
+    for (final input in inputs) {
       final job = QueuedFile(
         id: 'j${_id++}',
-        pdfPath: path,
+        input: input,
       );
       job.pageCount = 10;
       _queue.add(job);
@@ -125,7 +126,7 @@ void main() {
       home: HomeScreen(controller: controller),
     ));
 
-    controller.addFiles(['a.pdf', 'b.pdf']);
+    controller.addFiles([PdfInput(name: 'a.pdf', path: 'a.pdf'), PdfInput(name: 'b.pdf', path: 'b.pdf')]);
     await tester.pump();
 
     expect(find.text('a.pdf'), findsOneWidget);
@@ -139,7 +140,7 @@ void main() {
       home: HomeScreen(controller: controller),
     ));
 
-    controller.addFiles(['a.pdf', 'b.pdf']);
+    controller.addFiles([PdfInput(name: 'a.pdf', path: 'a.pdf'), PdfInput(name: 'b.pdf', path: 'b.pdf')]);
     await tester.pump();
 
     // Hapus 'b.pdf' via tombol remove pertama yang cocok.
@@ -159,7 +160,7 @@ void main() {
       home: HomeScreen(controller: controller),
     ));
 
-    controller.addFiles(['a.pdf', 'b.pdf']);
+    controller.addFiles([PdfInput(name: 'a.pdf', path: 'a.pdf'), PdfInput(name: 'b.pdf', path: 'b.pdf')]);
     await tester.pump();
     controller.convertAll();
     await tester.pump();
@@ -184,7 +185,7 @@ void main() {
       home: HomeScreen(controller: controller),
     ));
 
-    controller.addFiles(['a.pdf', 'b.pdf']);
+    controller.addFiles([PdfInput(name: 'a.pdf', path: 'a.pdf'), PdfInput(name: 'b.pdf', path: 'b.pdf')]);
     await tester.pump();
     controller.convertAll();
     await tester.pump();

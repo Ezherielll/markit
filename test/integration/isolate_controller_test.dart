@@ -2,8 +2,14 @@ import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:pdflow/isolate/conversion_controller.dart';
+import 'package:pdflow/models/pdf_input.dart';
 
 import '../helpers/pdf_factory.dart';
+
+List<PdfInput> _inputs(List<String> paths) => [
+      for (final p in paths)
+        PdfInput(name: p.split(RegExp(r'[\\/]')).last, path: p),
+    ];
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
@@ -56,7 +62,7 @@ void main() {
       File(p).writeAsBytesSync(buildTestPdf());
     }
 
-    controller.addFiles(pdfs);
+    controller.addFiles(_inputs(pdfs));
     await controller.convertAll();
 
     expect(controller.doneCount, 3);
@@ -77,10 +83,10 @@ void main() {
     File(pdfs[1]).writeAsBytesSync(buildTestPdf());
     File(pdfs[2]).writeAsBytesSync(buildTestPdf());
 
-    controller.addFiles(pdfs);
+    controller.addFiles(_inputs(pdfs));
     await controller.convertAll();
 
-    final bad = controller.queue.firstWhere((f) => f.pdfPath.endsWith('bad.pdf'));
+    final bad = controller.queue.firstWhere((f) => f.input.path!.endsWith('bad.pdf'));
     expect(bad.status, JobStatus.failed);
     expect(controller.doneCount, 2);
   });
@@ -97,7 +103,7 @@ void main() {
     );
     File(pdfs[1]).writeAsBytesSync(buildTestPdf());
 
-    controller.addFiles(pdfs);
+    controller.addFiles(_inputs(pdfs));
 
     final batchFuture = controller.convertAll();
     // Tunggu batch mulai, lalu cancel.
@@ -119,7 +125,7 @@ void main() {
     final pdf = '${tmp.path}/again.pdf';
     File(pdf).writeAsBytesSync(buildTestPdf());
 
-    controller.addFiles([pdf]);
+    controller.addFiles(_inputs([pdf]));
     await controller.convertAll();
 
     expect(controller.doneCount, 1);

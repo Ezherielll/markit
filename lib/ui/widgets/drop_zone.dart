@@ -1,21 +1,40 @@
 import 'dart:async';
 
 import 'package:file_selector/file_selector.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:pdflow/i18n/strings.dart';
+import 'package:pdflow/models/pdf_input.dart';
 import 'package:pdflow/ui/theme/palette.dart';
 import 'package:pdflow/ui/theme/spacing.dart';
 import 'package:pdflow/ui/theme/typography.dart';
 import 'package:super_drag_and_drop/super_drag_and_drop.dart';
 
 /// Buka dialog picker PDF (multi-select). Dipakai drop zone & tombol "Add files".
-Future<List<String>> pickPdfFiles() async {
+/// Desktop: PdfInput berisi path; Web: berisi bytes (tanpa filesystem).
+Future<List<PdfInput>> pickPdfFiles() async {
   const typeGroup = XTypeGroup(
     label: Strings.pickFileFilterName,
     extensions: ['pdf'],
   );
   final files = await openFiles(acceptedTypeGroups: const [typeGroup]);
-  return files.map((f) => f.path).toList();
+  final inputs = <PdfInput>[];
+  for (final f in files) {
+    if (kIsWeb) {
+      inputs.add(PdfInput(
+        name: f.name,
+        sizeBytes: await f.length(),
+        bytes: await f.readAsBytes(),
+      ));
+    } else {
+      inputs.add(PdfInput(
+        name: f.name,
+        sizeBytes: await f.length(),
+        path: f.path,
+      ));
+    }
+  }
+  return inputs;
 }
 
 /// Drop zone besar — menerima banyak file PDF via drag & drop (desktop) atau
@@ -23,8 +42,8 @@ Future<List<String>> pickPdfFiles() async {
 class DropZone extends StatefulWidget {
   const DropZone({super.key, required this.onFilesPicked});
 
-  /// Dipanggil dengan daftar path file PDF yang dipilih/di-drop.
-  final ValueChanged<List<String>> onFilesPicked;
+  /// Dipanggil dengan daftar [PdfInput] file PDF yang dipilih/di-drop.
+  final ValueChanged<List<PdfInput>> onFilesPicked;
 
   @override
   State<DropZone> createState() => _DropZoneState();
@@ -34,28 +53,31 @@ class _DropZoneState extends State<DropZone> {
   bool _dragActive = false;
 
   Future<void> _pick() async {
-    final paths = await pickPdfFiles();
-    if (paths.isEmpty) return;
-    widget.onFilesPicked(paths);
+    final inputs = await pickPdfFiles();
+    if (inputs.isEmpty) return;
+    widget.onFilesPicked(inputs);
   }
 
   Future<void> _onDrop(PerformDropEvent event) async {
-    final paths = <String>[];
+    final inputs = <PdfInput>[];
     for (final item in event.session.items) {
       final reader = item.dataReader;
       if (reader == null) continue;
       if (!reader.canProvide(Formats.fileUri)) continue;
-      final completer = Completer<String?>();
+      final completer = Completer<Uri?>();
       reader.getValue<Uri>(Formats.fileUri, (uri) {
-        completer.complete(uri?.toFilePath());
+        completer.complete(uri);
       }, onError: (_) {
         if (!completer.isCompleted) completer.complete(null);
       });
-      final path = await completer.future;
-      if (path != null) paths.add(path);
+      final uri = await completer.future;
+      final path = uri?.toFilePath();
+      if (path != null) {
+        inputs.add(PdfInput(name: path.split(RegExp(r'[\\/]')).last, path: path));
+      }
     }
-    if (paths.isNotEmpty && mounted) {
-      widget.onFilesPicked(paths);
+    if (inputs.isNotEmpty && mounted) {
+      widget.onFilesPicked(inputs);
     }
   }
 

@@ -46,6 +46,16 @@ class PdfrxSource implements PdfSource {
     }
   }
 
+  /// Probe cepat dari bytes (web — tanpa filesystem).
+  static Future<int> probePageCountData(Uint8List data) async {
+    final src = await openData(data);
+    try {
+      return src.pageCount;
+    } finally {
+      await src.dispose();
+    }
+  }
+
   @override
   int get pageCount => _doc.pages.length;
 
