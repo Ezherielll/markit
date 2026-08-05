@@ -76,3 +76,10 @@
 - `main.dart`: load pref sebelum runApp; `PdflowApp` stateful + ListenableBuilder(themeMode); `AppHeader` tombol cycle dengan ikon adaptif (light/dark/auto)
 - Dep baru: `shared_preferences`
 - 57 test hijau (+3 unit ThemeController: cycle, persist-reload, fallback; +1 widget: toggle cycle); build Windows & web sukses
+
+## M8 — Routing Check (selesai 2026-08-05)
+
+- Aplikasi single-screen tanpa router/navigator manual → TIDAK perlu go_router.
+- Flutter web default: hash routing (`#/`) + `base href="/"` — aman untuk deploy root maupun sub-path (M11 `--base-href`).
+- State ephemeral (queue batch) wajar hilang saat refresh browser — tidak ada deep-link yang perlu dipertahankan.
+- Future (opsional): `?pdf=` param untuk deep-link — dicatat, bukan sekarang.
