@@ -2,6 +2,7 @@ import 'dart:isolate';
 
 import '../core/converter.dart';
 import '../core/errors.dart';
+import '../core/output.dart';
 import '../core/pdfrx_source.dart';
 import 'messages.dart';
 
@@ -61,7 +62,7 @@ Future<void> _runJob(
       ));
       final result = await Converter().convert(
         source: source,
-        outputPath: start.outputPath,
+        output: FileOutput(start.outputPath),
         onProgress: (p) {
           mainPort.send(ConvertProgress(
             jobId: start.jobId,
@@ -75,7 +76,7 @@ Future<void> _runJob(
       );
       mainPort.send(ConvertDone(
         jobId: start.jobId,
-        outputPath: result.outputPath,
+        outputPath: result.outputPath ?? '',
         pageCount: result.pageCount,
         failedPages: result.failedPages.map((p) => p + 1).toList(),
         elapsedMs: result.elapsed.inMilliseconds,

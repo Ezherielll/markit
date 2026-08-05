@@ -1,16 +1,15 @@
-import 'dart:io';
-
 import '../models/layout.dart';
+import 'output.dart';
 
 /// Stage 5: render blok → markdown, ditulis streaming (FR-07).
 ///
 /// Konvensi (D8): UTF-8 tanpa BOM, line ending `\n`.
-/// Menulis langsung ke [IOSink] per blok — caller mengelola sink/flush
+/// Menulis langsung ke [MdSink] per blok — caller mengelola sink/flush
 /// (streaming per halaman). Escaping ringan agar output valid markdown.
 class MarkdownWriter {
   MarkdownWriter(this._sink);
 
-  final IOSink _sink;
+  final MdSink _sink;
   bool _needsBlankLine = false;
 
   /// Tulis satu blok; otomatis sisipkan baris kosong antar-blok.

@@ -1,6 +1,7 @@
 import 'dart:io';
 
 import 'package:pdflow/core/converter.dart';
+import 'package:pdflow/core/output.dart';
 
 import 'engine_source.dart';
 import 'golden_evaluator.dart';
@@ -45,7 +46,7 @@ void main(List<String> args) async {
     final sw = Stopwatch()..start();
     final source = await EnginePdfSource.open(pdf.path);
     try {
-      await Converter().convert(source: source, outputPath: outMd);
+      await Converter().convert(source: source, output: FileOutput(outMd));
     } finally {
       await source.dispose();
     }

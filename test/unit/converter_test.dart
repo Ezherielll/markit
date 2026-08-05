@@ -2,6 +2,7 @@ import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:pdflow/core/converter.dart';
+import 'package:pdflow/core/output.dart';
 import 'package:pdflow/core/pdf_source.dart';
 import 'package:pdflow/core/pdfrx_source.dart';
 import 'package:pdflow/models/layout.dart';
@@ -26,7 +27,7 @@ void main() {
 
     final result = await Converter().convert(
       source: src,
-      outputPath: outPath,
+      output: FileOutput(outPath),
       onProgress: (p) => progress.add(p.page),
     );
     await src.dispose();
@@ -34,6 +35,7 @@ void main() {
     expect(result.pageCount, 3);
     expect(result.hasFailures, isFalse);
     expect(progress, [1, 2, 3]);
+    expect(result.outputPath, outPath);
 
     final md = File(outPath).readAsStringSync();
     // ignore: avoid_print
@@ -58,6 +60,20 @@ void main() {
     expect(File('$outPath.partial').existsSync(), isFalse);
   });
 
+  test('convert → MemoryOutput (web): hasil di memory, outputPath null',
+      () async {
+    final src = await PdfrxSource.openData(buildTestPdf());
+    final output = MemoryOutput();
+
+    final result = await Converter().convert(source: src, output: output);
+    await src.dispose();
+
+    expect(result.outputPath, isNull);
+    expect(output.content, contains('# The Quick Brown Fox'));
+    expect(output.content, contains('- Item one'));
+    expect(output.content, contains('# Chapter Two'));
+  });
+
   test('cancel: file parsial dihapus, _CancelledException dilempar (FR-11)',
       () async {
     final src = await PdfrxSource.openData(buildTestPdf());
@@ -67,7 +83,7 @@ void main() {
     await expectLater(
       Converter().convert(
         source: src,
-        outputPath: outPath,
+        output: FileOutput(outPath),
         isCancelled: () {
           cancelled = !cancelled;
           return cancelled;
@@ -89,7 +105,7 @@ void main() {
     final failing = _FailingPageSource(src, failAt: 1);
     final result = await Converter().convert(
       source: failing,
-      outputPath: outPath,
+      output: FileOutput(outPath),
     );
     await src.dispose();
 

@@ -1,10 +1,9 @@
-import 'dart:io';
-
 import '../models/layout.dart';
 import 'doc_stats.dart';
 import 'errors.dart';
 import 'line_grouper.dart';
 import 'markdown_writer.dart';
+import 'output.dart';
 import 'paragraph_joiner.dart';
 import 'pdf_source.dart';
 import 'structure_classifier.dart';
@@ -19,7 +18,9 @@ class ConversionResult {
     required this.elapsed,
   });
 
-  final String outputPath;
+  /// Path file output (desktop/FileOutput); null untuk MemoryOutput (web).
+  final String? outputPath;
+
   final int pageCount;
 
   /// Halaman yang gagal diekstrak (FR-10c) — index 0-based.
@@ -48,7 +49,8 @@ class ConversionProgress {
 ///
 /// Pass 1: [DocStatsComputer] — histogram ringan, bukan layout penuh.
 /// Pass 2: per halaman → line grouping → paragraph → klasifikasi → write.
-/// File parsial ditulis ke `outputPath.partial`, direname saat sukses (D7).
+/// Output ditulis ke [OutputTarget] (FileOutput desktop / MemoryOutput web);
+/// semantik `.partial` + rename ditangani target (D7).
 class Converter {
   Converter({PipelineConfig? config})
       : config = config ?? const PipelineConfig();
@@ -62,7 +64,7 @@ class Converter {
   /// bila total gagal; page-level failure dicatat di [ConversionResult.failedPages].
   Future<ConversionResult> convert({
     required PdfSource source,
-    required String outputPath,
+    required OutputTarget output,
     void Function(ConversionProgress progress)? onProgress,
     bool Function()? isCancelled,
   }) async {
@@ -81,9 +83,8 @@ class Converter {
       );
     }
 
-    final partialPath = '$outputPath.partial';
     final failedPages = <int>[];
-    final sink = File(partialPath).openWrite();
+    final sink = await output.openSink();
     final writer = MarkdownWriter(sink);
     final grouper = LineGrouper(config: config);
     final joiner = ParagraphJoiner(config: config);
@@ -133,21 +134,14 @@ class Converter {
     }
 
     if (cancelled) {
-      final partial = File(partialPath);
-      if (await partial.exists()) {
-        await partial.delete();
-      }
+      await output.abort();
       throw const _CancelledException();
     }
 
-    final target = File(outputPath);
-    if (await target.exists()) {
-      await target.delete();
-    }
-    await File(partialPath).rename(outputPath);
+    await output.commit();
 
     return ConversionResult(
-      outputPath: outputPath,
+      outputPath: output is FileOutput ? output.outputPath : null,
       pageCount: source.pageCount,
       failedPages: failedPages,
       stats: stats,

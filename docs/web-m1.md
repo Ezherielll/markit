@@ -1,6 +1,6 @@
-# Web Platform — M1 Status
+# Web Platform — Milestone Status
 
-Status: 2026-08-05 · Milestone 1 (scaffold) selesai.
+## M1 — Scaffold (selesai 2026-08-05)
 
 ## Hasil
 
@@ -25,3 +25,13 @@ Status: 2026-08-05 · Milestone 1 (scaffold) selesai.
 
 - Reference machine & build metrics di atas untuk baseline size tracking (M11 deploy).
 - `web/index.html` masih default Flutter — diubah di M5 (meta, splash).
+
+## M2 — Output Abstraction (selesai 2026-08-05)
+
+- Baru: \lib/core/output.dart\ — \MdSink\ (FileMdSink/MemoryMdSink), \OutputTarget\ (FileOutput/MemoryOutput)
+- \MarkdownWriter\ terima \MdSink\ (bukan IOSink); \Converter.convert\ terima \OutputTarget\ (bukan outputPath)
+- Semantik .partial + rename + abort dipindah ke FileOutput; MemoryOutput untuk web (StringBuffer)
+- \ConversionResult.outputPath\ jadi nullable (null untuk web)
+- \lib/core/converter.dart\ & \markdown_writer.dart\ BEBAS dart:io ✓
+- Test: +6 (MemoryOutput convert, output_test FileOutput/MemoryOutput commit/abort, MemoryMdSink) — 50 hijau
+- Build Windows OK; benchmark/run_corpus diadaptasi ke FileOutput

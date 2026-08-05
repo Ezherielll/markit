@@ -3,6 +3,7 @@ import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:pdflow/core/markdown_writer.dart';
+import 'package:pdflow/core/output.dart';
 import 'package:pdflow/models/layout.dart';
 
 void main() {
@@ -19,8 +20,7 @@ void main() {
   test('blok heading/paragraf/list → markdown valid, blank line antar blok',
       () async {
     final file = File('${tmp.path}/out.md');
-    final sink = file.openWrite();
-    final w = MarkdownWriter(sink);
+    final w = MarkdownWriter(FileMdSink(file.openWrite()));
     w.writeBlock(Block(
       type: BlockType.heading,
       lines: const ['Chapter 1'],
@@ -34,8 +34,8 @@ void main() {
       type: BlockType.listItem,
       lines: const ['Item one'],
     ));
-    await sink.flush();
-    await sink.close();
+    await w.flush();
+    await w.close();
 
     final bytes = await file.readAsBytes();
     final text = utf8.decode(bytes);
@@ -48,7 +48,7 @@ void main() {
 
   test('heading level 2 → ##', () async {
     final file = File('${tmp.path}/out2.md');
-    final w = MarkdownWriter(file.openWrite());
+    final w = MarkdownWriter(FileMdSink(file.openWrite()));
     w.writeBlock(Block(
       type: BlockType.heading,
       lines: const ['Sub'],
@@ -60,7 +60,7 @@ void main() {
 
   test('escaping: teks diawali # atau - tidak jadi struktur', () async {
     final file = File('${tmp.path}/out3.md');
-    final w = MarkdownWriter(file.openWrite());
+    final w = MarkdownWriter(FileMdSink(file.openWrite()));
     w.writeBlock(Block(type: BlockType.paragraph, lines: const ['# not heading']));
     w.writeBlock(Block(type: BlockType.paragraph, lines: const ['- not list']));
     w.writeBlock(Block(type: BlockType.paragraph, lines: const ['3. not ordered']));
@@ -76,11 +76,19 @@ void main() {
 
   test('streaming: writeBlock bertahap tetap konsisten', () async {
     final file = File('${tmp.path}/out4.md');
-    final w = MarkdownWriter(file.openWrite());
+    final w = MarkdownWriter(FileMdSink(file.openWrite()));
     w.writeBlock(Block(type: BlockType.paragraph, lines: const ['a']));
     w.writeBlock(Block(type: BlockType.paragraph, lines: const ['b']));
     w.writeBlock(Block(type: BlockType.paragraph, lines: const ['c']));
     await w.close();
     expect(await file.readAsString(), 'a\n\nb\n\nc\n');
+  });
+
+  test('MemoryMdSink: menulis ke StringBuffer (web)', () async {
+    final buffer = StringBuffer();
+    final w = MarkdownWriter(MemoryMdSink(buffer));
+    w.writeBlock(Block(type: BlockType.paragraph, lines: const ['web output']));
+    await w.close();
+    expect(buffer.toString(), 'web output\n');
   });
 }
