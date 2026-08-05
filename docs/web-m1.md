@@ -69,3 +69,10 @@
 - `DropZone._onDrop`: fallback web — fileUri tidak tersedia → coba plainText uri-list; gagal → SnackBar arahkan ke picker
 - Dep baru: `web` (dart:js_interop untuk download)
 - 53 test hijau (+1 assertion FR-09); build Windows & web sukses
+
+## M7 — Theme Switcher (selesai 2026-08-05)
+
+- Baru: `theme/theme_controller.dart` — ThemeMode (light/dark/system), cycle, persist via SharedPreferences (desktop disk / web localStorage)
+- `main.dart`: load pref sebelum runApp; `PdflowApp` stateful + ListenableBuilder(themeMode); `AppHeader` tombol cycle dengan ikon adaptif (light/dark/auto)
+- Dep baru: `shared_preferences`
+- 57 test hijau (+3 unit ThemeController: cycle, persist-reload, fallback; +1 widget: toggle cycle); build Windows & web sukses

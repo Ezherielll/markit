@@ -13,13 +13,21 @@ import 'package:pdflow/ui/widgets/progress_panel.dart';
 import 'package:pdflow/ui/widgets/result_panel.dart';
 
 import '../../isolate/conversion_controller.dart';
+import '../../theme/theme_controller.dart';
 
 /// Layar utama — state machine batch:
 /// empty → queue → running → summary.
 class HomeScreen extends StatefulWidget {
-  const HomeScreen({super.key, required this.controller});
+  const HomeScreen({
+    super.key,
+    required this.controller,
+    this.themeController,
+  });
 
   final ConversionController controller;
+
+  /// Controller tema (M7) — diteruskan ke header.
+  final ThemeController? themeController;
 
   @override
   State<HomeScreen> createState() => _HomeScreenState();
@@ -29,6 +37,8 @@ class _HomeScreenState extends State<HomeScreen> {
   DateTime? _startTime;
   Timer? _ticker;
   bool _overwriteConfirmed = false;
+  late final ThemeController _theme =
+      widget.themeController ?? ThemeController();
 
   @override
   void initState() {
@@ -123,6 +133,7 @@ class _HomeScreenState extends State<HomeScreen> {
           AppHeader(
             onReset: !c.isRunning ? _reset : () {},
             resetEnabled: !c.isRunning,
+            themeController: _theme,
           ),
           Expanded(
             child: Center(

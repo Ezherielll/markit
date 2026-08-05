@@ -4,6 +4,10 @@ class Strings {
 
   static const appTitle = 'pdflow';
   static const tagline = 'PDF → Markdown, on your machine';
+  static const themeToggle = 'Theme';
+  static const themeLight = 'Light';
+  static const themeDark = 'Dark';
+  static const themeSystem = 'System';
   static const heroHeadline = 'Turn documents into clean markdown';
   static const heroSub = 'Fast, private, and fully offline. Drop your PDFs and get '
       'structured markdown — headings, paragraphs and lists, ready for reading '

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:pdflow/isolate/conversion_controller.dart';
 import 'package:pdflow/models/pdf_input.dart';
+import 'package:pdflow/theme/theme_controller.dart';
 import 'package:pdflow/ui/screens/home_screen.dart';
 import 'package:pdflow/ui/widgets/drop_zone.dart';
 import 'package:pdflow/ui/widgets/progress_panel.dart';
@@ -208,5 +209,28 @@ void main() {
 
     expect(find.byType(DropZone), findsOneWidget);
     expect(controller.queue, isEmpty);
+  });
+
+  testWidgets('theme toggle: cycle light → dark → system (M7)', (tester) async {
+    final themeController = ThemeController(initial: ThemeMode.light);
+    await tester.pumpWidget(MaterialApp(
+      home: HomeScreen(
+        controller: FakeConversionController(),
+        themeController: themeController,
+      ),
+    ));
+
+    expect(themeController.mode, ThemeMode.light);
+    expect(find.byIcon(Icons.light_mode_outlined), findsOneWidget);
+
+    await tester.tap(find.byIcon(Icons.light_mode_outlined));
+    await tester.pump();
+    expect(themeController.mode, ThemeMode.dark);
+    expect(find.byIcon(Icons.dark_mode_outlined), findsOneWidget);
+
+    await tester.tap(find.byIcon(Icons.dark_mode_outlined));
+    await tester.pump();
+    expect(themeController.mode, ThemeMode.system);
+    expect(find.byIcon(Icons.brightness_auto_outlined), findsOneWidget);
   });
 }
