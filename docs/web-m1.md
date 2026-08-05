@@ -35,3 +35,10 @@
 - \lib/core/converter.dart\ & \markdown_writer.dart\ BEBAS dart:io ✓
 - Test: +6 (MemoryOutput convert, output_test FileOutput/MemoryOutput commit/abort, MemoryMdSink) — 50 hijau
 - Build Windows OK; benchmark/run_corpus diadaptasi ke FileOutput
+
+## M3 — Execution Abstraction (selesai 2026-08-05)
+
+- Baru: \conversion_executor.dart\ (interface + JobExecutionResult), \isolate_executor.dart\ (worker persist — logika dipindah dari controller), \inline_executor.dart\ (web, pipeline di main isolate), factory conditional import (\_io\/\_web\/\_stub\)
+- \IsolateConversionController\ → \BatchConversionController\ — controller TIDAK lagi memegang isolate logic; hanya orchestrasi queue + delegate ke executor
+- Web path (factory_web + inline_executor) BEBAS dart:isolate/dart:io ✓ — \lutter build web\ sukses
+- Test: +3 InlineExecutor (convert bytes, cancel, corrupt) — 53 hijau; integration desktop tetap pakai IsolateExecutor via factory

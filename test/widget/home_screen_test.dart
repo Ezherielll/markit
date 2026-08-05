@@ -104,6 +104,9 @@ class FakeConversionController extends ConversionController {
     _isRunning = false;
     notifyListeners();
   }
+
+  @override
+  Future<void> shutdown() async {}
 }
 
 void main() {

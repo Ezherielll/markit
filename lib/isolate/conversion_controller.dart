@@ -1,11 +1,10 @@
 import 'dart:async';
-import 'dart:isolate';
 
 import 'package:flutter/foundation.dart';
 
 import '../core/pdfrx_source.dart';
-import 'convert_isolate.dart';
-import 'messages.dart';
+import 'conversion_executor.dart';
+import 'conversion_executor_factory.dart';
 
 /// Status satu file dalam batch queue.
 enum JobStatus { queued, running, done, failed, cancelled }
@@ -33,6 +32,9 @@ class QueuedFile {
   String? errorType;
   String? errorMessage;
 
+  /// Isi markdown hasil konversi (web/MemoryOutput); null di desktop.
+  String? content;
+
   String get outputPath => pdfPath.replaceFirst(
         RegExp(r'\.pdf$', caseSensitive: false),
         '.md',
@@ -45,9 +47,8 @@ class QueuedFile {
 ///
 /// Semantik:
 /// - [addFiles] menambah file ke queue (dedupe path), langsung probe page count.
-/// - [convertAll] memproses file berurutan (sequential) di SATU worker isolate
-///   persist — pdfrx membuat internal engine worker per isolate, spawn ulang
-///   per file terbukti crash.
+/// - [convertAll] memproses file berurutan (sequential) via [ConversionExecutor]
+///   (desktop: worker isolate persist; web: inline).
 /// - [cancel] membatalkan job aktif + semua job queued (FR-11).
 /// - [reset] mengosongkan queue + state.
 abstract class ConversionController extends ChangeNotifier {
@@ -84,14 +85,22 @@ abstract class ConversionController extends ChangeNotifier {
 
   /// Kosongkan queue + state. Tidak berpengaruh saat batch berjalan.
   void reset();
+
+  /// Hentikan executor (dipanggil saat app dispose). Aman dipanggil ulang.
+  Future<void> shutdown();
 }
 
-/// Implementasi nyata: pipeline di background isolate (FR-08), UI tetap responsif.
-class IsolateConversionController extends ConversionController {
-  IsolatePorts? _ports;
+/// Implementasi nyata: pipeline via [ConversionExecutor] (FR-08),
+/// UI tetap responsif.
+class BatchConversionController extends ConversionController {
+  BatchConversionController({ConversionExecutor? executor})
+      : _executor = executor ?? createConversionExecutor();
+
+  final ConversionExecutor _executor;
   final List<QueuedFile> _queue = [];
   final List<Future<void>> _pendingProbes = [];
   bool _isRunning = false;
+  bool _executorReady = false;
   int? _currentPage;
   int? _totalPages;
   int _phase = 1;
@@ -147,12 +156,11 @@ class IsolateConversionController extends ConversionController {
   }
 
   Future<void> _probe(QueuedFile job) async {
-    // Probe memuat PDFium di main isolate (membuat PdfrxEngineWorker main).
-    // Kalau worker batch sudah pernah dibuat, dua engine worker hidup
-    // bersamaan → crash "Cannot invoke native callback from a different
-    // isolate". Karena itu probe hanya dijalankan SEBELUM worker pertama;
-    // setelahnya pageCount diisi dari ConvertDone.
-    if (_ports != null) return;
+    // Probe memuat PDFium di main isolate. Di desktop, worker isolate memuat
+    // PDFium sendiri — dua init bersamaan menyebabkan deadlock. Karena itu
+    // probe hanya dijalankan SEBELUM worker pertama; setelahnya pageCount
+    // diisi dari hasil konversi.
+    if (_executorReady) return;
     final future = _doProbe(job);
     _pendingProbes.add(future);
   }
@@ -186,12 +194,13 @@ class IsolateConversionController extends ConversionController {
       await Future.wait(probes);
     }
 
-    // Satu worker PERSIST untuk seluruh umur aplikasi — pdfrx tidak aman
-    // di-spawn/teardown berulang dalam satu proses (engine worker internal
-    // crash "Cannot invoke native callback from a different isolate").
-    _ports ??= await _spawnWorker();
-    final ports = _ports!;
-    ports.commandPort?.send(const ResetCancel());
+    // Executor persist untuk seluruh umur aplikasi (worker isolate di desktop;
+    // inline di web).
+    if (!_executorReady) {
+      await _executor.initialize();
+      _executorReady = true;
+    }
+    _executor.resetCancel();
 
     _isRunning = true;
     notifyListeners();
@@ -208,13 +217,30 @@ class IsolateConversionController extends ConversionController {
         job.status = JobStatus.running;
         notifyListeners();
 
-        final ok = await _runOne(ports, job);
+        final result = await _executor.runJob(
+          jobId: job.id,
+          pdfPath: job.pdfPath,
+          outputPath: job.outputPath,
+          onProgress: (page, total, phase, elapsedMs) {
+            _currentPage = page;
+            _totalPages = total;
+            _phase = phase;
+            notifyListeners();
+          },
+        );
+
         if (_cancelRequested) {
           job.status = JobStatus.cancelled;
-        } else if (ok) {
+        } else if (result.success) {
           job.status = JobStatus.done;
+          job.pageCount = result.pageCount;
+          job.failedPages = result.failedPages;
+          job.bodyFontSize = result.bodyFontSize;
+          job.content = result.content;
         } else {
           job.status = JobStatus.failed;
+          job.errorType = result.errorType;
+          job.errorMessage = result.errorMessage;
         }
         notifyListeners();
       }
@@ -236,86 +262,10 @@ class IsolateConversionController extends ConversionController {
     notifyListeners();
   }
 
-  /// Spawn satu worker persist + wire ports.
-  Future<IsolatePorts> _spawnWorker() async {
-    final receivePort = ReceivePort();
-    final isolate = await Isolate.spawn(
-      convertIsolateMain,
-      receivePort.sendPort,
-    );
-
-    final exitPort = ReceivePort();
-    isolate.addOnExitListener(exitPort.sendPort);
-
-    final ports = IsolatePorts(
-      isolate: isolate,
-      receivePort: receivePort,
-      exitPort: exitPort,
-    );
-
-    // Handler default (langsung aktif): tangkap command/cancel port yang
-    // dikirim worker saat spawn — jangan sampai terlewat sebelum job pertama.
-    void Function(dynamic message)? jobHandler;
-    ports.subscription = receivePort.listen((message) {
-      if (message is SendPort && ports.commandPort == null) {
-        ports.commandPort = message;
-        return;
-      }
-      if (message is SendPort && ports.cancelSender == null) {
-        ports.cancelSender = message;
-        return;
-      }
-      jobHandler?.call(message);
-    });
-    ports.setHandler = (h) => jobHandler = h;
-
-    // Pastikan port worker sudah terdaftar sebelum job pertama dikirim.
-    final deadline = DateTime.now().add(const Duration(seconds: 10));
-    while ((ports.commandPort == null || ports.cancelSender == null) &&
-        DateTime.now().isBefore(deadline)) {
-      await Future<void>.delayed(const Duration(milliseconds: 20));
-    }
-    return ports;
-  }
-
-  /// Kirim satu job ke worker; kembalikan true bila sukses.
-  Future<bool> _runOne(IsolatePorts ports, QueuedFile job) async {
-    final completer = Completer<bool>();
-
-    ports.setHandler!.call((message) {
-      if (message is ConvertProgress) {
-        _currentPage = message.page;
-        _totalPages = message.total;
-        _phase = message.phase;
-        notifyListeners();
-      } else if (message is ConvertDone) {
-        job.pageCount = message.pageCount;
-        job.failedPages = message.failedPages;
-        job.bodyFontSize = message.bodyFontSize;
-        if (!completer.isCompleted) completer.complete(true);
-      } else if (message is ConvertFailed) {
-        job.errorType = message.errorType;
-        job.errorMessage = message.message;
-        if (!completer.isCompleted) completer.complete(false);
-      }
-    });
-
-    ports.commandPort!.send(StartConvert(
-      jobId: job.id,
-      pdfPath: job.pdfPath,
-      outputPath: job.outputPath,
-    ));
-
-    return completer.future.timeout(
-      const Duration(minutes: 30),
-      onTimeout: () => false,
-    );
-  }
-
   @override
   void cancel() {
     _cancelRequested = true;
-    _ports?.cancelSender?.send(const CancelRequest());
+    _executor.cancel();
     notifyListeners();
   }
 
@@ -330,50 +280,10 @@ class IsolateConversionController extends ConversionController {
     notifyListeners();
   }
 
-  /// Bersihkan worker persist (dipanggil saat controller tidak dipakai lagi,
-  /// misal di app dispose). Tidak wajib — worker ikut mati saat proses exit.
+  @override
   Future<void> shutdown() async {
     if (_isRunning) return;
-    final ports = _ports;
-    _ports = null;
-    if (ports != null) {
-      ports.commandPort?.send(const Shutdown());
-      await ports.dispose();
-    }
-  }
-}
-
-class IsolatePorts {
-  IsolatePorts({
-    required this.isolate,
-    required this.receivePort,
-    required this.exitPort,
-  });
-
-  final Isolate isolate;
-  final ReceivePort receivePort;
-  late StreamSubscription<dynamic> subscription;
-  final ReceivePort exitPort;
-
-  /// Command port worker (diterima saat spawn).
-  SendPort? commandPort;
-
-  /// Cancel port worker (diterima saat spawn).
-  SendPort? cancelSender;
-
-  /// Ganti handler pesan untuk job aktif (Progress/Done/Failed).
-  void Function(void Function(dynamic) handler)? setHandler;
-
-  Future<void> dispose() async {
-    await subscription.cancel();
-    receivePort.close();
-    // Tunggu worker exit (setelah Shutdown) — worker sendiri yang menutup
-    // command port & PDFium; TIDAK boleh di-kill paksa (native callback
-    // PDFium crash "Cannot invoke native callback from a different isolate").
-    await exitPort.first.timeout(
-      const Duration(seconds: 5),
-      onTimeout: () => null,
-    );
-    exitPort.close();
+    _executorReady = false;
+    await _executor.shutdown();
   }
 }

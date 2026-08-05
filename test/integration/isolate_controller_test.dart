@@ -9,13 +9,13 @@ void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
   late Directory tmp;
-  late IsolateConversionController controller;
+  late BatchConversionController controller;
 
   // Satu controller untuk SEMUA test — worker persist tunggal, seperti app
   // nyata. pdfrx (PDFium) tidak aman di-spawn/teardown berulang dalam satu
   // proses ("Cannot invoke native callback from a different isolate").
   setUpAll(() {
-    controller = IsolateConversionController();
+    controller = BatchConversionController();
   });
 
   tearDownAll(() async {

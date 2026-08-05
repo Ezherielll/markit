@@ -17,7 +17,7 @@ class PdflowApp extends StatelessWidget {
       debugShowCheckedModeBanner: false,
       theme: PdflowTheme.light(),
       darkTheme: PdflowTheme.dark(),
-      home: HomeScreen(controller: controller ?? IsolateConversionController()),
+      home: HomeScreen(controller: controller ?? BatchConversionController()),
     );
   }
 }
