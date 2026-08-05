@@ -99,3 +99,11 @@
 - Integration test batch di-tag `@Tags(['desktop'])` — memakai IsolateExecutor + dart:io, tidak dijalankan di web test runner.
 - Web logic teruji di VM: InlineExecutor (convert bytes / cancel / corrupt), MemoryOutput, download helper (stub path).
 - Manual checklist browser — dilakukan di M11 pasca deploy (Chrome + Edge, resize, keyboard, drop).
+
+## M11 — Build & Deployment (selesai 2026-08-05)
+
+- Build release web: \lutter build web --release --base-href /pdflow/\ (bundle ±47 MB: main.dart.js ~2 MB + pdfium.wasm 5.1 MB + canvaskit variants)
+- **GitHub Pages live**: https://ezherielll.github.io/pdflow/ — deploy otomatis via Actions (\.github/workflows/deploy-web.yml\), verifikasi index 200 + pdfium.wasm 200 MIME application/wasm
+- Docs: \docs/web-deploy.md\; README section Web
+- **Git Flow**: branch \develop\ dibuat dari master (integration); tag \1.1.0-web\ di master
+- 57 test hijau; analyze 0
