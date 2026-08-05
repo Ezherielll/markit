@@ -4,6 +4,13 @@ class Strings {
 
   static const appTitle = 'pdflow';
   static const tagline = 'PDF → Markdown, on your machine';
+  static const headerSubtitle = 'Convert PDFs into structured Markdown';
+  static const statusReady = 'Ready to process files';
+  static const statusFilesLoaded = '%d files loaded';
+  static const statusProcessing = 'Processing %d documents';
+  static const statusConverted = '%d converted';
+  static const statusBatchComplete = 'Batch conversion complete';
+  static const settingsTooltip = 'Settings — coming soon';
   static const themeToggle = 'Theme';
   static const themeLight = 'Light';
   static const themeDark = 'Dark';

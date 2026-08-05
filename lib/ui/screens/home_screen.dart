@@ -6,7 +6,7 @@ import 'package:flutter/material.dart';
 import 'package:pdflow/i18n/strings.dart';
 import 'package:pdflow/models/pdf_input.dart';
 import 'package:pdflow/ui/theme/spacing.dart';
-import 'package:pdflow/ui/widgets/app_header.dart';
+import 'package:pdflow/ui/widgets/header/app_header.dart';
 import 'package:pdflow/ui/widgets/drop_zone.dart';
 import 'package:pdflow/ui/widgets/file_card.dart';
 import 'package:pdflow/ui/widgets/progress_panel.dart';
@@ -132,6 +132,7 @@ class _HomeScreenState extends State<HomeScreen> {
       body: Column(
         children: [
           AppHeader(
+            controller: c,
             onReset: !c.isRunning ? _reset : () {},
             resetEnabled: !c.isRunning,
             themeController: _theme,

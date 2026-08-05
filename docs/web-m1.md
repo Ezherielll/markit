@@ -114,6 +114,23 @@
 
 - Verifikasi: 63 test hijau; build Windows & web sukses; deploy otomatis via Actions.
 
+## M13 — Conditional Download + Header Redesign (selesai 2026-08-05)
+
+### Download kondisional
+- Single file (done == 1): ResultPanel menampilkan tombol **Download** biasa.
+- Multi-file (done > 1): preview tetap, tombol Download per-file disembunyikan (`showDownloadButton: false`), tombol **"Download all as ZIP (N)"** di summary.
+- `done == 0`: tidak ada tombol download. Test: property `showDownloadButton` true/false.
+
+### Header redesign (premium — Notion/Raycast/Linear-style)
+- Komponen terpisah di `lib/ui/widgets/header/` (scalable):
+  - `app_header.dart` — komposisi + glass background (BackdropFilter blur 12 + surface translucent 0.72–0.78) + divider hairline + soft shadow
+  - `brand_lockup.dart` — ikon dokumen gradient + "pdflow" (Fraunces) + subtitle "Convert PDFs into structured Markdown"
+  - `status_pill.dart` — status kontekstual: Ready / N files loaded / Processing N documents / N converted (dari controller)
+  - `header_toolbar.dart` — grup rounded: theme toggle + settings (disabled placeholder) + divider + reset; hover halus, hit area 34×34
+- Responsive: `< 900px` subtitle & label pill collapse (Flexible); aksi tetap utuh
+- Strings baru: headerSubtitle, status*, settingsTooltip
+- Test: +4 status pill, +2 conditional download — 69 hijau
+
 ## M11 — Build & Deployment (selesai 2026-08-05)
 
 - Build release web: \lutter build web --release --base-href /pdflow/\ (bundle ±47 MB: main.dart.js ~2 MB + pdfium.wasm 5.1 MB + canvaskit variants)

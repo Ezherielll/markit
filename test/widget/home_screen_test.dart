@@ -5,6 +5,7 @@ import 'package:pdflow/models/pdf_input.dart';
 import 'package:pdflow/theme/theme_controller.dart';
 import 'package:pdflow/ui/screens/home_screen.dart';
 import 'package:pdflow/ui/widgets/drop_zone.dart';
+import 'package:pdflow/ui/widgets/header/status_pill.dart';
 import 'package:pdflow/ui/widgets/progress_panel.dart';
 import 'package:pdflow/ui/widgets/result_panel.dart';
 
@@ -272,5 +273,57 @@ void main() {
     await tester.pump();
     expect(themeController.mode, ThemeMode.system);
     expect(find.byIcon(Icons.brightness_auto_outlined), findsOneWidget);
+  });
+
+  testWidgets('status pill: empty → Ready to process files', (tester) async {
+    final controller = FakeConversionController();
+    await tester.pumpWidget(MaterialApp(
+      home: Scaffold(body: StatusPill(controller: controller)),
+    ));
+
+    expect(find.text('Ready to process files'), findsOneWidget);
+  });
+
+  testWidgets('status pill: files loaded → "2 files loaded"', (tester) async {
+    final controller = FakeConversionController();
+    controller.addFiles([PdfInput(name: 'a.pdf', path: 'a.pdf'), PdfInput(name: 'b.pdf', path: 'b.pdf')]);
+    await tester.pumpWidget(MaterialApp(
+      home: Scaffold(body: StatusPill(controller: controller)),
+    ));
+
+    expect(find.text('2 files loaded'), findsOneWidget);
+  });
+
+  testWidgets('status pill: running → "Processing 2 documents"',
+      (tester) async {
+    final controller = FakeConversionController();
+    controller.addFiles([PdfInput(name: 'a.pdf', path: 'a.pdf'), PdfInput(name: 'b.pdf', path: 'b.pdf')]);
+    controller.convertAll();
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 5));
+
+    await tester.pumpWidget(MaterialApp(
+      home: Scaffold(body: StatusPill(controller: controller)),
+    ));
+
+    expect(find.text('Processing 2 documents'), findsOneWidget);
+
+    await tester.pump(const Duration(milliseconds: 100));
+    await tester.pump();
+  });
+
+  testWidgets('status pill: selesai → "2 converted"', (tester) async {
+    final controller = FakeConversionController();
+    controller.addFiles([PdfInput(name: 'a.pdf', path: 'a.pdf'), PdfInput(name: 'b.pdf', path: 'b.pdf')]);
+    controller.convertAll();
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 100));
+    await tester.pump();
+
+    await tester.pumpWidget(MaterialApp(
+      home: Scaffold(body: StatusPill(controller: controller)),
+    ));
+
+    expect(find.text('2 converted'), findsOneWidget);
   });
 }
