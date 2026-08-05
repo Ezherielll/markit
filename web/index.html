@@ -18,7 +18,8 @@
 
   <meta charset="UTF-8">
   <meta content="IE=Edge" http-equiv="X-UA-Compatible">
-  <meta name="description" content="A new Flutter project.">
+  <meta name="description" content="Convert PDF documents to clean, structured Markdown — fast, private, 100% offline. No uploads, no cloud: everything runs in your browser.">
+  <meta name="theme-color" content="#274C8A">
 
   <!-- iOS meta tags & icons -->
   <meta name="mobile-web-app-capable" content="yes">
@@ -29,18 +30,56 @@
   <!-- Favicon -->
   <link rel="icon" type="image/png" href="favicon.png"/>
 
-  <title>pdflow</title>
+  <title>pdflow — PDF to Markdown</title>
   <link rel="manifest" href="manifest.json">
+
+  <style>
+    /* Splash sederhana selama Flutter + pdfium.wasm (≈5 MB) dimuat. */
+    html, body {
+      margin: 0;
+      height: 100%;
+      background: #F6F4EF;
+    }
+    #pdflow-splash {
+      position: fixed;
+      inset: 0;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 16px;
+      font-family: "Georgia", "Times New Roman", serif;
+      color: #211F1C;
+      transition: opacity 0.3s ease;
+    }
+    #pdflow-splash.hidden { opacity: 0; pointer-events: none; }
+    #pdflow-splash .wordmark { font-size: 28px; font-weight: 600; letter-spacing: 0.3px; }
+    #pdflow-splash .sub { font-size: 13px; color: #6E6A63; }
+    #pdflow-splash .spinner {
+      width: 28px; height: 28px;
+      border: 3px solid #E2DED6;
+      border-top-color: #274C8A;
+      border-radius: 50%;
+      animation: pdflow-spin 0.9s linear infinite;
+    }
+    @keyframes pdflow-spin { to { transform: rotate(360deg); } }
+  </style>
 </head>
 <body>
-  <!--
-    You can customize the "flutter_bootstrap.js" script.
-    This is useful to provide a custom configuration to the Flutter loader
-    or to give the user feedback during the initialization process.
+  <div id="pdflow-splash">
+    <div class="wordmark">pdflow</div>
+    <div class="spinner"></div>
+    <div class="sub">Loading PDF engine…</div>
+  </div>
 
-    For more details:
-    * https://docs.flutter.dev/platform-integration/web/initialization
-  -->
+  <script>
+    // Sembunyikan splash setelah Flutter siap.
+    window.addEventListener('flutter-first-frame', function () {
+      var el = document.getElementById('pdflow-splash');
+      if (el) el.classList.add('hidden');
+    });
+  </script>
+
   <script src="flutter_bootstrap.js" async></script>
 </body>
 </html>

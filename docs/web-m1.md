@@ -52,3 +52,11 @@
 - \pickPdfFiles()\ → List<PdfInput>: kIsWeb → readAsBytes; desktop → path
 - \FileCard\ pakai input.sizeBytes (hapus File(path)); overwrite check di-skip di web (kIsWeb)
 - \lib/ui/\ bebas File() untuk input ✓; 53 test hijau; build Windows & web sukses
+
+## M5 — Web Config & pdfrx Init (selesai 2026-08-05)
+
+- \main.dart\: panggil \pdfrxFlutterInitialize()\ sebelum runApp (idempotent; desktop: cache dir, web: WASM engine worker)
+- \web/index.html\: meta description, theme-color (\#274C8A), splash loading (wordmark + spinner, hidden via flutter-first-frame event)
+- \web/manifest.json\: nama 'pdflow — PDF to Markdown', warna ink/paper, orientation any
+- Verifikasi build: pdfium.wasm 5.1 MB ter-bundle; serve lokal → index 200, wasm 200 MIME application/wasm ✓
+- 53 test hijau
