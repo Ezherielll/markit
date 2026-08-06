@@ -11,8 +11,6 @@ on:
   push:
     tags:
       - 'v*'
-    tags-ignore:
-      - '*-web'
   workflow_dispatch:
 
 permissions:
@@ -20,6 +18,8 @@ permissions:
 
 jobs:
   build-windows:
+    # Tag milestone web (v1.1.0-web dsb.) bukan rilis desktop.
+    if: "!endsWith(github.ref_name, '-web')"
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v4
@@ -45,6 +45,7 @@ jobs:
           if-no-files-found: error
 
   build-macos:
+    if: "!endsWith(github.ref_name, '-web')"
     runs-on: macos-14
     steps:
       - uses: actions/checkout@v4
@@ -74,6 +75,7 @@ jobs:
           if-no-files-found: error
 
   build-linux:
+    if: "!endsWith(github.ref_name, '-web')"
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -105,6 +107,7 @@ jobs:
           if-no-files-found: error
 
   release:
+    if: "!endsWith(github.ref_name, '-web')"
     needs: [build-windows, build-macos, build-linux]
     runs-on: ubuntu-latest
     steps:
