@@ -114,6 +114,15 @@
 
 - Verifikasi: 63 test hijau; build Windows & web sukses; deploy otomatis via Actions.
 
+## M14 — Concurrent Conversion (selesai 2026-08-06)
+
+- **M1 spike**: PDFium aman multi-dokumen dalam satu worker (3 & 6 concurrent OK, RSS 1–12 MB); inline web 3 concurrent OK. Decision gate PASS → tanpa fallback.
+- **M2**: `IsolateExecutor` routing per-jobId (Map completer+progress, handler persist).
+- **M3**: `convertAll()` paralel (`Future.wait` semua job queued); progress per-job di `QueuedFile`; `runningInfo` agregat ("2/5 done · 3 processing · 45% · 0:12").
+- **M4 UI**: progress bar per kartu dari `job.progressFraction`; warning banner inline: >10 file ("memory usage will be high") atau file >100 halaman.
+- Catatan: concurrent ≠ lebih cepat secara CPU (FFI diserialisasi di engine worker); keuntungan = overlap I/O + UX. Semua file mulai & progress bersamaan.
+- 79 test hijau; build Windows & web sukses; deploy live.
+
 ## M13 — Conditional Download + Header Redesign (selesai 2026-08-05)
 
 ### Download kondisional

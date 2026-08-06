@@ -51,3 +51,12 @@ Tanggal: 2026-08-03 · paket: `pdfrx 2.4.7` + `pdfrx_engine 0.4.6` + `pdfium_dar
 2. **Probe page count (PDFium di main isolate) hanya boleh SEBELUM worker pertama di-spawn.** Setelah worker hidup, dua engine worker bersamaan → crash yang sama. Setelahnya pageCount diisi dari `ConvertDone.pageCount`.
 3. Worker harus `source.dispose()` sebelum job selesai — handle native PDFium per-job wajib dibebaskan.
 4. `PdfrxEntryFunctions.instance.stopBackgroundWorker()` ada tapi tidak menyelesaikan masalah teardown — pendekatan persist-worker lebih aman.
+
+## Temuan tambahan (concurrent conversion, 2026-08-06)
+
+1. **PDFium AMAN untuk multi-dokumen dalam SATU worker isolate** (berlawanan dengan asumsi awal yang hanya soal multi-isolate).
+   - Spike tervalidasi: 3 & 6 dokumen dibuka + dikonversi BERSAMAAN dalam satu worker — tanpa crash, delta RSS 1–12 MB.
+   - Constraint yang tetap berlaku: JANGAN spawn/teardown banyak isolate (crash), tapi banyak dokumen dalam satu isolate persist = aman.
+2. **`commandPort.listen` async callback = concurrent-safe** — tiap `_runJob` berjalan paralel di isolate yang sama; tidak perlu serialisasi manual.
+3. **Routing per-jobId**: `IsolateExecutor` kini memakai `Map<jobId, _PendingJob>` (completer + onProgress) — satu handler persist mendistribusikan pesan worker. Sebelumnya handler tunggal per-job → job concurrent saling menimpa.
+4. **Konsekuensi performa**: concurrent di satu worker memberi overlap I/O + UX "semua berjalan", TAPI FFI PDFium tetap diserialisasi di `PdfrxEngineWorker` — total waktu ≈ sequential. True parallel tetap butuh multi-isolate (tidak aman di pdfrx).
