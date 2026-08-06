@@ -31,6 +31,8 @@ indexed, and fed to AI systems as input (RAG / LLM).
 
 ![Conversion result](screenshots/done.png)
 
+![About](screenshots/about.png)
+
 ## Features (MVP)
 
 ### Extraction & layout
