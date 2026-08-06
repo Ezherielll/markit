@@ -5,6 +5,7 @@ import 'package:pdflow/models/pdf_input.dart';
 import 'package:pdflow/theme/theme_controller.dart';
 import 'package:pdflow/ui/screens/home_screen.dart';
 import 'package:pdflow/ui/widgets/drop_zone.dart';
+import 'package:pdflow/ui/widgets/file_card.dart';
 import 'package:pdflow/ui/widgets/header/status_pill.dart';
 import 'package:pdflow/ui/widgets/progress_panel.dart';
 import 'package:pdflow/ui/widgets/result_panel.dart';
@@ -179,6 +180,27 @@ void main() {
     await tester.pump();
     // Setelah batch selesai (cancelled) → summary tampil.
     expect(find.text('Clear all'), findsOneWidget);
+  });
+
+  testWidgets('running single file: kartu file tampil sekali (bug fix duplikat)',
+      (tester) async {
+    final controller = FakeConversionController();
+    await tester.pumpWidget(MaterialApp(
+      home: HomeScreen(controller: controller),
+    ));
+
+    controller.addFiles([PdfInput(name: 'a.pdf', path: 'a.pdf')]);
+    await tester.pump();
+    controller.convertAll();
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 5));
+
+    // Job aktif dirender sekali di kartu "active", bukan dua kali.
+    expect(find.text('a.pdf'), findsOneWidget);
+    expect(find.byType(FileCard), findsOneWidget);
+
+    await tester.pump(const Duration(milliseconds: 100));
+    await tester.pump();
   });
 
   testWidgets('summary state: done files shown, clear resets to empty',

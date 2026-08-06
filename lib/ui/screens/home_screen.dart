@@ -7,6 +7,7 @@ import 'package:pdflow/i18n/strings.dart';
 import 'package:pdflow/models/pdf_input.dart';
 import 'package:pdflow/ui/theme/spacing.dart';
 import 'package:pdflow/ui/widgets/header/app_header.dart';
+import 'package:pdflow/ui/widgets/header/status_pill.dart';
 import 'package:pdflow/ui/widgets/drop_zone.dart';
 import 'package:pdflow/ui/widgets/file_card.dart';
 import 'package:pdflow/ui/widgets/progress_panel.dart';
@@ -129,42 +130,51 @@ class _HomeScreenState extends State<HomeScreen> {
     final c = widget.controller;
 
     return Scaffold(
-      body: Column(
+      body: Stack(
         children: [
-          AppHeader(
-            controller: c,
-            onReset: !c.isRunning ? _reset : () {},
-            resetEnabled: !c.isRunning,
-            themeController: _theme,
-          ),
-          Expanded(
-            child: Center(
-              child: ConstrainedBox(
-                constraints: const BoxConstraints(maxWidth: 760),
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: PdflowSpacing.xl,
-                    vertical: PdflowSpacing.lg,
-                  ),
-                  child: AnimatedSwitcher(
-                    duration: const Duration(milliseconds: 280),
-                    switchInCurve: Curves.easeOutCubic,
-                    switchOutCurve: Curves.easeInCubic,
-                    transitionBuilder: (child, animation) => FadeTransition(
-                      opacity: animation,
-                      child: SlideTransition(
-                        position: Tween<Offset>(
-                          begin: const Offset(0, 0.03),
-                          end: Offset.zero,
-                        ).animate(animation),
-                        child: child,
+          Column(
+            children: [
+              AppHeader(
+                onReset: !c.isRunning ? _reset : () {},
+                resetEnabled: !c.isRunning,
+                themeController: _theme,
+              ),
+              Expanded(
+                child: Center(
+                  child: ConstrainedBox(
+                    constraints: const BoxConstraints(maxWidth: 760),
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: PdflowSpacing.xl,
+                        vertical: PdflowSpacing.lg,
+                      ),
+                      child: AnimatedSwitcher(
+                        duration: const Duration(milliseconds: 280),
+                        switchInCurve: Curves.easeOutCubic,
+                        switchOutCurve: Curves.easeInCubic,
+                        transitionBuilder: (child, animation) => FadeTransition(
+                          opacity: animation,
+                          child: SlideTransition(
+                            position: Tween<Offset>(
+                              begin: const Offset(0, 0.03),
+                              end: Offset.zero,
+                            ).animate(animation),
+                            child: child,
+                          ),
+                        ),
+                        child: _buildBody(c),
                       ),
                     ),
-                    child: _buildBody(c),
                   ),
                 ),
               ),
-            ),
+            ],
+          ),
+          // Status pill floating di sudut kiri bawah.
+          Positioned(
+            left: PdflowSpacing.lg,
+            bottom: PdflowSpacing.lg,
+            child: StatusPill(controller: c),
           ),
         ],
       ),
@@ -334,8 +344,11 @@ class _RunningState extends StatelessWidget {
             FileCard(job: active, showStatus: true),
           ],
           const SizedBox(height: PdflowSpacing.lg),
+          // Hanya tampilkan job yang sudah final di daftar bawah — job aktif
+          // sudah dirender di kartu "active" di atas (fix duplikat).
           for (final job in queue)
-            if (job.status != JobStatus.queued) ...[
+            if (job.status != JobStatus.queued &&
+                job.status != JobStatus.running) ...[
               FileCard(job: job, showStatus: true),
               const SizedBox(height: PdflowSpacing.sm),
             ],

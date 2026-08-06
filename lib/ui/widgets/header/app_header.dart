@@ -1,28 +1,25 @@
 import 'dart:ui';
 
 import 'package:flutter/material.dart';
-import 'package:pdflow/isolate/conversion_controller.dart';
 import 'package:pdflow/theme/theme_controller.dart';
 import 'package:pdflow/ui/theme/palette.dart';
 import 'package:pdflow/ui/theme/spacing.dart';
 
 import 'brand_lockup.dart';
 import 'header_toolbar.dart';
-import 'status_pill.dart';
 
-/// Header aplikasi — brand lockup (kiri), status kontekstual (tengah),
-/// toolbar aksi (kanan). Latar glass translucent + divider tipis.
-/// Responsive: subtitle & label pill collapse di viewport sempit.
+/// Header aplikasi — brand lockup (kiri) + toolbar aksi (kanan).
+/// Status pill kontekstual dipindah ke sudut kiri bawah layar (HomeScreen).
+/// Latar glass translucent + divider tipis.
+/// Responsive: subtitle brand collapse di viewport sempit.
 class AppHeader extends StatelessWidget {
   const AppHeader({
     super.key,
-    required this.controller,
     required this.themeController,
     required this.onReset,
     this.resetEnabled = true,
   });
 
-  final ConversionController controller;
   final ThemeController themeController;
   final VoidCallback onReset;
   final bool resetEnabled;
@@ -64,17 +61,7 @@ class AppHeader extends StatelessWidget {
                     Flexible(
                       child: BrandLockup(showSubtitle: !compact),
                     ),
-                    const SizedBox(width: PdflowSpacing.md),
-                    // Status pill di tengah — sembunyikan label bila sempit.
-                    Flexible(
-                      child: Center(
-                        child: StatusPill(
-                          controller: controller,
-                          showLabel: !compact,
-                        ),
-                      ),
-                    ),
-                    const SizedBox(width: PdflowSpacing.md),
+                    const Spacer(),
                     HeaderToolbar(
                       themeController: themeController,
                       onReset: onReset,
