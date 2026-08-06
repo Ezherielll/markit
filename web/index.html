@@ -18,19 +18,19 @@
 
   <meta charset="UTF-8">
   <meta content="IE=Edge" http-equiv="X-UA-Compatible">
-  <meta name="description" content="Convert PDF documents to clean, structured Markdown — fast, private, 100% offline. No uploads, no cloud: everything runs in your browser.">
+  <meta name="description" content="Convert documents to clean, structured Markdown — fast, private, 100% offline. No uploads, no cloud: everything runs in your browser.">
   <meta name="theme-color" content="#274C8A">
 
   <!-- iOS meta tags & icons -->
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black">
-  <meta name="apple-mobile-web-app-title" content="pdflow">
+  <meta name="apple-mobile-web-app-title" content="MarkIt">
   <link rel="apple-touch-icon" href="icons/Icon-192.png">
 
   <!-- Favicon -->
   <link rel="icon" type="image/png" href="favicon.png"/>
 
-  <title>pdflow — PDF to Markdown</title>
+  <title>MarkIt — Documents to Markdown</title>
   <link rel="manifest" href="manifest.json">
 
   <style>
@@ -40,7 +40,7 @@
       height: 100%;
       background: #F6F4EF;
     }
-    #pdflow-splash {
+    #markit-splash {
       position: fixed;
       inset: 0;
       display: flex;
@@ -52,30 +52,30 @@
       color: #211F1C;
       transition: opacity 0.3s ease;
     }
-    #pdflow-splash.hidden { opacity: 0; pointer-events: none; }
-    #pdflow-splash .wordmark { font-size: 28px; font-weight: 600; letter-spacing: 0.3px; }
-    #pdflow-splash .sub { font-size: 13px; color: #6E6A63; }
-    #pdflow-splash .spinner {
+    #markit-splash.hidden { opacity: 0; pointer-events: none; }
+    #markit-splash .wordmark { font-size: 28px; font-weight: 600; letter-spacing: 0.3px; }
+    #markit-splash .sub { font-size: 13px; color: #6E6A63; }
+    #markit-splash .spinner {
       width: 28px; height: 28px;
       border: 3px solid #E2DED6;
       border-top-color: #274C8A;
       border-radius: 50%;
-      animation: pdflow-spin 0.9s linear infinite;
+      animation: markit-spin 0.9s linear infinite;
     }
-    @keyframes pdflow-spin { to { transform: rotate(360deg); } }
+    @keyframes markit-spin { to { transform: rotate(360deg); } }
   </style>
 </head>
 <body>
-  <div id="pdflow-splash">
-    <div class="wordmark">pdflow</div>
+  <div id="markit-splash">
+    <div class="wordmark">MarkIt</div>
     <div class="spinner"></div>
-    <div class="sub">Loading PDF engine…</div>
+    <div class="sub">Loading engine…</div>
   </div>
 
   <script>
     // Sembunyikan splash setelah Flutter siap.
     window.addEventListener('flutter-first-frame', function () {
-      var el = document.getElementById('pdflow-splash');
+      var el = document.getElementById('markit-splash');
       if (el) el.classList.add('hidden');
     });
   </script>
