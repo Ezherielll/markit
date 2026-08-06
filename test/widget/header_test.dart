@@ -8,7 +8,7 @@ import 'package:markit/ui/screens/home_screen.dart';
 
 class FakeController extends ConversionController {
   final List<QueuedFile> _queue = [];
-  bool _running = false;
+  final bool _running = false;
 
   @override
   bool get isRunning => _running;
