@@ -34,7 +34,7 @@ jobs:
         run: flutter config --enable-web
 
       - name: Build web
-        run: flutter build web --release --base-href /pdflow/
+        run: flutter build web --release --base-href /markit/
 
       - name: Setup Pages
         uses: actions/configure-pages@v5
