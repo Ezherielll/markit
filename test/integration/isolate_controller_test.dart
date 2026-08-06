@@ -98,31 +98,67 @@ void main() {
 
   test('batch: cancel di tengah → sisa cancelled, .partial hilang (FR-11)',
       () async {
-    // PDF besar sintetis agar ada waktu untuk cancel.
+    // PDF besar sintetis agar ada waktu untuk cancel (concurrent).
     final pdfs = [
       '${tmp.path}/big.pdf',
       '${tmp.path}/second.pdf',
     ];
     File(pdfs[0]).writeAsBytesSync(
-      buildTestPdf(pages: largeBookPages(300)),
+      buildTestPdf(pages: largeBookPages(500)),
     );
     File(pdfs[1]).writeAsBytesSync(buildTestPdf());
 
     controller.addFiles(_inputs(pdfs));
 
     final batchFuture = controller.convertAll();
-    // Tunggu batch mulai, lalu cancel.
+    // Tunggu batch mulai, lalu cancel segera (job masih berjalan).
     await waitUntil(() async => controller.isRunning);
-    await Future<void>.delayed(const Duration(milliseconds: 300));
+    await waitUntil(() async => controller.queue
+        .any((f) => f.status == JobStatus.running));
     controller.cancel();
     await batchFuture;
 
-    // Job aktif dibatalkan (bukan done), sisanya cancelled.
+    // Job dibatalkan (bukan done), tidak ada .partial tertinggal.
     for (final job in controller.queue) {
       expect(job.status, isNot(JobStatus.queued));
       expect(job.status, isNot(JobStatus.done));
       expect(File('${job.outputPath}.partial').existsSync(), isFalse);
     }
+  });
+
+  test('batch: 3 file → semua diproses bersamaan (concurrent, M3)', () async {
+    final pdfs = [
+      '${tmp.path}/c1.pdf',
+      '${tmp.path}/c2.pdf',
+      '${tmp.path}/c3.pdf',
+    ];
+    for (final p in pdfs) {
+      File(p).writeAsBytesSync(
+        buildTestPdf(pages: largeBookPages(150, chapterEvery: 20)),
+      );
+    }
+
+    controller.addFiles(_inputs(pdfs));
+
+    final batchFuture = controller.convertAll();
+    // Tunggu batch mulai; karena concurrent, minimal 2 job running
+    // bersamaan (bukan 1 per 1).
+    await waitUntil(() async => controller.isRunning);
+    final runningCounts = <int>[];
+    final deadline = DateTime.now().add(const Duration(seconds: 10));
+    while (DateTime.now().isBefore(deadline)) {
+      final running = controller.queue
+          .where((f) => f.status == JobStatus.running)
+          .length;
+      runningCounts.add(running);
+      if (running >= 2) break;
+      await Future<void>.delayed(const Duration(milliseconds: 20));
+    }
+    await batchFuture;
+
+    expect(runningCounts.reduce((a, b) => a > b ? a : b), greaterThanOrEqualTo(2),
+        reason: 'harusnya ≥2 job running bersamaan');
+    expect(controller.doneCount, 3);
   });
 
   test('batch ulang setelah cancel → worker persist dipakai lagi (ResetCancel)',

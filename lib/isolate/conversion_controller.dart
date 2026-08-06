@@ -29,6 +29,17 @@ class QueuedFile {
   /// Halaman gagal (1-based) — FR-10c.
   List<int> failedPages = const [];
 
+  /// Progress per-job (running): halaman aktif & total halaman.
+  int? currentPage;
+  int? totalPages;
+
+  double? get progressFraction {
+    final total = totalPages ?? 0;
+    final page = currentPage ?? 0;
+    if (total <= 0) return null;
+    return (page / total).clamp(0.0, 1.0);
+  }
+
   /// Nama error ('corrupt'/'encrypted'/'noText'/dsb) bila gagal.
   String? errorType;
   String? errorMessage;
@@ -109,8 +120,6 @@ class BatchConversionController extends ConversionController {
   final List<Future<void>> _pendingProbes = [];
   bool _isRunning = false;
   bool _executorReady = false;
-  int? _currentPage;
-  int? _totalPages;
   int _phase = 1;
   bool _cancelRequested = false;
   int _idCounter = 0;
@@ -118,11 +127,19 @@ class BatchConversionController extends ConversionController {
   @override
   bool get isRunning => _isRunning;
 
+  /// Progress agregat = job running pertama (kompatibilitas UI lama);
+  /// UI baru memakai progress per-job (QueuedFile.progressFraction).
   @override
-  int? get currentPage => _currentPage;
+  int? get currentPage {
+    final running = _queue.where((f) => f.status == JobStatus.running);
+    return running.isEmpty ? null : running.first.currentPage;
+  }
 
   @override
-  int? get totalPages => _totalPages;
+  int? get totalPages {
+    final running = _queue.where((f) => f.status == JobStatus.running);
+    return running.isEmpty ? null : running.first.totalPages;
+  }
 
   @override
   int get phase => _phase;
@@ -217,45 +234,17 @@ class BatchConversionController extends ConversionController {
     notifyListeners();
 
     try {
-      for (final job in [..._queue]) {
-        if (_cancelRequested) break;
+      // Semua job queued dijalankan BERSAMAAN (concurrent interleaved) —
+      // PDFium aman multi-dokumen dalam satu worker (tervalidasi M1).
+      final jobs = _queue
+          .where((j) =>
+              j.status == JobStatus.queued ||
+              j.status == JobStatus.failed)
+          .toList();
 
-        // Skip job yang sudah selesai.
-        if (job.status == JobStatus.done || job.status == JobStatus.cancelled) {
-          continue;
-        }
-
-        job.status = JobStatus.running;
-        notifyListeners();
-
-        final result = await _executor.runJob(
-          jobId: job.id,
-          pdfPath: job.input.path ?? '',
-          pdfBytes: job.input.bytes,
-          outputPath: job.outputPath,
-          onProgress: (page, total, phase, elapsedMs) {
-            _currentPage = page;
-            _totalPages = total;
-            _phase = phase;
-            notifyListeners();
-          },
-        );
-
-        if (_cancelRequested) {
-          job.status = JobStatus.cancelled;
-        } else if (result.success) {
-          job.status = JobStatus.done;
-          job.pageCount = result.pageCount;
-          job.failedPages = result.failedPages;
-          job.bodyFontSize = result.bodyFontSize;
-          job.content = result.content;
-        } else {
-          job.status = JobStatus.failed;
-          job.errorType = result.errorType;
-          job.errorMessage = result.errorMessage;
-        }
-        notifyListeners();
-      }
+      await Future.wait([
+        for (final job in jobs) _runOneConcurrent(job),
+      ]);
     } finally {
       // Sisa queue yang belum diproses saat cancel → cancelled.
       if (_cancelRequested) {
@@ -267,10 +256,49 @@ class BatchConversionController extends ConversionController {
       }
     }
 
-    _currentPage = null;
-    _totalPages = null;
-    _phase = 1;
     _isRunning = false;
+    notifyListeners();
+  }
+
+  /// Jalankan satu job di executor (parallel-friendly: tiap job punya
+  /// callback progress sendiri yang update field job tsb).
+  Future<void> _runOneConcurrent(QueuedFile job) async {
+    if (_cancelRequested) {
+      job.status = JobStatus.cancelled;
+      return;
+    }
+
+    job.status = JobStatus.running;
+    job.currentPage = 0;
+    job.totalPages = null;
+    notifyListeners();
+
+    final result = await _executor.runJob(
+      jobId: job.id,
+      pdfPath: job.input.path ?? '',
+      pdfBytes: job.input.bytes,
+      outputPath: job.outputPath,
+      onProgress: (page, total, phase, elapsedMs) {
+        job.currentPage = page;
+        job.totalPages = total;
+        _phase = phase;
+        notifyListeners();
+      },
+    );
+
+    if (_cancelRequested) {
+      job.status = JobStatus.cancelled;
+    } else if (result.success) {
+      job.status = JobStatus.done;
+      job.pageCount = result.pageCount;
+      job.failedPages = result.failedPages;
+      job.bodyFontSize = result.bodyFontSize;
+      job.content = result.content;
+    } else {
+      job.status = JobStatus.failed;
+      job.errorType = result.errorType;
+      job.errorMessage = result.errorMessage;
+    }
     notifyListeners();
   }
 
@@ -285,8 +313,6 @@ class BatchConversionController extends ConversionController {
   void reset() {
     if (_isRunning) return;
     _queue.clear();
-    _currentPage = null;
-    _totalPages = null;
     _phase = 1;
     _cancelRequested = false;
     notifyListeners();

@@ -143,25 +143,29 @@ class _HomeScreenState extends State<HomeScreen> {
 
   double? get _progressFraction {
     final c = widget.controller;
-    final total = c.totalPages ?? 0;
-    final page = c.currentPage ?? 0;
-    if (total <= 0) return null;
-    return page / total;
+    final running = c.queue.where((f) => f.status == JobStatus.running);
+    if (running.isEmpty) return null;
+    // Agregat: rata-rata progress job running (per-job progress di kartu).
+    final fractions = running
+        .map((j) => j.progressFraction)
+        .whereType<double>()
+        .toList();
+    if (fractions.isEmpty) return null;
+    return fractions.reduce((a, b) => a + b) / fractions.length;
   }
 
   String? get _runningInfo {
     final c = widget.controller;
     if (!c.isRunning) return null;
     final done = c.doneCount;
-    final page = c.currentPage ?? 0;
-    final total = c.totalPages ?? 0;
+    final running = c.queue.where((f) => f.status == JobStatus.running).length;
     final elapsed = _startTime == null
         ? Duration.zero
         : DateTime.now().difference(_startTime!);
     final pct = _progressFraction == null
         ? ''
         : ' · ${((_progressFraction ?? 0) * 100).clamp(0, 100).toStringAsFixed(0)}%';
-    return '${done + 1}/${c.queue.length} · $page/$total$pct'
+    return '$done/${c.queue.length} done · $running processing$pct'
         ' · ${_fmt(elapsed)}';
   }
 
