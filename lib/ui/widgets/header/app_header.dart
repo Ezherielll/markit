@@ -17,11 +17,15 @@ class AppHeader extends StatelessWidget {
     super.key,
     required this.themeController,
     required this.onReset,
+    this.onAbout,
     this.resetEnabled = true,
   });
 
   final ThemeController themeController;
   final VoidCallback onReset;
+
+  /// Buka halaman About (ikon info di toolbar).
+  final VoidCallback? onAbout;
   final bool resetEnabled;
 
   @override
@@ -69,13 +73,18 @@ class AppHeader extends StatelessWidget {
                 return Row(
                   children: [
                     // Brand lockup fleksibel — subtitle collapse di compact.
+                    // Tap brand = kembali ke halaman utama (reset).
                     Flexible(
-                      child: BrandLockup(showSubtitle: !compact),
+                      child: BrandLockup(
+                        showSubtitle: !compact,
+                        onTap: resetEnabled ? onReset : null,
+                      ),
                     ),
                     const Spacer(),
                     HeaderToolbar(
                       themeController: themeController,
                       onReset: onReset,
+                      onAbout: onAbout,
                       resetEnabled: resetEnabled,
                     ),
                   ],
