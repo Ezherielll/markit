@@ -48,6 +48,9 @@ dependencies:
 dev_dependencies:
   flutter_test:
     sdk: flutter
+  # Untuk mock channel drag&drop di golden test (internal import).
+  super_native_extensions: ^0.9.1
+  irondash_message_channel: ^0.7.0
 
   # The "flutter_lints" package below contains a set of recommended lints to
   # encourage good coding practices. The lint set provided by the package is
