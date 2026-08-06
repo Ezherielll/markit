@@ -1,7 +1,7 @@
 import 'package:pdfrx_engine/pdfrx_engine.dart';
 
-import 'package:pdflow/core/pdf_source.dart';
-import 'package:pdflow/models/layout.dart';
+import 'package:markit/core/pdf_source.dart';
+import 'package:markit/models/layout.dart';
 
 /// [PdfSource] berbasis pdfrx_engine (pure Dart) — dipakai benchmark/korpus
 /// headless (`dart run`), tanpa Flutter. Logika identik dengan

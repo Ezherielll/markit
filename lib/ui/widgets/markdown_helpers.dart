@@ -2,8 +2,8 @@ import 'dart:convert';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_markdown/flutter_markdown.dart';
-import 'package:pdflow/ui/theme/palette.dart';
-import 'package:pdflow/ui/theme/typography.dart';
+import 'package:markit/ui/theme/palette.dart';
+import 'package:markit/ui/theme/typography.dart';
 
 /// Potong konten untuk preview — memotong di batas baris agar markdown tetap
 /// valid. Return (preview, apakah terpotong).

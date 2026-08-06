@@ -1,6 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:pdflow/core/structure_classifier.dart';
-import 'package:pdflow/models/layout.dart';
+import 'package:markit/core/structure_classifier.dart';
+import 'package:markit/models/layout.dart';
 
 List<List<Line>> _paras(List<List<(String, double)>> raw) {
   return [

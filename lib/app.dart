@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 import 'isolate/conversion_controller.dart';
 import 'theme/theme_controller.dart';
 import 'ui/screens/home_screen.dart';
-import 'ui/theme/pdflow_theme.dart';
+import 'ui/theme/markit_theme.dart';
 
 class PdflowApp extends StatefulWidget {
   const PdflowApp({super.key, this.controller, this.themeController});
@@ -34,7 +34,7 @@ class _PdflowAppState extends State<PdflowApp> {
     return ListenableBuilder(
       listenable: _theme,
       builder: (context, _) => MaterialApp(
-        title: 'pdflow',
+        title: 'MarkIt',
         debugShowCheckedModeBanner: false,
         theme: PdflowTheme.light(),
         darkTheme: PdflowTheme.dark(),

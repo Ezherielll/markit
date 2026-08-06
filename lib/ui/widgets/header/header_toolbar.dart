@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:pdflow/i18n/strings.dart';
-import 'package:pdflow/theme/theme_controller.dart';
-import 'package:pdflow/ui/theme/palette.dart';
+import 'package:markit/i18n/strings.dart';
+import 'package:markit/theme/theme_controller.dart';
+import 'package:markit/ui/theme/palette.dart';
 
 /// Toolbar aksi kanan header — grup rounded container yang kohesif.
 /// Skalabel: tambah aksi (search, notifications, profile, dll) di sini.

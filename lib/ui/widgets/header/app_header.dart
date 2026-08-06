@@ -1,9 +1,9 @@
 import 'dart:ui';
 
 import 'package:flutter/material.dart';
-import 'package:pdflow/theme/theme_controller.dart';
-import 'package:pdflow/ui/theme/palette.dart';
-import 'package:pdflow/ui/theme/spacing.dart';
+import 'package:markit/theme/theme_controller.dart';
+import 'package:markit/ui/theme/palette.dart';
+import 'package:markit/ui/theme/spacing.dart';
 
 import 'brand_lockup.dart';
 import 'header_toolbar.dart';

@@ -15,7 +15,7 @@ import '../test/helpers/pdf_factory.dart';
 void main(List<String> args) async {
   final pages = args.isNotEmpty ? int.parse(args[0]) : 800;
   final outDir = Directory('benchmark/results')..createSync(recursive: true);
-  final tmp = Directory.systemTemp.createTempSync('pdflow_bench');
+  final tmp = Directory.systemTemp.createTempSync('markit_bench');
   PdfDocument? doc;
 
   try {

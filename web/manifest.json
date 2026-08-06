@@ -1,11 +1,11 @@
 {
-    "name": "pdflow — PDF to Markdown",
-    "short_name": "pdflow",
+    "name": "MarkIt — Documents to Markdown",
+    "short_name": "MarkIt",
     "start_url": ".",
     "display": "standalone",
     "background_color": "#F6F4EF",
     "theme_color": "#274C8A",
-    "description": "Convert PDF documents to clean, structured Markdown — fast, private, 100% offline.",
+    "description": "Convert documents to clean, structured Markdown — fast, private, 100% offline.",
     "orientation": "any",
     "prefer_related_applications": false,
     "icons": [

@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
-import 'package:pdflow/i18n/strings.dart';
-import 'package:pdflow/isolate/conversion_controller.dart';
-import 'package:pdflow/ui/theme/palette.dart';
-import 'package:pdflow/ui/theme/spacing.dart';
-import 'package:pdflow/ui/theme/typography.dart';
+import 'package:markit/i18n/strings.dart';
+import 'package:markit/isolate/conversion_controller.dart';
+import 'package:markit/ui/theme/palette.dart';
+import 'package:markit/ui/theme/spacing.dart';
+import 'package:markit/ui/theme/typography.dart';
 
 /// Status kontekstual tengah header — pill/breadcrumb ringkas.
 /// Menunjukkan keadaan workspace: ready / files loaded / processing / done.

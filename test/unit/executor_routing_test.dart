@@ -2,8 +2,8 @@ import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:pdflow/isolate/inline_executor.dart';
-import 'package:pdflow/isolate/isolate_executor.dart';
+import 'package:markit/isolate/inline_executor.dart';
+import 'package:markit/isolate/isolate_executor.dart';
 
 import '../helpers/pdf_factory.dart';
 
@@ -16,7 +16,7 @@ void main() {
   late List<Uint8List> pdfBytes;
 
   setUp(() async {
-    tmp = await Directory.systemTemp.createTemp('pdflow_route');
+    tmp = await Directory.systemTemp.createTemp('markit_route');
     pdfBytes = [
       buildTestPdf(pages: largeBookPages(30, chapterEvery: 10)),
       buildTestPdf(pages: largeBookPages(20, chapterEvery: 5)),

@@ -1,6 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:pdflow/core/paragraph_joiner.dart';
-import 'package:pdflow/models/layout.dart';
+import 'package:markit/core/paragraph_joiner.dart';
+import 'package:markit/models/layout.dart';
 
 Line _line(String text, {double yTop = 100, double h = 12}) {
   final bottom = yTop - h;

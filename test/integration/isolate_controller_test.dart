@@ -6,8 +6,8 @@ library;
 import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:pdflow/isolate/conversion_controller.dart';
-import 'package:pdflow/models/pdf_input.dart';
+import 'package:markit/isolate/conversion_controller.dart';
+import 'package:markit/models/pdf_input.dart';
 
 import '../helpers/pdf_factory.dart';
 
@@ -34,7 +34,7 @@ void main() {
   });
 
   setUp(() async {
-    tmp = await Directory.systemTemp.createTemp('pdflow_iso_test');
+    tmp = await Directory.systemTemp.createTemp('markit_iso_test');
   });
   tearDown(() async {
     controller.reset();

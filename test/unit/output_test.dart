@@ -1,13 +1,13 @@
 import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:pdflow/core/output.dart';
+import 'package:markit/core/output.dart';
 
 void main() {
   late Directory tmp;
 
   setUp(() async {
-    tmp = await Directory.systemTemp.createTemp('pdflow_output_test');
+    tmp = await Directory.systemTemp.createTemp('markit_output_test');
   });
 
   tearDown(() async {

@@ -1,7 +1,7 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:pdflow/core/doc_stats.dart';
-import 'package:pdflow/core/pdf_source.dart';
-import 'package:pdflow/models/layout.dart';
+import 'package:markit/core/doc_stats.dart';
+import 'package:markit/core/pdf_source.dart';
+import 'package:markit/models/layout.dart';
 
 /// Fake source: histogram sintetik tanpa file PDF.
 class FakeSource implements PdfSource {
