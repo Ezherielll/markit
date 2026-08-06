@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/foundation.dart';
 
+import '../core/input_format.dart';
 import '../core/pdfrx_source.dart';
 import '../models/pdf_input.dart';
 import 'conversion_executor.dart';
@@ -47,12 +48,13 @@ class QueuedFile {
   /// Isi markdown hasil konversi (web/MemoryOutput); null di desktop.
   String? content;
 
-  /// Path output (desktop: path .pdf → .md) atau nama file output (web).
+  /// Path output (desktop: path dengan ekstensi apa pun → .md) atau nama
+  /// file output (web).
   String get outputPath {
     final path = input.path;
     if (path != null) {
       return path.replaceFirst(
-        RegExp(r'\.pdf$', caseSensitive: false),
+        RegExp(r'\.\w+$'),
         '.md',
       );
     }
@@ -193,6 +195,9 @@ class BatchConversionController extends ConversionController {
   Future<void> _doProbe(QueuedFile job) async {
     try {
       final input = job.input;
+      // Probe hanya untuk PDF — semantic extractor tidak butuh pageCount
+      // (progress per item diisi saat konversi).
+      if (input.format != InputFormat.pdf) return;
       final count = input.isBytes
           ? await PdfrxSource.probePageCountData(input.bytes!)
           : await PdfrxSource.probePageCount(input.path!);
@@ -278,6 +283,7 @@ class BatchConversionController extends ConversionController {
       pdfPath: job.input.path ?? '',
       pdfBytes: job.input.bytes,
       outputPath: job.outputPath,
+      format: job.input.format,
       onProgress: (page, total, phase, elapsedMs) {
         job.currentPage = page;
         job.totalPages = total;

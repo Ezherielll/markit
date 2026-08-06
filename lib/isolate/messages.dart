@@ -11,11 +11,15 @@ class StartConvert {
     required this.jobId,
     required this.pdfPath,
     required this.outputPath,
+    this.formatName = 'pdf',
   });
 
   final String jobId;
   final String pdfPath;
   final String outputPath;
+
+  /// Nama [InputFormat] (transferable String).
+  final String formatName;
 }
 
 class ConvertProgress {

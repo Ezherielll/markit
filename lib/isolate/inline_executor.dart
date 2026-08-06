@@ -2,6 +2,9 @@ import 'dart:typed_data';
 
 import '../core/converter.dart';
 import '../core/errors.dart';
+import '../core/extractors/extractor_registry.dart';
+import '../core/input_format.dart';
+import '../core/markdown_writer.dart';
 import '../core/output.dart';
 import '../core/pdfrx_source.dart';
 import 'conversion_executor.dart';
@@ -23,10 +26,21 @@ class InlineExecutor implements ConversionExecutor {
     required String pdfPath,
     Uint8List? pdfBytes,
     required String outputPath,
+    InputFormat format = InputFormat.pdf,
     void Function(int page, int total, int phase, int elapsedMs)? onProgress,
   }) async {
     _cancelled = false;
     try {
+      if (format != InputFormat.pdf) {
+        return await _runSemantic(
+          jobId: jobId,
+          bytes: pdfBytes,
+          path: pdfPath,
+          outputPath: outputPath,
+          format: format,
+          onProgress: onProgress,
+        );
+      }
       final source = pdfBytes != null
           ? await PdfrxSource.openData(pdfBytes, sourceName: jobId)
           : await PdfrxSource.open(pdfPath);
@@ -66,6 +80,49 @@ class InlineExecutor implements ConversionExecutor {
         'Kesalahan tak terduga: $e',
       );
     }
+  }
+
+  /// Jalur semantic (web): extractor pure Dart → MemoryOutput.
+  Future<JobExecutionResult> _runSemantic({
+    required String jobId,
+    required Uint8List? bytes,
+    required String path,
+    required String outputPath,
+    required InputFormat format,
+    void Function(int page, int total, int phase, int elapsedMs)? onProgress,
+  }) async {
+    final extractor = ExtractorRegistry.forFormat(format);
+    if (extractor == null) {
+      return JobExecutionResult.failure(
+        'unsupported',
+        'Format ${format.label} belum didukung (roadmap Fase 2–3).',
+      );
+    }
+
+    final output = MemoryOutput();
+    final sink = await output.openSink();
+    final writer = MarkdownWriter(sink);
+
+    final result = await extractor.extract(
+      bytes: bytes,
+      path: bytes != null ? null : path,
+      writer: writer,
+      onProgress: (done, total) {
+        onProgress?.call(done, total, 1, 0);
+      },
+      isCancelled: () => _cancelled,
+    );
+    await writer.close();
+    await output.commit();
+
+    return JobExecutionResult(
+      success: true,
+      pageCount: result.itemCount,
+      failedPages: const [],
+      bodyFontSize: 0,
+      outputPath: outputPath,
+      content: output.content,
+    );
   }
 
   @override

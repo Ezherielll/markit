@@ -28,6 +28,19 @@ class MarkdownWriter {
     _needsBlankLine = true;
   }
 
+  /// Tulis konten mentah (passthrough markdown, code block, tabel markdown)
+  /// dengan pemisah baris kosong yang sama seperti [writeBlock].
+  void writeRaw(String raw) {
+    if (_needsBlankLine) {
+      _sink.write('\n');
+    }
+    _sink.write(raw);
+    if (!raw.endsWith('\n')) {
+      _sink.write('\n');
+    }
+    _needsBlankLine = true;
+  }
+
   /// Escaping ringan: karakter di awal baris yang mengubah struktur markdown.
   String _escapeLine(String text) {
     final trimmed = text;

@@ -2,6 +2,9 @@ import 'dart:isolate';
 
 import '../core/converter.dart';
 import '../core/errors.dart';
+import '../core/extractors/extractor_registry.dart';
+import '../core/input_format.dart';
+import '../core/markdown_writer.dart';
 import '../core/output.dart';
 import '../core/pdfrx_source.dart';
 import 'messages.dart';
@@ -44,6 +47,25 @@ void convertIsolateMain(SendPort mainPort) {
 }
 
 Future<void> _runJob(
+  SendPort mainPort,
+  StartConvert start,
+  bool Function() isCancelled,
+) async {
+  final format = InputFormat.values.firstWhere(
+    (f) => f.name == start.formatName,
+    orElse: () => InputFormat.pdf,
+  );
+
+  if (format != InputFormat.pdf) {
+    await _runSemantic(mainPort, start, isCancelled, format);
+  } else {
+    await _runPdf(mainPort, start, isCancelled);
+  }
+}
+
+/// Jalur PDF: pipeline heuristic existing (PdfrxSource → grouper → classifier),
+/// streaming via path (hemat memori).
+Future<void> _runPdf(
   SendPort mainPort,
   StartConvert start,
   bool Function() isCancelled,
@@ -95,6 +117,73 @@ Future<void> _runJob(
       message: e.message,
     ));
   } catch (e) {
+    mainPort.send(ConvertFailed(
+      jobId: start.jobId,
+      errorType: ConvertError.corrupt.name,
+      message: 'Kesalahan tak terduga: $e',
+    ));
+  }
+}
+
+/// Jalur semantic (non-PDF): extractor pure Dart → markdown streaming.
+Future<void> _runSemantic(
+  SendPort mainPort,
+  StartConvert start,
+  bool Function() isCancelled,
+  InputFormat format,
+) async {
+  final extractor = ExtractorRegistry.forFormat(format);
+  OutputTarget? output;
+  try {
+    if (extractor == null) {
+      mainPort.send(ConvertFailed(
+        jobId: start.jobId,
+        errorType: 'unsupported',
+        message: 'Format ${format.label} belum didukung (roadmap Fase 2–3).',
+      ));
+      return;
+    }
+
+    output = FileOutput(start.outputPath);
+    final sink = await output.openSink();
+    final writer = MarkdownWriter(sink);
+
+    final result = await extractor.extract(
+      bytes: null,
+      path: start.pdfPath,
+      writer: writer,
+      onProgress: (done, total) {
+        mainPort.send(ConvertProgress(
+          jobId: start.jobId,
+          page: done,
+          total: total,
+          elapsedMs: 0,
+          phase: 1,
+        ));
+      },
+      isCancelled: () => isCancelled(),
+    );
+
+    await writer.close();
+    await output.commit();
+    mainPort.send(ConvertDone(
+      jobId: start.jobId,
+      outputPath: start.outputPath,
+      pageCount: result.itemCount,
+      failedPages: const [],
+      elapsedMs: 0,
+      bodyFontSize: 0,
+      emptyPages: 0,
+    ));
+  } on ConvertException catch (e) {
+    await output?.abort();
+    mainPort.send(ConvertFailed(
+      jobId: start.jobId,
+      errorType: e.type.name,
+      message: e.message,
+    ));
+  } catch (e) {
+    await output?.abort();
     mainPort.send(ConvertFailed(
       jobId: start.jobId,
       errorType: ConvertError.corrupt.name,
