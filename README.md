@@ -161,38 +161,41 @@ Other formats: FormatExtractor (per-format) ────────────
 
 ```
 lib/
-  core/       pure Dart pipeline — pdfrx layout pipeline (pdf_source,
-              line_grouper, paragraph_joiner, structure_classifier,
-              doc_stats, converter, output) +
-              multi-format layer (input_format, extractor,
-              extractors/{text,csv,json,xml,html,registry}, markdown_writer)
-  isolate/    execution routing: conversion_executor_factory (conditional
-              import per platform) → isolate_executor (persistent worker,
-              convert_isolate + messages) | inline_executor (web), plus the
-              batch controller (conversion_controller: queue, cancel, probe)
-  models/     TextSpan / Line / Block / PdfInput (path | bytes)
-  theme/      ThemeController (light/dark/system, persisted)
+  core/          → pure Dart pipeline (no Flutter dependency, unit-testable)
+      pdfrx layout pipeline:  pdf_source → line_grouper → paragraph_joiner
+                              → structure_classifier → doc_stats
+                              → converter → output
+      multi-format layer:     input_format → extractor
+                              → extractors/{text,csv,json,xml,html,registry}
+                              → markdown_writer
+  isolate/        → execution routing
+      ├─ conversion_executor_factory  (conditional import per platform)
+      │      → isolate_executor  → persistent worker (convert_isolate + messages)
+      │      → inline_executor   → web (main isolate)
+      └─ conversion_controller  → batch queue, cancel, probe
+  models/         → TextSpan / Line / Block / PdfInput (path | bytes)
+  theme/          → ThemeController (light / dark / system, persisted)
   ui/
-    screens/     home screen (state machine: empty → queue → running →
-                 summary), about screen
-    widgets/     app header (brand lockup, toolbar), drop zone, file card,
-                 progress & result panels, document viewer (preview + raw),
-                 markdown helpers, stat chips
-    theme/       ink/paper palette, typography (Fraunces / Inter / JetBrains
-                 Mono), spacing, MarkIt light & dark
-    download_*.dart   platform-conditional helpers (Blob download on web)
-  i18n/     string tables (localization, English)
-assets/fonts/  bundled font assets (offline-safe)
-web/        web entry (index.html splash, manifest, icons)
-benchmark/  headless harness + golden evaluator
-corpus/     synthetic PDFs, golden files, and conversion output
+    screens/      → home (empty → queue → running → summary), about
+    widgets/      → app header (brand lockup, toolbar), drop zone, file card,
+                    progress & result panels, document viewer (preview + raw),
+                    markdown helpers, stat chips
+    theme/        → ink/paper palette, typography (Fraunces / Inter /
+                    JetBrains Mono), spacing, MarkIt light & dark
+    download_*.dart  → platform-conditional helpers (Blob download on web)
+  i18n/           → string tables (localization, English)
+assets/fonts/     → bundled font assets (offline-safe)
+web/              → web entry (index.html splash, manifest, icons)
+benchmark/        → headless harness → golden evaluator
+corpus/           → synthetic PDFs, golden files, and conversion output
 test/
-  unit/          pipeline, extractors, input_format, executors, stats
-  widget/        home screen, header, multi-format preview, golden screenshots
-  integration/   isolate controller + repro tests (desktop-tagged)
-  spike/         pdfrx API probes, concurrency
-  helpers/       PDF fixture factory (buildTestPdf)
-docs/       benchmark results, MVP checklist, pdfrx spike notes, web deploy
+  unit/           → pipeline, extractors, input_format, executors, stats
+  widget/         → home screen, header, multi-format preview, golden screenshots
+  integration/    → isolate controller + repro tests (desktop-tagged)
+  spike/          → pdfrx API probes, concurrency
+  helpers/        → PDF fixture factory (buildTestPdf)
+docs/             → benchmark results, MVP checklist, pdfrx spike notes,
+                    web deploy
 ```
 
 ## UI design ("Document Studio")
