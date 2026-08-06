@@ -106,4 +106,60 @@ class Strings {
   static const featureOfflineSub = 'Runs 100% on your machine';
   static const featureClean = 'Clean structure';
   static const featureCleanSub = 'Headings, paragraphs, lists';
+
+  // About page.
+  static const back = 'Back';
+  static const aboutTooltip = 'About MarkIt';
+  static const aboutTitle = 'About MarkIt';
+  static const aboutHero = 'Your documents, converted to clean, reusable text.';
+  static const aboutIntro =
+      'MarkIt turns your documents — PDFs, text files, spreadsheets, web '
+      'pages, and more — into Markdown. Markdown is a clean, simple text '
+      'format that is easy to read, copy, and reuse anywhere: notes, docs, '
+      'or even as input for AI tools.';
+  static const aboutHowTitle = 'How it works';
+  static const aboutHowSub = 'Three simple steps — no account, no setup.';
+  static const aboutStep1Title = 'Add your files';
+  static const aboutStep1Sub =
+      'Drag & drop them anywhere on the page, or click "Choose files" and '
+      'pick as many as you like.';
+  static const aboutStep2Title = 'Click "Convert"';
+  static const aboutStep2Sub =
+      'MarkIt processes your files on your device — quickly, and you can '
+      'watch the progress of each file.';
+  static const aboutStep3Title = 'Preview & download';
+  static const aboutStep3Sub =
+      'Check the result as a clean document, then download the Markdown '
+      'file. Batch output can be downloaded as a ZIP.';
+  static const aboutFormatsTitle = 'Supported formats';
+  static const aboutFormatsSub =
+      'PDF · TXT · Markdown · CSV · JSON · XML · HTML';
+  static const aboutFormatsMore =
+      'More formats are on the way — DOCX, XLSX, PPTX, EPUB, and more.';
+  static const aboutPrivacyTitle = '100% private & offline';
+  static const aboutPrivacySub =
+      'Your files never leave your device. There are no uploads, no cloud, '
+      'no accounts, and no tracking — everything runs locally, right in '
+      'your browser. Even your internet can be turned off.';
+  static const aboutFaqTitle = 'Frequently asked questions';
+  static const aboutFaq1Q = 'Are my files uploaded anywhere?';
+  static const aboutFaq1A =
+      'No. Every conversion happens on your own device. Nothing is sent '
+      'over the internet.';
+  static const aboutFaq2Q = 'Does it work offline?';
+  static const aboutFaq2A =
+      'Yes — MarkIt is fully offline. The whole app (including the engine) '
+      'is loaded once and works without a connection.';
+  static const aboutFaq3Q = 'Why does the preview look different from the original?';
+  static const aboutFaq3A =
+      'MarkIt converts the content into structured text (headings, '
+      'paragraphs, lists, tables). Visual design — colors, fonts, page '
+      'layout — is intentionally simplified so the text is clean and '
+      'portable.';
+  static const aboutFaq4Q = 'Can I convert many files at once?';
+  static const aboutFaq4A =
+      'Yes. Add a whole folder of files, convert them all in one batch, '
+      'and download the results individually or as a single ZIP.';
+  static const aboutFooter = 'Made with care — 100% local, 100% yours.';
+  static const aboutViewSource = 'View source on GitHub';
 }

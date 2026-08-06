@@ -4,6 +4,7 @@ import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:markit/i18n/strings.dart';
+import 'package:markit/ui/screens/about_screen.dart';
 import 'package:markit/ui/theme/palette.dart';
 import 'package:markit/ui/theme/spacing.dart';
 import 'package:markit/ui/widgets/header/app_header.dart';
@@ -106,6 +107,12 @@ class _HomeScreenState extends State<HomeScreen> {
     widget.controller.reset();
   }
 
+  void _openAbout() {
+    Navigator.of(context).push(
+      MaterialPageRoute<void>(builder: (_) => const AboutScreen()),
+    );
+  }
+
   Future<void> _addMoreFiles() async {
     final inputs = await pickPdfFiles();
     if (inputs.isEmpty) return;
@@ -195,6 +202,7 @@ class _HomeScreenState extends State<HomeScreen> {
             children: [
               AppHeader(
                 onReset: !c.isRunning ? _reset : () {},
+                onAbout: _openAbout,
                 resetEnabled: !c.isRunning,
                 themeController: _theme,
               ),

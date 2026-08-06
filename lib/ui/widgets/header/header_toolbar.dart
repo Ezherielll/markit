@@ -10,11 +10,15 @@ class HeaderToolbar extends StatelessWidget {
     super.key,
     required this.themeController,
     required this.onReset,
+    this.onAbout,
     this.resetEnabled = true,
   });
 
   final ThemeController themeController;
   final VoidCallback onReset;
+
+  /// Buka halaman About (ikon info).
+  final VoidCallback? onAbout;
   final bool resetEnabled;
 
   @override
@@ -69,6 +73,13 @@ class HeaderToolbar extends StatelessWidget {
             onPressed: null,
             icon: const Icon(Icons.settings_outlined, size: 19),
             tooltip: Strings.settingsTooltip,
+            style: iconStyle,
+          ),
+          // About — penjelasan aplikasi untuk user awam.
+          IconButton(
+            onPressed: onAbout,
+            icon: const Icon(Icons.info_outline, size: 19),
+            tooltip: Strings.aboutTooltip,
             style: iconStyle,
           ),
           Container(

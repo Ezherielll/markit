@@ -6,11 +6,16 @@ import 'package:markit/ui/theme/typography.dart';
 
 /// Brand lockup: ikon dokumen modern + nama "MarkIt" + subtitle deskriptif.
 /// Bagian kiri header — membangun identitas produk.
+/// Bila [onTap] diberikan, seluruh lockup menjadi clickable (kembali ke
+/// halaman utama / reset) dengan hover & ripple halus.
 class BrandLockup extends StatelessWidget {
-  const BrandLockup({super.key, this.showSubtitle = true});
+  const BrandLockup({super.key, this.showSubtitle = true, this.onTap});
 
   /// Sembunyikan subtitle di viewport sempit (responsive).
   final bool showSubtitle;
+
+  /// Tap brand → reset ke halaman utama. Null = tidak clickable.
+  final VoidCallback? onTap;
 
   @override
   Widget build(BuildContext context) {
@@ -19,7 +24,7 @@ class BrandLockup extends StatelessWidget {
     final inkMuted = isDark ? PdflowColors.inkMutedDark : PdflowColors.inkMutedLight;
     final scheme = Theme.of(context).colorScheme;
 
-    return Row(
+    final lockup = Row(
       children: [
         // Ikon dokumen modern dalam tile rounded.
         Container(
@@ -84,6 +89,22 @@ class BrandLockup extends StatelessWidget {
           ),
         ),
       ],
+    );
+
+    if (onTap == null) return lockup;
+
+    return MouseRegion(
+      cursor: SystemMouseCursors.click,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(10),
+        hoverColor: scheme.primary.withValues(alpha: 0.06),
+        splashColor: scheme.primary.withValues(alpha: 0.08),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+          child: lockup,
+        ),
+      ),
     );
   }
 }
