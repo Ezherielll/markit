@@ -273,7 +273,7 @@ class _ResultPanelState extends State<ResultPanel> {
             ),
             padding: const EdgeInsets.all(PdflowSpacing.xl),
             child: _preview == null
-                ? const Center(child: CircularProgressIndicator())
+                ? const _PreviewSkeleton()
                 : SingleChildScrollView(
                     child: _showRaw
                         ? SelectableText(
@@ -348,6 +348,73 @@ class _ResultPanelState extends State<ResultPanel> {
                 ),
             ],
           ),
+      ],
+    );
+  }
+}
+
+/// Skeleton loading preview — bar abu-abu pulsing yang mencerminkan bentuk
+/// dokumen markdown (heading + baris teks), bukan spinner generic.
+class _PreviewSkeleton extends StatefulWidget {
+  const _PreviewSkeleton();
+
+  @override
+  State<_PreviewSkeleton> createState() => _PreviewSkeletonState();
+}
+
+class _PreviewSkeletonState extends State<_PreviewSkeleton>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _controller = AnimationController(
+    vsync: this,
+    duration: const Duration(milliseconds: 1100),
+  )..repeat(reverse: true);
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final base = isDark
+        ? PdflowColors.hairlineDark.withValues(alpha: 0.6)
+        : PdflowColors.hairlineLight;
+    final highlight = isDark
+        ? PdflowColors.surfaceRaisedDark
+        : PdflowColors.surfaceRaisedLight;
+
+    Widget bar(double width, double height) => FadeTransition(
+          opacity: Tween(begin: 0.45, end: 1.0).animate(_controller),
+          child: Container(
+            width: width,
+            height: height,
+            decoration: BoxDecoration(
+              color: base,
+              borderRadius: BorderRadius.circular(3),
+              gradient: LinearGradient(
+                colors: [base, highlight, base],
+              ),
+            ),
+          ),
+        );
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        bar(180, 18),
+        const SizedBox(height: PdflowSpacing.lg),
+        bar(double.infinity, 10),
+        const SizedBox(height: PdflowSpacing.sm),
+        bar(double.infinity, 10),
+        const SizedBox(height: PdflowSpacing.sm),
+        bar(280, 10),
+        const SizedBox(height: PdflowSpacing.lg),
+        bar(120, 10),
+        const SizedBox(height: PdflowSpacing.sm),
+        bar(double.infinity, 10),
       ],
     );
   }

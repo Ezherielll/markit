@@ -6,8 +6,8 @@ import 'package:pdflow/ui/theme/spacing.dart';
 import 'package:pdflow/ui/theme/typography.dart';
 
 /// Kartu satu file dalam queue batch: nama, ukuran, pages, status chip,
-/// tombol hapus (opsional).
-class FileCard extends StatelessWidget {
+/// tombol hapus (opsional). Hover: border accent + surface shift halus.
+class FileCard extends StatefulWidget {
   const FileCard({
     super.key,
     required this.job,
@@ -24,30 +24,50 @@ class FileCard extends StatelessWidget {
   final VoidCallback? onRemove;
 
   @override
+  State<FileCard> createState() => _FileCardState();
+}
+
+class _FileCardState extends State<FileCard> {
+  bool _hovered = false;
+
+  @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final ink = isDark ? PdflowColors.inkDark : PdflowColors.inkLight;
     final inkMuted = isDark ? PdflowColors.inkMutedDark : PdflowColors.inkMutedLight;
     final hairline = isDark ? PdflowColors.hairlineDark : PdflowColors.hairlineLight;
+    final primary = Theme.of(context).colorScheme.primary;
 
-    final job = this.job;
+    final job = widget.job;
     final sizeBytes = job.input.sizeBytes;
     final size = sizeBytes == null
         ? null
         : '${(sizeBytes / (1024 * 1024)).toStringAsFixed(1)} MB';
 
-    return Container(
-      padding: const EdgeInsets.all(PdflowSpacing.lg),
-      decoration: BoxDecoration(
-        color: isDark ? PdflowColors.surfaceDark : PdflowColors.surfaceLight,
-        borderRadius: BorderRadius.circular(PdflowSpacing.radiusCard),
-        border: Border.all(
-          color: job.status == JobStatus.failed
-              ? (isDark ? PdflowColors.stampRedDark : PdflowColors.stampRedLight)
-              : hairline,
+    final baseBorder = job.status == JobStatus.failed
+        ? (isDark ? PdflowColors.stampRedDark : PdflowColors.stampRedLight)
+        : hairline;
+
+    return MouseRegion(
+      onEnter: (_) => setState(() => _hovered = true),
+      onExit: (_) => setState(() => _hovered = false),
+      cursor: widget.onRemove != null
+          ? SystemMouseCursors.click
+          : SystemMouseCursors.basic,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 180),
+        curve: Curves.easeOut,
+        padding: const EdgeInsets.all(PdflowSpacing.lg),
+        decoration: BoxDecoration(
+          color: _hovered
+              ? primary.withValues(alpha: isDark ? 0.06 : 0.04)
+              : (isDark ? PdflowColors.surfaceDark : PdflowColors.surfaceLight),
+          borderRadius: BorderRadius.circular(PdflowSpacing.radiusCard),
+          border: Border.all(
+            color: _hovered && widget.onRemove != null ? primary : baseBorder,
+          ),
         ),
-      ),
-      child: Row(
+        child: Row(
         children: [
           Container(
             width: 44,
@@ -85,7 +105,7 @@ class FileCard extends StatelessWidget {
                   ].join('  ·  '),
                   style: TextStyle(fontSize: 12.5, color: inkMuted),
                 ),
-                if (showStatus && job.status == JobStatus.failed) ...[
+                if (widget.showStatus && job.status == JobStatus.failed) ...[
                   const SizedBox(height: 4),
                   Text(
                     _errorText(job),
@@ -100,19 +120,20 @@ class FileCard extends StatelessWidget {
               ],
             ),
           ),
-          if (showStatus) ...[
+          if (widget.showStatus) ...[
             const SizedBox(width: PdflowSpacing.md),
             _StatusChip(status: job.status),
           ],
-          if (onRemove != null) ...[
+          if (widget.onRemove != null) ...[
             const SizedBox(width: PdflowSpacing.xs),
             IconButton(
-              onPressed: onRemove,
+              onPressed: widget.onRemove,
               icon: const Icon(Icons.close, size: 18),
               tooltip: Strings.removeFile,
             ),
           ],
         ],
+        ),
       ),
     );
   }

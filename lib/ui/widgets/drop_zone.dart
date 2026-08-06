@@ -242,7 +242,10 @@ class _SheetStack extends StatelessWidget {
               border: Border.all(color: edge),
               boxShadow: [
                 BoxShadow(
-                  color: Colors.black.withValues(alpha: isDark ? 0.4 : 0.08),
+                  color: Theme.of(context)
+                      .colorScheme
+                      .primary
+                      .withValues(alpha: isDark ? 0.28 : 0.10),
                   blurRadius: 12,
                   offset: const Offset(0, 4),
                 ),

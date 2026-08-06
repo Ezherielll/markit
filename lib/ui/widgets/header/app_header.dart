@@ -29,6 +29,7 @@ class AppHeader extends StatelessWidget {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final surface = isDark ? PdflowColors.surfaceDark : PdflowColors.surfaceLight;
     final hairline = isDark ? PdflowColors.hairlineDark : PdflowColors.hairlineLight;
+    final ink = isDark ? PdflowColors.inkDark : PdflowColors.inkLight;
 
     return ClipRect(
       child: DecoratedBox(
@@ -38,7 +39,7 @@ class AppHeader extends StatelessWidget {
           ),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withValues(alpha: isDark ? 0.18 : 0.04),
+              color: ink.withValues(alpha: isDark ? 0.16 : 0.05),
               blurRadius: 8,
               offset: const Offset(0, 2),
             ),
@@ -47,7 +48,17 @@ class AppHeader extends StatelessWidget {
         child: BackdropFilter(
           filter: ImageFilter.blur(sigmaX: 12, sigmaY: 12),
           child: Container(
-            color: surface.withValues(alpha: isDark ? 0.78 : 0.72),
+            decoration: BoxDecoration(
+              color: surface.withValues(alpha: isDark ? 0.78 : 0.72),
+              // Inner highlight tipis — simulasikan refraksi tepi kaca.
+              border: Border(
+                top: BorderSide(
+                  color: isDark
+                      ? PdflowColors.inkDark.withValues(alpha: 0.08)
+                      : Colors.white.withValues(alpha: 0.5),
+                ),
+              ),
+            ),
             padding: const EdgeInsets.symmetric(
               horizontal: PdflowSpacing.xxl,
               vertical: PdflowSpacing.md,
