@@ -74,6 +74,7 @@ class Strings {
   static const statsHeading = 'Headings';
   static const statsParagraphs = 'Paragraphs';
   static const statsListItems = 'List items';
+  static const statsRows = 'Rows';
   static const statsTime = 'Elapsed';
   static const statsPagesPerSec = 'Pages/sec';
   static const statsBodyFont = 'Body font';
