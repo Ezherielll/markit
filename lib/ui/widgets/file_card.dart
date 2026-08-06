@@ -1,9 +1,29 @@
 import 'package:flutter/material.dart';
+import 'package:markit/core/input_format.dart';
 import 'package:markit/i18n/strings.dart';
 import 'package:markit/isolate/conversion_controller.dart';
 import 'package:markit/ui/theme/palette.dart';
 import 'package:markit/ui/theme/spacing.dart';
 import 'package:markit/ui/theme/typography.dart';
+
+/// Ikon per format input (M5 multi-format).
+IconData iconForFormat(InputFormat format) => switch (format) {
+      InputFormat.pdf => Icons.picture_as_pdf_outlined,
+      InputFormat.text => Icons.description_outlined,
+      InputFormat.markdown => Icons.notes,
+      InputFormat.csv => Icons.table_chart_outlined,
+      InputFormat.json => Icons.data_object,
+      InputFormat.xml => Icons.code,
+      InputFormat.html => Icons.language,
+      InputFormat.docx => Icons.description,
+      InputFormat.xlsx => Icons.table_chart,
+      InputFormat.pptx => Icons.slideshow_outlined,
+      InputFormat.epub => Icons.menu_book_outlined,
+      InputFormat.zip => Icons.folder_zip_outlined,
+      InputFormat.image => Icons.image_outlined,
+      InputFormat.audio => Icons.audiotrack_outlined,
+      InputFormat.unknown => Icons.insert_drive_file_outlined,
+    };
 
 /// Item daftar file: ikon, nama, ukuran, status chip, progress bar,
 /// download per-file (web, saat selesai) & tombol hapus. Selectable.
@@ -104,7 +124,7 @@ class _FileCardState extends State<FileCard> {
                       borderRadius: BorderRadius.circular(6),
                     ),
                     child: Icon(
-                      Icons.picture_as_pdf_outlined,
+                      iconForFormat(job.input.format),
                       size: 22,
                       color: primary,
                     ),
@@ -244,6 +264,7 @@ class _FileCardState extends State<FileCard> {
       'encrypted' => Strings.errorEncrypted,
       'noText' => Strings.errorNoText,
       'corrupt' => Strings.errorCorrupt,
+      'unsupported' => Strings.errorUnsupported,
       _ => job.errorMessage ?? Strings.errorGeneric.replaceFirst('%s', ''),
     };
   }

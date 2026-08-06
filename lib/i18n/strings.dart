@@ -5,8 +5,7 @@ class Strings {
   static const appTitle = 'MarkIt';
   static const tagline = 'Documents → Markdown, on your machine';
   static const headerSubtitle = 'Convert documents into structured Markdown';
-  static const statusReady = 'Ready to process files';
-  static const statusFilesLoaded = '%d files loaded';
+  static const statusReady = 'Ready to process files';  static const statusFilesLoaded = '%d files loaded';
   static const statusProcessing = 'Processing %d documents';
   static const statusConverted = '%d converted';
   static const statusBatchComplete = 'Batch conversion complete';
@@ -16,15 +15,15 @@ class Strings {
   static const themeDark = 'Dark';
   static const themeSystem = 'System';
   static const heroHeadline = 'Turn documents into clean markdown';
-  static const heroSub = 'Fast, private, and fully offline. Drop your PDFs and get '
-      'structured markdown — headings, paragraphs and lists, ready for reading '
-      'or feeding your AI tools.';
-  static const dropHere = 'Drop your PDFs here';
+  static const heroSub = 'Fast, private, and fully offline. Drop your PDFs, '
+      'DOCX, spreadsheets and more — get structured markdown, ready for '
+      'reading or feeding your AI tools.';
+  static const dropHere = 'Drop your files here';
   static const dropSub = 'or';
-  static const dropCompact = 'Drop PDFs here or choose files';
-  static const dropCompactSub = 'Multiple files supported · PDF only';
-  static const pickFile = 'Choose PDF files';
-  static const pickFileSingular = 'Choose a PDF file';
+  static const dropCompact = 'Drop files here or choose files';
+  static const dropCompactSub = 'Multiple files supported · PDF & more';
+  static const pickFile = 'Choose files';
+  static const pickFileSingular = 'Choose a file';
   static const addFiles = 'Add files';
   static const convert = 'Convert';
   static const viewerEmptyTitle = 'Your document preview will appear here';
@@ -80,12 +79,17 @@ class Strings {
   static const statsBodyFont = 'Body font';
   static const warningFailedPages =
       '%d page(s) failed to extract and were skipped.';
-  static const errorCorrupt = 'Could not open the PDF. The file may be corrupt '
-      'or not a valid PDF.';
+  static const urlNotSupported =
+      'Links and URLs are not supported — MarkIt runs 100% offline. '
+      'Please choose a local file instead.';
+  static const errorCorrupt = 'Could not open the file. It may be corrupt '
+      'or not a supported format.';
   static const errorEncrypted = 'This PDF is password-protected, which is not '
       'supported.';
   static const errorNoText = 'No text could be extracted. This looks like a '
       'scanned document (OCR is not supported).';
+  static const errorUnsupported = 'This file type is not supported yet '
+      '(roadmap: DOCX/XLSX/PPTX/EPUB/ZIP/images/audio).';
   static const errorGeneric = 'Something went wrong: %s';
   static const pickFileFilterName = 'PDF files';
   static const overwriteTitle = 'Overwrite existing files?';

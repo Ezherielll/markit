@@ -131,7 +131,7 @@ void main() {
       home: HomeScreen(controller: FakeConversionController()),
     ));
     expect(find.byType(DropZone), findsOneWidget);
-    expect(find.text('Choose PDF files'), findsOneWidget);
+    expect(find.text('Choose files'), findsOneWidget);
   });
 
   testWidgets('queue state: file cards + convert all button', (tester) async {

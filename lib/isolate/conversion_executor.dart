@@ -1,5 +1,7 @@
 import 'dart:typed_data';
 
+import '../core/input_format.dart';
+
 /// Hasil eksekusi satu job konversi (platform-agnostic).
 class JobExecutionResult {
   JobExecutionResult({
@@ -57,11 +59,14 @@ abstract class ConversionExecutor {
   /// [pdfPath] dipakai desktop; [pdfBytes] dipakai web (tanpa filesystem).
   /// [outputPath] = path output (desktop) atau nama file output (web).
   /// [onProgress] callback: (page, total, phase, elapsedMs).
+  /// [format] format input — PDF → pipeline heuristic; lainnya → semantic
+  /// extractor (plan §5).
   Future<JobExecutionResult> runJob({
     required String jobId,
     required String pdfPath,
     Uint8List? pdfBytes,
     required String outputPath,
+    InputFormat format = InputFormat.pdf,
     void Function(int page, int total, int phase, int elapsedMs)? onProgress,
   });
 

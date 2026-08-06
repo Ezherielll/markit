@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:isolate';
 import 'dart:typed_data';
 
+import '../core/input_format.dart';
 import 'conversion_executor.dart';
 import 'convert_isolate.dart';
 import 'messages.dart';
@@ -29,6 +30,7 @@ class IsolateExecutor implements ConversionExecutor {
     required String pdfPath,
     Uint8List? pdfBytes,
     required String outputPath,
+    InputFormat format = InputFormat.pdf,
     void Function(int page, int total, int phase, int elapsedMs)? onProgress,
   }) async {
     final ports = _ports!;
@@ -39,6 +41,7 @@ class IsolateExecutor implements ConversionExecutor {
       jobId: jobId,
       pdfPath: pdfPath,
       outputPath: outputPath,
+      formatName: format.name,
     ));
 
     return completer.future.timeout(

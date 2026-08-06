@@ -1,8 +1,10 @@
 import 'dart:async';
+import 'dart:io';
 
 import 'package:file_selector/file_selector.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:markit/core/input_format.dart';
 import 'package:markit/i18n/strings.dart';
 import 'package:markit/models/pdf_input.dart';
 import 'package:markit/ui/theme/palette.dart';
@@ -10,31 +12,54 @@ import 'package:markit/ui/theme/spacing.dart';
 import 'package:markit/ui/theme/typography.dart';
 import 'package:super_drag_and_drop/super_drag_and_drop.dart';
 
-/// Buka dialog picker PDF (multi-select). Dipakai drop zone & tombol "Add files".
+/// Buka dialog picker file (multi-select, semua format didukung MarkIt).
 /// Desktop: PdfInput berisi path; Web: berisi bytes (tanpa filesystem).
 Future<List<PdfInput>> pickPdfFiles() async {
   const typeGroup = XTypeGroup(
     label: Strings.pickFileFilterName,
-    extensions: ['pdf'],
+    extensions: [
+      'pdf', 'txt', 'md', 'markdown', 'csv', 'json', 'xml', 'html', 'htm',
+    ],
   );
   final files = await openFiles(acceptedTypeGroups: const [typeGroup]);
   final inputs = <PdfInput>[];
   for (final f in files) {
     if (kIsWeb) {
+      final bytes = await f.readAsBytes();
       inputs.add(PdfInput(
         name: f.name,
         sizeBytes: await f.length(),
-        bytes: await f.readAsBytes(),
+        bytes: bytes,
+        format: detectFormat(f.name, bytes),
       ));
     } else {
+      final header = await _readHeader(f.path);
       inputs.add(PdfInput(
         name: f.name,
         sizeBytes: await f.length(),
         path: f.path,
+        format: detectFormat(f.name, header),
       ));
     }
   }
   return inputs;
+}
+
+/// Baca header file (64 KB pertama) — cukup untuk magic bytes + nama entry
+/// ZIP (plan §4.2) tanpa memuat seluruh file.
+Future<Uint8List> _readHeader(String path) async {
+  try {
+    final file = File(path);
+    final raf = await file.open();
+    try {
+      final bytes = await raf.read(65536);
+      return bytes;
+    } finally {
+      await raf.close();
+    }
+  } catch (_) {
+    return Uint8List(0);
+  }
 }
 
 /// Drop zone — menerima banyak file PDF via drag & drop (desktop) atau
@@ -68,6 +93,7 @@ class _DropZoneState extends State<DropZone> {
 
   Future<void> _onDrop(PerformDropEvent event) async {
     final inputs = <PdfInput>[];
+    var sawUrl = false;
     for (final item in event.session.items) {
       final reader = item.dataReader;
       if (reader == null) continue;
@@ -82,8 +108,14 @@ class _DropZoneState extends State<DropZone> {
         final uri = await completer.future;
         final path = uri?.toFilePath();
         if (path != null) {
+          final name = path.split(RegExp(r'[\\/]')).last;
+          final header = await _readHeader(path);
           inputs.add(
-            PdfInput(name: path.split(RegExp(r'[\\/]')).last, path: path),
+            PdfInput(
+              name: name,
+              path: path,
+              format: detectFormat(name, header),
+            ),
           );
         }
       } else if (kIsWeb && reader.canProvide(Formats.plainText)) {
@@ -96,16 +128,31 @@ class _DropZoneState extends State<DropZone> {
         });
         final text = await completer.future;
         for (final line in (text ?? '').split('\n')) {
-          final uri = Uri.tryParse(line.trim());
+          final trimmed = line.trim();
+          if (trimmed.isEmpty) continue;
+          if (isUrlName(trimmed)) {
+            // URL butuh jaringan — melanggar NG3 (100% lokal).
+            sawUrl = true;
+            continue;
+          }
+          final uri = Uri.tryParse(trimmed);
           if (uri == null) continue;
           final path = uri.toFilePath();
-          if (path.endsWith('.pdf')) {
-            inputs.add(
-              PdfInput(name: path.split(RegExp(r'[\\/]')).last, path: path),
-            );
-          }
+          final name = path.split(RegExp(r'[\\/]')).last;
+          inputs.add(PdfInput(
+            name: name,
+            path: path,
+            format: detectFormat(name, _readHeaderSyncSafe(path)),
+          ));
         }
       }
+    }
+    if (sawUrl && mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(Strings.urlNotSupported),
+        ),
+      );
     }
     if (inputs.isNotEmpty && mounted) {
       widget.onFilesPicked(inputs);
@@ -115,12 +162,15 @@ class _DropZoneState extends State<DropZone> {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text(
-            'Browser drop needs a file URI. Use "Choose PDF files" instead.',
+            'Browser drop needs a file URI. Use "Choose files" instead.',
           ),
         ),
       );
     }
   }
+
+  // Web fallback (plainText drop): tanpa filesystem — deteksi dari ekstensi.
+  Uint8List _readHeaderSyncSafe(String path) => Uint8List(0);
 
   @override
   Widget build(BuildContext context) {

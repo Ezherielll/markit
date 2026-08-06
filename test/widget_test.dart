@@ -5,6 +5,6 @@ void main() {
   testWidgets('app boots to home screen', (WidgetTester tester) async {
     await tester.pumpWidget(const PdflowApp());
     expect(find.text('MarkIt'), findsOneWidget);
-    expect(find.text('Choose PDF files'), findsOneWidget);
+    expect(find.text('Choose files'), findsOneWidget);
   });
 }
