@@ -94,6 +94,7 @@ class _DropZoneState extends State<DropZone> {
   Future<void> _onDrop(PerformDropEvent event) async {
     final inputs = <PdfInput>[];
     var sawUrl = false;
+    var sawUnreadable = false;
     for (final item in event.session.items) {
       final reader = item.dataReader;
       if (reader == null) continue;
@@ -107,17 +108,22 @@ class _DropZoneState extends State<DropZone> {
         });
         final uri = await completer.future;
         final path = uri?.toFilePath();
-        if (path != null) {
-          final name = path.split(RegExp(r'[\\/]')).last;
-          final header = await _readHeader(path);
-          inputs.add(
-            PdfInput(
-              name: name,
-              path: path,
-              format: detectFormat(name, header),
-            ),
-          );
+        if (path == null) continue;
+        if (kIsWeb) {
+          // Web: fileUri tidak bisa dibaca (tidak ada filesystem) — path yang
+          // diberikan browser adalah placeholder. Arahkan ke picker.
+          sawUnreadable = true;
+          continue;
         }
+        final name = path.split(RegExp(r'[\\/]')).last;
+        final header = await _readHeader(path);
+        inputs.add(
+          PdfInput(
+            name: name,
+            path: path,
+            format: detectFormat(name, header),
+          ),
+        );
       } else if (kIsWeb && reader.canProvide(Formats.plainText)) {
         // Web: browser memberi File object — coba lewat uri-list text.
         final completer = Completer<String?>();
@@ -135,15 +141,10 @@ class _DropZoneState extends State<DropZone> {
             sawUrl = true;
             continue;
           }
-          final uri = Uri.tryParse(trimmed);
-          if (uri == null) continue;
-          final path = uri.toFilePath();
-          final name = path.split(RegExp(r'[\\/]')).last;
-          inputs.add(PdfInput(
-            name: name,
-            path: path,
-            format: detectFormat(name, _readHeaderSyncSafe(path)),
-          ));
+          // Path uri-list browser adalah placeholder yang tak bisa dibaca di
+          // web — jangan buat PdfInput palsu (itu menyebabkan error corrupt
+          // saat konversi). Arahkan ke picker.
+          sawUnreadable = true;
         }
       }
     }
@@ -156,21 +157,20 @@ class _DropZoneState extends State<DropZone> {
     }
     if (inputs.isNotEmpty && mounted) {
       widget.onFilesPicked(inputs);
-    } else if (kIsWeb && mounted) {
-      // Fallback: drag & drop file browser belum tentu menyediakan path
-      // — arahkan user ke tombol picker.
+    } else if (mounted) {
+      // Web: file yang di-drop tidak menyediakan bytes yang bisa dibaca —
+      // arahkan user ke tombol picker.
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
+        SnackBar(
           content: Text(
-            'Browser drop needs a file URI. Use "Choose files" instead.',
+            sawUnreadable
+                ? Strings.dropNotSupported
+                : Strings.dropNoFiles,
           ),
         ),
       );
     }
   }
-
-  // Web fallback (plainText drop): tanpa filesystem — deteksi dari ekstensi.
-  Uint8List _readHeaderSyncSafe(String path) => Uint8List(0);
 
   @override
   Widget build(BuildContext context) {

@@ -15,20 +15,20 @@ class Strings {
   static const themeDark = 'Dark';
   static const themeSystem = 'System';
   static const heroHeadline = 'Turn documents into clean markdown';
-  static const heroSub = 'Fast, private, and fully offline. Drop your PDFs, '
-      'DOCX, spreadsheets and more — get structured markdown, ready for '
-      'reading or feeding your AI tools.';
+  static const heroSub = 'Fast, private, and fully offline. Drop your documents '
+      '— PDFs, DOCX, spreadsheets and more — get structured markdown, ready '
+      'for reading or feeding your AI tools.';
   static const dropHere = 'Drop your files here';
   static const dropSub = 'or';
   static const dropCompact = 'Drop files here or choose files';
-  static const dropCompactSub = 'Multiple files supported · PDF & more';
+  static const dropCompactSub = 'Multiple files supported · PDF, DOCX, TXT & more';
   static const pickFile = 'Choose files';
   static const pickFileSingular = 'Choose a file';
   static const addFiles = 'Add files';
   static const convert = 'Convert';
   static const viewerEmptyTitle = 'Your document preview will appear here';
   static const viewerEmptySub =
-      'Add PDF files to convert them into clean Markdown. The result will be '
+      'Add files to convert them into clean Markdown. The result will be '
       'rendered here as a readable document.';
   static const sidebarTitle = 'Workspace';
   static const sidebarFiles = 'Files';
@@ -82,6 +82,10 @@ class Strings {
   static const urlNotSupported =
       'Links and URLs are not supported — MarkIt runs 100% offline. '
       'Please choose a local file instead.';
+  static const dropNotSupported =
+      'Drag & drop of files is not available in the browser — '
+      'use the "Choose files" button instead.';
+  static const dropNoFiles = 'No readable files found in this drop.';
   static const errorCorrupt = 'Could not open the file. It may be corrupt '
       'or not a supported format.';
   static const errorEncrypted = 'This PDF is password-protected, which is not '
@@ -91,7 +95,7 @@ class Strings {
   static const errorUnsupported = 'This file type is not supported yet '
       '(roadmap: DOCX/XLSX/PPTX/EPUB/ZIP/images/audio).';
   static const errorGeneric = 'Something went wrong: %s';
-  static const pickFileFilterName = 'PDF files';
+  static const pickFileFilterName = 'All supported files';
   static const overwriteTitle = 'Overwrite existing files?';
   static const overwriteBody = '%d file(s) already have a .md output. '
       'Continue and replace them?';

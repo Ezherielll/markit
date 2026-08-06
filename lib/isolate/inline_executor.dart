@@ -83,6 +83,10 @@ class InlineExecutor implements ConversionExecutor {
   }
 
   /// Jalur semantic (web): extractor pure Dart → MemoryOutput.
+  ///
+  /// Web TIDAK punya filesystem — extractor hanya bisa membaca [bytes].
+  /// Bila [bytes] null (mis. drag & drop yang hanya memberi path palsu),
+  /// langsung gagal dengan pesan jelas (bukan UnsupportedError → corrupt).
   Future<JobExecutionResult> _runSemantic({
     required String jobId,
     required Uint8List? bytes,
@@ -98,6 +102,13 @@ class InlineExecutor implements ConversionExecutor {
         'Format ${format.label} belum didukung (roadmap Fase 2–3).',
       );
     }
+    if (bytes == null) {
+      return JobExecutionResult.failure(
+        'unsupported',
+        'File tidak tersedia di memori (web) — gunakan tombol "Choose files" '
+        'atau drag & drop dari folder.',
+      );
+    }
 
     final output = MemoryOutput();
     final sink = await output.openSink();
@@ -105,7 +116,6 @@ class InlineExecutor implements ConversionExecutor {
 
     final result = await extractor.extract(
       bytes: bytes,
-      path: bytes != null ? null : path,
       writer: writer,
       onProgress: (done, total) {
         onProgress?.call(done, total, 1, 0);
