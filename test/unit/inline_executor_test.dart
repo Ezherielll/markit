@@ -157,5 +157,27 @@ void main() {
 
       await executor.shutdown();
     });
+
+    test('semantic tanpa bytes (drop path palsu) → unsupported, bukan corrupt',
+        () async {
+      final executor = InlineExecutor();
+      await executor.initialize();
+
+      // Bugfix: web tidak punya filesystem — extractor tidak boleh dipanggil
+      // dengan path placeholder (sebelumnya UnsupportedError → corrupt).
+      final result = await executor.runJob(
+        jobId: 'j8',
+        pdfPath: 'C:/fakepath/data.csv',
+        pdfBytes: null,
+        outputPath: 'data.md',
+        format: InputFormat.csv,
+      );
+
+      expect(result.success, isFalse);
+      expect(result.errorType, 'unsupported');
+      expect(result.errorMessage, contains('Choose files'));
+
+      await executor.shutdown();
+    });
   });
 }

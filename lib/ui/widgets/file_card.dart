@@ -260,12 +260,17 @@ class _FileCardState extends State<FileCard> {
   }
 
   static String _errorText(QueuedFile job) {
+    // Pesan asli dari extractor/executor lebih akurat (mis. "Invalid JSON: …",
+    // "Could not read the CSV file."). Mapping statis hanya fallback bila
+    // executor tidak mengirim pesan detail.
+    final message = job.errorMessage;
+    if (message != null && message.isNotEmpty) return message;
     return switch (job.errorType) {
       'encrypted' => Strings.errorEncrypted,
       'noText' => Strings.errorNoText,
       'corrupt' => Strings.errorCorrupt,
       'unsupported' => Strings.errorUnsupported,
-      _ => job.errorMessage ?? Strings.errorGeneric.replaceFirst('%s', ''),
+      _ => Strings.errorGeneric.replaceFirst('%s', ''),
     };
   }
 
