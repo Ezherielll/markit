@@ -33,6 +33,10 @@ class Strings {
       'rendered here as a readable document.';
   static const sidebarTitle = 'Workspace';
   static const sidebarFiles = 'Files';
+  static const warnLargeBatch =
+      '%d files in one batch — memory usage will be high. Consider converting in smaller groups.';
+  static const warnLargePages =
+      '"%s" has %d pages — large documents may take longer and use more memory.';
   static const convertAll = 'Convert all';
   static const convertAllShort = 'Convert';
   static const cancel = 'Cancel';

@@ -118,6 +118,10 @@ class LeftPanel extends StatelessWidget {
                 : ListView(
                     padding: const EdgeInsets.all(PdflowSpacing.md),
                     children: [
+                      if (_largeBatchWarning(queue) case final warning?) ...[
+                        _WarningBanner(message: warning),
+                        const SizedBox(height: PdflowSpacing.md),
+                      ],
                       for (var i = 0; i < queue.length; i++) ...[
                         _buildCard(queue[i]),
                         if (i < queue.length - 1)
@@ -133,6 +137,22 @@ class LeftPanel extends StatelessWidget {
     );
   }
 
+  /// Peringatan beban besar (M4): >10 file atau ada file >100 halaman.
+  String? _largeBatchWarning(List<QueuedFile> queue) {
+    if (queue.length > 10) {
+      return Strings.warnLargeBatch.replaceFirst('%d', '${queue.length}');
+    }
+    for (final job in queue) {
+      final pages = job.pageCount ?? job.totalPages;
+      if (pages != null && pages > 100) {
+        return Strings.warnLargePages
+            .replaceFirst('%s', job.fileName)
+            .replaceFirst('%d', '$pages');
+      }
+    }
+    return null;
+  }
+
   Widget _buildCard(QueuedFile job) {
     final isActive = job.status == JobStatus.running && isRunning;
     final canDownload = kIsWeb &&
@@ -145,7 +165,8 @@ class LeftPanel extends StatelessWidget {
       onTap: job.status == JobStatus.done ? () => onSelect(job) : null,
       onDownload: canDownload ? () => onDownloadFile(job) : null,
       onRemove: isRunning ? null : () => onRemove(job.id),
-      progress: isActive ? progressFraction : null,
+      // Progress per-job (concurrent): tiap kartu punya progress sendiri.
+      progress: isActive ? job.progressFraction : null,
     );
   }
 
@@ -220,6 +241,43 @@ class LeftPanel extends StatelessWidget {
           child: const Text(Strings.clearAll),
         ),
       ],
+    );
+  }
+}
+
+/// Banner peringatan beban besar (M4) — inline, non-blocking.
+class _WarningBanner extends StatelessWidget {
+  const _WarningBanner({required this.message});
+
+  final String message;
+
+  @override
+  Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final warn = isDark ? PdflowColors.stampRedDark : PdflowColors.stampRedLight;
+    return Container(
+      padding: const EdgeInsets.all(PdflowSpacing.md),
+      decoration: BoxDecoration(
+        color: warn.withValues(alpha: 0.08),
+        borderRadius: BorderRadius.circular(PdflowSpacing.radiusCard),
+        border: Border.all(color: warn.withValues(alpha: 0.35)),
+      ),
+      child: Row(
+        children: [
+          Icon(Icons.info_outline, size: 16, color: warn),
+          const SizedBox(width: PdflowSpacing.sm),
+          Expanded(
+            child: Text(
+              message,
+              style: TextStyle(
+                fontSize: 11.5,
+                height: 1.4,
+                color: warn,
+              ),
+            ),
+          ),
+        ],
+      ),
     );
   }
 }

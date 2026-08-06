@@ -317,4 +317,45 @@ void main() {
 
     expect(find.text('2 converted'), findsOneWidget);
   });
+
+  testWidgets('warning: >10 files → banner muncul (M4)', (tester) async {
+    final controller = FakeConversionController();
+    await pumpWide(tester, MaterialApp(home: HomeScreen(controller: controller)));
+
+    controller.addFiles([
+      for (var i = 0; i < 11; i++) PdfInput(name: 'f$i.pdf', path: 'f$i.pdf'),
+    ]);
+    await tester.pump();
+
+    expect(find.textContaining('memory usage will be high'), findsOneWidget);
+  });
+
+  testWidgets('warning: file >100 halaman → banner muncul (M4)', (tester) async {
+    final controller = FakeConversionController();
+    await pumpWide(tester, MaterialApp(home: HomeScreen(controller: controller)));
+
+    controller.addFiles([PdfInput(name: 'big.pdf', path: 'big.pdf')]);
+    await tester.pump();
+    controller.queue.single.pageCount = 150;
+    controller.notifyListeners();
+    await tester.pump();
+
+    expect(find.textContaining('150 pages'), findsWidgets);
+    // Banner spesifik (pesan lengkap, bukan sekadar metadata kartu).
+    expect(
+      find.textContaining('large documents may take longer'),
+      findsOneWidget,
+    );
+  });
+
+  testWidgets('warning: batch kecil → tidak ada banner (M4)', (tester) async {
+    final controller = FakeConversionController();
+    await pumpWide(tester, MaterialApp(home: HomeScreen(controller: controller)));
+
+    controller.addFiles([PdfInput(name: 'a.pdf', path: 'a.pdf')]);
+    await tester.pump();
+
+    expect(find.textContaining('memory usage will be high'), findsNothing);
+    expect(find.textContaining('pages — large documents'), findsNothing);
+  });
 }
