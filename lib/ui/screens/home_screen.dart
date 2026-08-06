@@ -4,21 +4,20 @@ import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:pdflow/i18n/strings.dart';
-import 'package:pdflow/models/pdf_input.dart';
 import 'package:pdflow/ui/theme/spacing.dart';
 import 'package:pdflow/ui/widgets/header/app_header.dart';
 import 'package:pdflow/ui/widgets/header/status_pill.dart';
+import 'package:pdflow/ui/widgets/document_viewer.dart';
+import 'package:pdflow/ui/widgets/left_panel.dart';
 import 'package:pdflow/ui/widgets/drop_zone.dart';
-import 'package:pdflow/ui/widgets/file_card.dart';
-import 'package:pdflow/ui/widgets/progress_panel.dart';
-import 'package:pdflow/ui/widgets/result_panel.dart';
-import 'package:pdflow/ui/download_zip.dart';
+import 'package:pdflow/ui/download_text.dart';
 
 import '../../isolate/conversion_controller.dart';
 import '../../theme/theme_controller.dart';
 
-/// Layar utama — state machine batch:
-/// empty → queue → running → summary.
+/// Layar utama — layout desktop dua panel:
+/// kiri = workspace (upload/queue/status/aksi), kanan = document viewer.
+/// Responsive: < 900px panel menumpuk.
 class HomeScreen extends StatefulWidget {
   const HomeScreen({
     super.key,
@@ -27,8 +26,6 @@ class HomeScreen extends StatefulWidget {
   });
 
   final ConversionController controller;
-
-  /// Controller tema (M7) — diteruskan ke header.
   final ThemeController? themeController;
 
   @override
@@ -39,6 +36,7 @@ class _HomeScreenState extends State<HomeScreen> {
   DateTime? _startTime;
   Timer? _ticker;
   bool _overwriteConfirmed = false;
+  String? _selectedJobId;
   late final ThemeController _theme =
       widget.themeController ?? ThemeController();
 
@@ -53,10 +51,6 @@ class _HomeScreenState extends State<HomeScreen> {
     widget.controller.removeListener(_onControllerChanged);
     _ticker?.cancel();
     super.dispose();
-  }
-
-  void _onFilesPicked(List<PdfInput> inputs) {
-    widget.controller.addFiles(inputs);
   }
 
   Future<void> _convertAll() async {
@@ -107,13 +101,14 @@ class _HomeScreenState extends State<HomeScreen> {
   void _reset() {
     _ticker?.cancel();
     _overwriteConfirmed = false;
+    _selectedJobId = null;
     widget.controller.reset();
   }
 
   Future<void> _addMoreFiles() async {
-    final paths = await pickPdfFiles();
-    if (paths.isEmpty) return;
-    widget.controller.addFiles(paths);
+    final inputs = await pickPdfFiles();
+    if (inputs.isEmpty) return;
+    widget.controller.addFiles(inputs);
   }
 
   void _onControllerChanged() {
@@ -122,7 +117,66 @@ class _HomeScreenState extends State<HomeScreen> {
       if (!widget.controller.isRunning) {
         _ticker?.cancel();
       }
+      // Auto-select dokumen done pertama bila belum ada pilihan.
+      final queue = widget.controller.queue;
+      if (_selectedJobId == null) {
+        final firstDone = queue.where((f) => f.status == JobStatus.done);
+        if (firstDone.isNotEmpty) {
+          _selectedJobId = firstDone.first.id;
+        }
+      } else {
+        final stillExists = queue.any((f) => f.id == _selectedJobId);
+        if (!stillExists) _selectedJobId = null;
+      }
     });
+  }
+
+  QueuedFile? get _selectedJob {
+    final queue = widget.controller.queue;
+    if (_selectedJobId == null) return null;
+    for (final job in queue) {
+      if (job.id == _selectedJobId) return job;
+    }
+    return null;
+  }
+
+  double? get _progressFraction {
+    final c = widget.controller;
+    final total = c.totalPages ?? 0;
+    final page = c.currentPage ?? 0;
+    if (total <= 0) return null;
+    return page / total;
+  }
+
+  String? get _runningInfo {
+    final c = widget.controller;
+    if (!c.isRunning) return null;
+    final done = c.doneCount;
+    final page = c.currentPage ?? 0;
+    final total = c.totalPages ?? 0;
+    final elapsed = _startTime == null
+        ? Duration.zero
+        : DateTime.now().difference(_startTime!);
+    final pct = _progressFraction == null
+        ? ''
+        : ' · ${((_progressFraction ?? 0) * 100).clamp(0, 100).toStringAsFixed(0)}%';
+    return '${done + 1}/${c.queue.length} · $page/$total$pct'
+        ' · ${_fmt(elapsed)}';
+  }
+
+  static String _fmt(Duration d) {
+    final m = d.inMinutes;
+    final s = d.inSeconds % 60;
+    return '$m:${s.toString().padLeft(2, '0')}';
+  }
+
+  void _onDownloadFile(QueuedFile job) {
+    final content = job.content;
+    if (content == null) return;
+    downloadTextFile(job.input.outputName, content);
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text(Strings.downloadStarted)),
+    );
   }
 
   @override
@@ -140,32 +194,51 @@ class _HomeScreenState extends State<HomeScreen> {
                 themeController: _theme,
               ),
               Expanded(
-                child: Center(
-                  child: ConstrainedBox(
-                    constraints: const BoxConstraints(maxWidth: 760),
-                    child: Padding(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: PdflowSpacing.xl,
-                        vertical: PdflowSpacing.lg,
-                      ),
-                      child: AnimatedSwitcher(
-                        duration: const Duration(milliseconds: 280),
-                        switchInCurve: Curves.easeOutCubic,
-                        switchOutCurve: Curves.easeInCubic,
-                        transitionBuilder: (child, animation) => FadeTransition(
-                          opacity: animation,
-                          child: SlideTransition(
-                            position: Tween<Offset>(
-                              begin: const Offset(0, 0.03),
-                              end: Offset.zero,
-                            ).animate(animation),
-                            child: child,
-                          ),
+                child: LayoutBuilder(
+                  builder: (context, constraints) {
+                    final wide = constraints.maxWidth >= 900;
+                    final leftPanel = LeftPanel(
+                      controller: c,
+                      onAddMore: _addMoreFiles,
+                      onConvertAll: _convertAll,
+                      onClear: _reset,
+                      onRemove: c.removeFile,
+                      onSelect: (job) =>
+                          setState(() => _selectedJobId = job.id),
+                      onDownloadFile: _onDownloadFile,
+                      selectedJobId: _selectedJobId,
+                      isRunning: c.isRunning,
+                      progressFraction: _progressFraction,
+                      runningInfo: _runningInfo,
+                    );
+                    final viewer = DocumentViewer(
+                      job: _selectedJob,
+                      onAddFiles: _addMoreFiles,
+                    );
+
+                    if (wide) {
+                      return Row(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          SizedBox(width: 360, child: leftPanel),
+                          const VerticalDivider(width: 1),
+                          Expanded(child: viewer),
+                        ],
+                      );
+                    }
+                    // Layar sempit: panel menumpuk, viewer dominan.
+                    return Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        SizedBox(
+                          height: constraints.maxHeight * 0.42,
+                          child: leftPanel,
                         ),
-                        child: _buildBody(c),
-                      ),
-                    ),
-                  ),
+                        const Divider(height: 1),
+                        Expanded(child: viewer),
+                      ],
+                    );
+                  },
                 ),
               ),
             ],
@@ -180,331 +253,4 @@ class _HomeScreenState extends State<HomeScreen> {
       ),
     );
   }
-
-  Widget _buildBody(ConversionController c) {
-    if (c.isRunning) {
-      return _RunningState(
-        key: const ValueKey('running'),
-        controller: c,
-        elapsed: _startTime == null
-            ? Duration.zero
-            : DateTime.now().difference(_startTime!),
-        onCancel: c.cancel,
-      );
-    }
-
-    // Summary: semua job berstatus final (done/failed/cancelled) & queue tidak kosong.
-    final allFinal = c.queue.isNotEmpty &&
-        c.queue.every((f) => f.status != JobStatus.queued);
-    if (allFinal) {
-      return _SummaryState(
-        key: const ValueKey('summary'),
-        controller: c,
-        onAddMore: _addMoreFiles,
-        onClear: _reset,
-      );
-    }
-
-    if (c.queue.isEmpty) {
-      return _EmptyState(
-        key: const ValueKey('empty'),
-        onFilesPicked: _onFilesPicked,
-      );
-    }
-
-    // Queue menunggu konversi.
-    return _QueueState(
-      key: const ValueKey('queue'),
-      controller: c,
-      onAddMore: _addMoreFiles,
-      onConvertAll: _convertAll,
-      onRemove: c.removeFile,
-    );
-  }
-}
-
-class _EmptyState extends StatelessWidget {
-  const _EmptyState({super.key, required this.onFilesPicked});
-
-  final ValueChanged<List<PdfInput>> onFilesPicked;
-
-  @override
-  Widget build(BuildContext context) {
-    return SingleChildScrollView(
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          DropZone(onFilesPicked: onFilesPicked),
-          const SizedBox(height: PdflowSpacing.xxl),
-          const _FeatureRow(),
-        ],
-      ),
-    );
-  }
-}
-
-class _QueueState extends StatelessWidget {
-  const _QueueState({
-    super.key,
-    required this.controller,
-    required this.onAddMore,
-    required this.onConvertAll,
-    required this.onRemove,
-  });
-
-  final ConversionController controller;
-  final VoidCallback onAddMore;
-  final VoidCallback onConvertAll;
-  final void Function(String id) onRemove;
-
-  @override
-  Widget build(BuildContext context) {
-    final queue = controller.queue;
-    return SingleChildScrollView(
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          Text(
-            '${queue.length} ${queue.length == 1 ? Strings.pickFileSingular : 'files'}',
-            style: Theme.of(context).textTheme.headlineMedium,
-          ),
-          const SizedBox(height: PdflowSpacing.lg),
-          for (var i = 0; i < queue.length; i++) ...[
-            FileCard(
-              job: queue[i],
-              showStatus: true,
-              onRemove: () => onRemove(queue[i].id),
-            ),
-            if (i < queue.length - 1) const SizedBox(height: PdflowSpacing.sm),
-          ],
-          const SizedBox(height: PdflowSpacing.xl),
-          Row(
-            children: [
-              Expanded(
-                child: FilledButton.icon(
-                  onPressed: onConvertAll,
-                  icon: const Icon(Icons.auto_awesome, size: 18),
-                  label: Text(
-                    '${Strings.convertAll} (${queue.length})',
-                  ),
-                ),
-              ),
-              const SizedBox(width: PdflowSpacing.sm),
-              IconButton(
-                onPressed: onAddMore,
-                icon: const Icon(Icons.add),
-                tooltip: Strings.addFiles,
-              ),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _RunningState extends StatelessWidget {
-  const _RunningState({
-    super.key,
-    required this.controller,
-    required this.elapsed,
-    required this.onCancel,
-  });
-
-  final ConversionController controller;
-  final Duration elapsed;
-  final VoidCallback onCancel;
-
-  @override
-  Widget build(BuildContext context) {
-    final queue = controller.queue;
-    final active = controller.activeJob;
-    final done = controller.doneCount;
-
-    return SingleChildScrollView(
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          Text(
-            '${done + 1} of ${queue.length}',
-            style: Theme.of(context).textTheme.headlineMedium,
-          ),
-          const SizedBox(height: PdflowSpacing.md),
-          ProgressPanel(
-            currentPage: controller.currentPage ?? 0,
-            totalPages: controller.totalPages ?? 0,
-            elapsed: elapsed,
-            onCancel: onCancel,
-            passTwo: controller.phase == 1 && (controller.currentPage ?? 0) > 0,
-          ),
-          if (active != null) ...[
-            const SizedBox(height: PdflowSpacing.lg),
-            FileCard(job: active, showStatus: true),
-          ],
-          const SizedBox(height: PdflowSpacing.lg),
-          // Hanya tampilkan job yang sudah final di daftar bawah — job aktif
-          // sudah dirender di kartu "active" di atas (fix duplikat).
-          for (final job in queue)
-            if (job.status != JobStatus.queued &&
-                job.status != JobStatus.running) ...[
-              FileCard(job: job, showStatus: true),
-              const SizedBox(height: PdflowSpacing.sm),
-            ],
-        ],
-      ),
-    );
-  }
-}
-
-class _SummaryState extends StatelessWidget {
-  const _SummaryState({
-    super.key,
-    required this.controller,
-    required this.onAddMore,
-    required this.onClear,
-  });
-
-  final ConversionController controller;
-  final VoidCallback onAddMore;
-  final VoidCallback onClear;
-
-  @override
-  Widget build(BuildContext context) {
-    final queue = controller.queue;
-    final done = controller.doneCount;
-    final failed = queue.where((f) => f.status == JobStatus.failed).length;
-
-    return SingleChildScrollView(
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          Row(
-            children: [
-              Icon(
-                failed > 0 ? Icons.warning_amber : Icons.check_circle,
-                color: failed > 0
-                    ? Theme.of(context).colorScheme.error
-                    : (Theme.of(context).brightness == Brightness.dark
-                        ? const Color(0xFF7FB590)
-                        : const Color(0xFF3D6B4F)),
-              ),
-              const SizedBox(width: PdflowSpacing.sm),
-              Text(
-                failed > 0
-                    ? '$done converted, $failed failed'
-                    : Strings.filesDone.replaceFirst('%d', '$done')
-                        .replaceFirst('%d', '${queue.length}'),
-                style: Theme.of(context).textTheme.headlineMedium,
-              ),
-            ],
-          ),
-          const SizedBox(height: PdflowSpacing.lg),
-          for (var i = 0; i < queue.length; i++) ...[
-            FileCard(
-              job: queue[i],
-              showStatus: true,
-            ),
-            if (i < queue.length - 1) const SizedBox(height: PdflowSpacing.sm),
-          ],
-          // Preview lengkap untuk file yang berhasil (FR-09) — tampilkan
-          // yang pertama sukses; multi-file tetap punya kartu status di atas.
-          // Tombol Download per-file hanya untuk single-file (done == 1);
-          // multi-file memakai "Download all as ZIP" di bawah.
-          if (queue.any((f) => f.status == JobStatus.done)) ...[
-            const SizedBox(height: PdflowSpacing.xl),
-            ResultPanel(
-              job: queue.firstWhere((f) => f.status == JobStatus.done),
-              showDownloadButton: done == 1,
-            ),
-          ],
-          const SizedBox(height: PdflowSpacing.xl),
-          if (kIsWeb && done > 1) ...[
-            // Multi-file: semua hasil digabung jadi satu ZIP
-            // (browser memblokir banyak download otomatis sekaligus).
-            FilledButton.icon(
-              onPressed: () => _downloadAllZip(queue, done),
-              icon: const Icon(Icons.archive_outlined, size: 18),
-              label: Text('${Strings.downloadAllZip} ($done)'),
-            ),
-            const SizedBox(height: PdflowSpacing.md),
-          ],
-          Row(
-            children: [
-              Expanded(
-                child: FilledButton.tonalIcon(
-                  onPressed: onAddMore,
-                  icon: const Icon(Icons.add),
-                  label: const Text(Strings.addFiles),
-                ),
-              ),
-              const SizedBox(width: PdflowSpacing.sm),
-              OutlinedButton(
-                onPressed: onClear,
-                child: const Text(Strings.clearAll),
-              ),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-/// Tiga poin fitur kecil di bawah drop zone.
-class _FeatureRow extends StatelessWidget {
-  const _FeatureRow();
-  @override
-  Widget build(BuildContext context) {
-    final items = [
-      (Icons.bolt, Strings.featureFast, Strings.featureFastSub),
-      (Icons.lock_outline, Strings.featureOffline, Strings.featureOfflineSub),
-      (Icons.article_outlined, Strings.featureClean, Strings.featureCleanSub),
-    ];
-    return Wrap(
-      spacing: PdflowSpacing.xl,
-      runSpacing: PdflowSpacing.lg,
-      alignment: WrapAlignment.center,
-      children: [
-        for (final (icon, title, sub) in items)
-          SizedBox(
-            width: 200,
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Icon(icon, size: 20, color: Theme.of(context).colorScheme.primary),
-                const SizedBox(width: PdflowSpacing.sm),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(title,
-                          style: Theme.of(context).textTheme.labelMedium),
-                      const SizedBox(height: 2),
-                      Text(sub, style: Theme.of(context).textTheme.bodySmall),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-          ),
-      ],
-    );
-  }
-}
-
-/// Kumpulkan semua output sukses (web) → unduh sebagai satu ZIP.
-/// Bug #1 fix: browser memblokir banyak download otomatis tanpa gesture,
-/// jadi semua file digabung dalam satu arsip.
-void _downloadAllZip(List<QueuedFile> queue, int done) {
-  final files = <String, String>{};
-  for (final job in queue) {
-    if (job.status == JobStatus.done && job.content != null) {
-      files[job.input.outputName] = job.content!;
-    }
-  }
-  if (files.isEmpty) return;
-  downloadZipFile('pdflow-converted.zip', files);
 }

@@ -1,5 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:pdflow/ui/widgets/result_panel.dart';
+import 'package:pdflow/ui/widgets/markdown_helpers.dart';
 
 void main() {
   group('truncateMarkdownPreview (bug #2 fix)', () {

@@ -5,10 +5,9 @@ import 'package:pdflow/models/pdf_input.dart';
 import 'package:pdflow/theme/theme_controller.dart';
 import 'package:pdflow/ui/screens/home_screen.dart';
 import 'package:pdflow/ui/widgets/drop_zone.dart';
+import 'package:pdflow/ui/widgets/document_viewer.dart';
 import 'package:pdflow/ui/widgets/file_card.dart';
 import 'package:pdflow/ui/widgets/header/status_pill.dart';
-import 'package:pdflow/ui/widgets/progress_panel.dart';
-import 'package:pdflow/ui/widgets/result_panel.dart';
 
 /// Fake controller: simulasi batch tanpa isolate.
 class FakeConversionController extends ConversionController {
@@ -115,34 +114,37 @@ class FakeConversionController extends ConversionController {
 }
 
 void main() {
+  // Layout desktop wide (≥900) — panel kiri penuh, aksi terlihat tanpa scroll.
+  Future<void> pumpWide(WidgetTester tester, Widget widget) async {
+    tester.view.physicalSize = const Size(1280, 800);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.reset);
+    await tester.pumpWidget(widget);
+  }
+
   testWidgets('empty state: drop zone visible (FR-01)', (tester) async {
-    await tester.pumpWidget(MaterialApp(
+    await pumpWide(tester, MaterialApp(
       home: HomeScreen(controller: FakeConversionController()),
     ));
     expect(find.byType(DropZone), findsOneWidget);
     expect(find.text('Choose PDF files'), findsOneWidget);
-    expect(find.byType(ProgressPanel), findsNothing);
   });
 
   testWidgets('queue state: file cards + convert all button', (tester) async {
     final controller = FakeConversionController();
-    await tester.pumpWidget(MaterialApp(
-      home: HomeScreen(controller: controller),
-    ));
+    await pumpWide(tester, MaterialApp(home: HomeScreen(controller: controller)));
 
     controller.addFiles([PdfInput(name: 'a.pdf', path: 'a.pdf'), PdfInput(name: 'b.pdf', path: 'b.pdf')]);
     await tester.pump();
 
     expect(find.text('a.pdf'), findsOneWidget);
     expect(find.text('b.pdf'), findsOneWidget);
-    expect(find.text('Convert all (2)'), findsOneWidget);
+    expect(find.text('Convert (2)'), findsOneWidget);
   });
 
   testWidgets('remove file from queue', (tester) async {
     final controller = FakeConversionController();
-    await tester.pumpWidget(MaterialApp(
-      home: HomeScreen(controller: controller),
-    ));
+    await pumpWide(tester, MaterialApp(home: HomeScreen(controller: controller)));
 
     controller.addFiles([PdfInput(name: 'a.pdf', path: 'a.pdf'), PdfInput(name: 'b.pdf', path: 'b.pdf')]);
     await tester.pump();
@@ -154,15 +156,13 @@ void main() {
     await tester.pump();
 
     expect(find.text('b.pdf'), findsNothing);
-    expect(find.text('Convert all (1)'), findsOneWidget);
+    expect(find.text('Convert (1)'), findsOneWidget);
   });
 
   testWidgets('running state: progress + file status (FR-08, FR-11)',
       (tester) async {
     final controller = FakeConversionController();
-    await tester.pumpWidget(MaterialApp(
-      home: HomeScreen(controller: controller),
-    ));
+    await pumpWide(tester, MaterialApp(home: HomeScreen(controller: controller)));
 
     controller.addFiles([PdfInput(name: 'a.pdf', path: 'a.pdf'), PdfInput(name: 'b.pdf', path: 'b.pdf')]);
     await tester.pump();
@@ -170,7 +170,7 @@ void main() {
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 5));
 
-    expect(find.byType(ProgressPanel), findsOneWidget);
+    expect(find.byType(CircularProgressIndicator), findsWidgets);
     expect(find.text('Cancel'), findsOneWidget);
 
     await tester.tap(find.text('Cancel'));
@@ -185,9 +185,7 @@ void main() {
   testWidgets('running single file: kartu file tampil sekali (bug fix duplikat)',
       (tester) async {
     final controller = FakeConversionController();
-    await tester.pumpWidget(MaterialApp(
-      home: HomeScreen(controller: controller),
-    ));
+    await pumpWide(tester, MaterialApp(home: HomeScreen(controller: controller)));
 
     controller.addFiles([PdfInput(name: 'a.pdf', path: 'a.pdf')]);
     await tester.pump();
@@ -206,9 +204,7 @@ void main() {
   testWidgets('summary state: done files shown, clear resets to empty',
       (tester) async {
     final controller = FakeConversionController();
-    await tester.pumpWidget(MaterialApp(
-      home: HomeScreen(controller: controller),
-    ));
+    await pumpWide(tester, MaterialApp(home: HomeScreen(controller: controller)));
 
     controller.addFiles([PdfInput(name: 'a.pdf', path: 'a.pdf'), PdfInput(name: 'b.pdf', path: 'b.pdf')]);
     await tester.pump();
@@ -218,14 +214,9 @@ void main() {
     await tester.pump();
 
     expect(find.text('Clear all'), findsOneWidget);
-    // FR-09: preview result panel untuk file yang berhasil.
-    expect(find.byType(ResultPanel), findsOneWidget);
+    // FR-09: preview document viewer untuk file yang berhasil.
+    expect(find.byType(DocumentViewer), findsOneWidget);
 
-    await tester.scrollUntilVisible(
-      find.text('Clear all'),
-      200,
-      scrollable: find.byType(Scrollable).last,
-    );
     await tester.tap(find.text('Clear all'));
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 350));
@@ -234,12 +225,10 @@ void main() {
     expect(controller.queue, isEmpty);
   });
 
-  testWidgets('download: single file → showDownloadButton true (bug fix)',
+  testWidgets('download: viewer menampilkan dokumen yang dipilih (bug fix)',
       (tester) async {
     final controller = FakeConversionController();
-    await tester.pumpWidget(MaterialApp(
-      home: HomeScreen(controller: controller),
-    ));
+    await pumpWide(tester, MaterialApp(home: HomeScreen(controller: controller)));
 
     controller.addFiles([PdfInput(name: 'a.pdf', path: 'a.pdf')]);
     await tester.pump();
@@ -248,30 +237,10 @@ void main() {
     await tester.pump(const Duration(milliseconds: 100));
     await tester.pump();
 
-    final panel = tester.widget<ResultPanel>(find.byType(ResultPanel));
-    expect(panel.showDownloadButton, isTrue);
-  });
-
-  testWidgets('download: multi-file → showDownloadButton false (bug fix)',
-      (tester) async {
-    final controller = FakeConversionController();
-    await tester.pumpWidget(MaterialApp(
-      home: HomeScreen(controller: controller),
-    ));
-
-    controller.addFiles([
-      PdfInput(name: 'a.pdf', path: 'a.pdf'),
-      PdfInput(name: 'b.pdf', path: 'b.pdf'),
-      PdfInput(name: 'c.pdf', path: 'c.pdf'),
-    ]);
-    await tester.pump();
-    controller.convertAll();
-    await tester.pump();
-    await tester.pump(const Duration(milliseconds: 100));
-    await tester.pump();
-
-    final panel = tester.widget<ResultPanel>(find.byType(ResultPanel));
-    expect(panel.showDownloadButton, isFalse);
+    // Viewer menampilkan file done (a.md sebagai output name).
+    final viewer = tester.widget<DocumentViewer>(find.byType(DocumentViewer));
+    expect(viewer.job, isNotNull);
+    expect(viewer.job!.input.outputName, 'a.md');
   });
 
   testWidgets('theme toggle: cycle light → dark → system (M7)', (tester) async {

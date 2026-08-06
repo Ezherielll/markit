@@ -37,13 +37,21 @@ Future<List<PdfInput>> pickPdfFiles() async {
   return inputs;
 }
 
-/// Drop zone besar — menerima banyak file PDF via drag & drop (desktop) atau
-/// tombol "Choose PDF files". Menampilkan visual "tumpukan lembaran".
+/// Drop zone — menerima banyak file PDF via drag & drop (desktop) atau
+/// tombol "Choose PDF files".
+///
+/// [compact]: versi ringkas untuk sidebar (tanpa sheet stack/hero besar).
 class DropZone extends StatefulWidget {
-  const DropZone({super.key, required this.onFilesPicked});
+  const DropZone({
+    super.key,
+    required this.onFilesPicked,
+    this.compact = false,
+  });
 
   /// Dipanggil dengan daftar [PdfInput] file PDF yang dipilih/di-drop.
   final ValueChanged<List<PdfInput>> onFilesPicked;
+
+  final bool compact;
 
   @override
   State<DropZone> createState() => _DropZoneState();
@@ -149,57 +157,101 @@ class _DropZoneState extends State<DropZone> {
                 ]
               : null,
         ),
-        padding: const EdgeInsets.symmetric(
-          horizontal: PdflowSpacing.xxxl,
-          vertical: PdflowSpacing.xxxl * 1.4,
+        padding: EdgeInsets.symmetric(
+          horizontal: widget.compact ? PdflowSpacing.lg : PdflowSpacing.xxxl,
+          vertical: widget.compact ? PdflowSpacing.xl : PdflowSpacing.xxxl * 1.4,
         ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const _SheetStack(),
-            const SizedBox(height: PdflowSpacing.xl),
-            Icon(
-              Icons.picture_as_pdf_outlined,
-              size: 40,
-              color: Theme.of(context).colorScheme.primary,
-            ),
-            const SizedBox(height: PdflowSpacing.lg),
-            Text(
-              _dragActive ? Strings.dropHere : Strings.heroHeadline,
-              textAlign: TextAlign.center,
-              style: TextStyle(
-                fontFamily: PdflowTypography.display,
-                fontSize: 30,
-                height: 1.15,
-                fontWeight: FontWeight.w600,
-                fontVariations: const [FontVariation('opsz', 36)],
-                color: isDark ? PdflowColors.inkDark : PdflowColors.inkLight,
-              ),
-            ),
-            const SizedBox(height: PdflowSpacing.md),
-            Text(
-              Strings.heroSub,
-              textAlign: TextAlign.center,
-              style: TextStyle(color: inkMuted),
-            ),
-            const SizedBox(height: PdflowSpacing.xl),
-            FilledButton.icon(
-              onPressed: _pick,
-              icon: const Icon(Icons.folder_open, size: 18),
-              label: const Text(Strings.pickFile),
-            ),
-            const SizedBox(height: PdflowSpacing.md),
-            Text(
-              Strings.dropSub,
-              style: TextStyle(
-                fontSize: 12,
-                color: inkMuted,
-                fontStyle: FontStyle.italic,
-              ),
-            ),
-          ],
-        ),
+        child: widget.compact
+            ? _compactContent(inkMuted)
+            : _fullContent(inkMuted, isDark),
       ),
+    );
+  }
+
+  /// Versi ringkas (sidebar): ikon + instruksi singkat + tombol.
+  Widget _compactContent(Color inkMuted) {
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Icon(
+          _dragActive ? Icons.file_download_done : Icons.upload_file_outlined,
+          size: 30,
+          color: Theme.of(context).colorScheme.primary,
+        ),
+        const SizedBox(height: PdflowSpacing.md),
+        Text(
+          _dragActive ? Strings.dropHere : Strings.dropCompact,
+          textAlign: TextAlign.center,
+          style: const TextStyle(
+            fontFamily: PdflowTypography.ui,
+            fontSize: 14,
+            height: 1.35,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+        const SizedBox(height: 4),
+        Text(
+          Strings.dropCompactSub,
+          textAlign: TextAlign.center,
+          style: TextStyle(fontSize: 11.5, color: inkMuted),
+        ),
+        const SizedBox(height: PdflowSpacing.lg),
+        FilledButton.icon(
+          onPressed: _pick,
+          icon: const Icon(Icons.folder_open, size: 17),
+          label: const Text(Strings.pickFile),
+        ),
+      ],
+    );
+  }
+
+  /// Versi penuh (hero empty state): sheet stack + headline + fitur.
+  Widget _fullContent(Color inkMuted, bool isDark) {
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        const _SheetStack(),
+        const SizedBox(height: PdflowSpacing.xl),
+        Icon(
+          Icons.picture_as_pdf_outlined,
+          size: 40,
+          color: Theme.of(context).colorScheme.primary,
+        ),
+        const SizedBox(height: PdflowSpacing.lg),
+        Text(
+          _dragActive ? Strings.dropHere : Strings.heroHeadline,
+          textAlign: TextAlign.center,
+          style: TextStyle(
+            fontFamily: PdflowTypography.display,
+            fontSize: 30,
+            height: 1.15,
+            fontWeight: FontWeight.w600,
+            fontVariations: const [FontVariation('opsz', 36)],
+            color: isDark ? PdflowColors.inkDark : PdflowColors.inkLight,
+          ),
+        ),
+        const SizedBox(height: PdflowSpacing.md),
+        Text(
+          Strings.heroSub,
+          textAlign: TextAlign.center,
+          style: TextStyle(color: inkMuted),
+        ),
+        const SizedBox(height: PdflowSpacing.xl),
+        FilledButton.icon(
+          onPressed: _pick,
+          icon: const Icon(Icons.folder_open, size: 18),
+          label: const Text(Strings.pickFile),
+        ),
+        const SizedBox(height: PdflowSpacing.md),
+        Text(
+          Strings.dropSub,
+          style: TextStyle(
+            fontSize: 12,
+            color: inkMuted,
+            fontStyle: FontStyle.italic,
+          ),
+        ),
+      ],
     );
   }
 }

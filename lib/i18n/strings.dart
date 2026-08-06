@@ -21,11 +21,20 @@ class Strings {
       'or feeding your AI tools.';
   static const dropHere = 'Drop your PDFs here';
   static const dropSub = 'or';
+  static const dropCompact = 'Drop PDFs here or choose files';
+  static const dropCompactSub = 'Multiple files supported · PDF only';
   static const pickFile = 'Choose PDF files';
   static const pickFileSingular = 'Choose a PDF file';
   static const addFiles = 'Add files';
   static const convert = 'Convert';
+  static const viewerEmptyTitle = 'Your document preview will appear here';
+  static const viewerEmptySub =
+      'Add PDF files to convert them into clean Markdown. The result will be '
+      'rendered here as a readable document.';
+  static const sidebarTitle = 'Workspace';
+  static const sidebarFiles = 'Files';
   static const convertAll = 'Convert all';
+  static const convertAllShort = 'Convert';
   static const cancel = 'Cancel';
   static const reset = 'Start over';
   static const removeFile = 'Remove';
