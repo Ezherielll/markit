@@ -3,11 +3,11 @@ import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_markdown/flutter_markdown.dart';
-import 'package:pdflow/i18n/strings.dart';
-import 'package:pdflow/isolate/conversion_controller.dart';
-import 'package:pdflow/ui/theme/palette.dart';
-import 'package:pdflow/ui/theme/spacing.dart';
-import 'package:pdflow/ui/theme/typography.dart';
+import 'package:markit/i18n/strings.dart';
+import 'package:markit/isolate/conversion_controller.dart';
+import 'package:markit/ui/theme/palette.dart';
+import 'package:markit/ui/theme/spacing.dart';
+import 'package:markit/ui/theme/typography.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../download_text.dart';

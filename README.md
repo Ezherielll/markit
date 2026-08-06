@@ -1,6 +1,6 @@
-# pdflow
+# MarkIt
 
-A **PDF → Markdown** converter for desktop (Windows / macOS / Linux).
+A **document → Markdown** converter for desktop (Windows / macOS / Linux) and web.
 
 **Fast, 100% local, zero cloud, zero API calls.** The target use case is large
 books and documents (hundreds of pages) that need to be converted into
@@ -85,7 +85,7 @@ Replace `windows` with `macos` or `linux` for other platforms.
 
 ### Web
 
-- **Live demo (GitHub Pages):** https://ezherielll.github.io/pdflow/
+- **Live demo (GitHub Pages):** https://ezherielll.github.io/markit/
 - Deploy otomatis via GitHub Actions saat push ke `master` (lihat
   `docs/web-deploy.md`).
 - Web mendukung: multi-file, drag & drop, preview rendered markdown,

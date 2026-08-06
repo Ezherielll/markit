@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:pdflow/ui/theme/palette.dart';
-import 'package:pdflow/ui/theme/spacing.dart';
-import 'package:pdflow/ui/theme/typography.dart';
+import 'package:markit/ui/theme/palette.dart';
+import 'package:markit/ui/theme/spacing.dart';
+import 'package:markit/ui/theme/typography.dart';
 
 /// Chip statistik kecil (label + nilai, font mono untuk angka).
 class StatChip extends StatelessWidget {

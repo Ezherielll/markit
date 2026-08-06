@@ -4,12 +4,12 @@ import 'dart:isolate';
 import 'dart:typed_data';
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:pdflow/core/converter.dart';
-import 'package:pdflow/core/output.dart';
-import 'package:pdflow/core/pdfrx_source.dart';
-import 'package:pdflow/isolate/conversion_executor.dart';
-import 'package:pdflow/isolate/convert_isolate.dart';
-import 'package:pdflow/isolate/messages.dart';
+import 'package:markit/core/converter.dart';
+import 'package:markit/core/output.dart';
+import 'package:markit/core/pdfrx_source.dart';
+import 'package:markit/isolate/conversion_executor.dart';
+import 'package:markit/isolate/convert_isolate.dart';
+import 'package:markit/isolate/messages.dart';
 
 import '../helpers/pdf_factory.dart';
 
@@ -25,7 +25,7 @@ void main() {
   late List<Uint8List> pdfBytes;
 
   setUp(() async {
-    tmp = await Directory.systemTemp.createTemp('pdflow_conc');
+    tmp = await Directory.systemTemp.createTemp('markit_conc');
     pdfBytes = [
       buildTestPdf(pages: largeBookPages(40, chapterEvery: 10)),
       buildTestPdf(pages: largeBookPages(25, chapterEvery: 5)),

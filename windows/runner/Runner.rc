@@ -89,13 +89,13 @@ BEGIN
     BEGIN
         BLOCK "040904e4"
         BEGIN
-            VALUE "CompanyName", "com.pdflow" "\0"
-            VALUE "FileDescription", "pdflow" "\0"
+            VALUE "CompanyName", "com.markit" "\0"
+            VALUE "FileDescription", "markit" "\0"
             VALUE "FileVersion", VERSION_AS_STRING "\0"
-            VALUE "InternalName", "pdflow" "\0"
-            VALUE "LegalCopyright", "Copyright (C) 2026 com.pdflow. All rights reserved." "\0"
-            VALUE "OriginalFilename", "pdflow.exe" "\0"
-            VALUE "ProductName", "pdflow" "\0"
+            VALUE "InternalName", "markit" "\0"
+            VALUE "LegalCopyright", "Copyright (C) 2026 com.markit. All rights reserved." "\0"
+            VALUE "OriginalFilename", "markit.exe" "\0"
+            VALUE "ProductName", "markit" "\0"
             VALUE "ProductVersion", VERSION_AS_STRING "\0"
         END
     END
