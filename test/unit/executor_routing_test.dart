@@ -36,7 +36,7 @@ void main() {
   });
 
   /// IsolateExecutor membaca dari path file (desktop) — tulis bytes ke disk.
-  List<String> _writeInputs() {
+  List<String> writeInputs() {
     final paths = <String>[];
     for (var i = 0; i < pdfBytes.length; i++) {
       final p = '${tmp.path}/in$i.pdf';
@@ -50,7 +50,7 @@ void main() {
       () async {
     final executor = IsolateExecutor();
     await executor.initialize();
-    final paths = _writeInputs();
+    final paths = writeInputs();
 
     final progressPerJob = <String, List<int>>{
       for (var i = 0; i < paths.length; i++) 'job$i': [],
