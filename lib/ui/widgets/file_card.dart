@@ -17,6 +17,7 @@ class FileCard extends StatefulWidget {
     this.onTap,
     this.selected = false,
     this.progress,
+    this.phase = 1,
   });
 
   final QueuedFile job;
@@ -26,8 +27,11 @@ class FileCard extends StatefulWidget {
   final VoidCallback? onTap;
   final bool selected;
 
-  /// Progress 0..1 (job running).
+  /// Progress 0..1 (job running); null = indeterminate (total belum diketahui).
   final double? progress;
+
+  /// 0 = pass 1 (reading), 1 = pass 2 (converting) — untuk label phase.
+  final int phase;
 
   @override
   State<FileCard> createState() => _FileCardState();
@@ -174,14 +178,57 @@ class _FileCardState extends State<FileCard> {
                   ],
                 ],
               ),
-              if (widget.progress != null) ...[
+              if (widget.progress != null || job.status == JobStatus.running) ...[
                 const SizedBox(height: PdflowSpacing.sm),
+                // Label phase + metadata progress (page X of Y · %).
+                Row(
+                  children: [
+                    Text(
+                      widget.phase == 0
+                          ? Strings.phaseReadingShort
+                          : Strings.phaseConvertingShort,
+                      style: TextStyle(
+                        fontSize: 10,
+                        fontWeight: FontWeight.w600,
+                        letterSpacing: 0.4,
+                        color: inkMuted,
+                      ),
+                    ),
+                    const Spacer(),
+                    if (widget.progress != null)
+                      Text(
+                        _progressText(job, widget.progress!),
+                        style: TextStyle(
+                          fontFamily: PdflowTypography.mono,
+                          fontSize: 10,
+                          fontFeatures: PdflowTypography.tabularFigures,
+                          color: inkMuted,
+                        ),
+                      ),
+                  ],
+                ),
+                const SizedBox(height: 3),
+                // Bar animasi halus; indeterminate saat total belum diketahui.
                 ClipRRect(
-                  borderRadius: BorderRadius.circular(2),
-                  child: LinearProgressIndicator(
-                    value: widget.progress!.clamp(0.0, 1.0),
-                    minHeight: 3,
-                    backgroundColor: hairline,
+                  borderRadius: BorderRadius.circular(3),
+                  child: SizedBox(
+                    height: 5,
+                    child: widget.progress == null
+                        ? const LinearProgressIndicator(minHeight: 5)
+                        : TweenAnimationBuilder<double>(
+                            tween: Tween(
+                              begin: 0,
+                              end: widget.progress!.clamp(0.0, 1.0),
+                            ),
+                            duration: const Duration(milliseconds: 300),
+                            curve: Curves.easeOut,
+                            builder: (context, value, _) =>
+                                LinearProgressIndicator(
+                              value: value,
+                              minHeight: 5,
+                              backgroundColor: hairline,
+                            ),
+                          ),
                   ),
                 ),
               ],
@@ -199,6 +246,17 @@ class _FileCardState extends State<FileCard> {
       'corrupt' => Strings.errorCorrupt,
       _ => job.errorMessage ?? Strings.errorGeneric.replaceFirst('%s', ''),
     };
+  }
+
+  /// Metadata progress: "12 of 300 pages · 4%" (tabular figures).
+  static String _progressText(QueuedFile job, double fraction) {
+    final page = job.currentPage ?? 0;
+    final total = job.totalPages ?? 0;
+    final pct = (fraction * 100).clamp(0, 100).round();
+    final pages = total > 0
+        ? '${Strings.pageOf.replaceFirst('%d', '$page').replaceFirst('%d', '$total')} · '
+        : '';
+    return '$pages$pct%';
   }
 }
 

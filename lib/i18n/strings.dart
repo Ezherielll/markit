@@ -47,6 +47,9 @@ class Strings {
   static const converting = 'Converting';
   static const phaseReading = 'Reading pages…';
   static const phaseConverting = 'Converting page %d of %d';
+  static const phaseReadingShort = 'Reading';
+  static const phaseConvertingShort = 'Converting';
+  static const pageOf = '%d of %d pages';
   static const done = 'Done';
   static const openOutput = 'Open folder';
   static const download = 'Download';

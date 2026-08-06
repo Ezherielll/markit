@@ -78,10 +78,14 @@ class FakeConversionController extends ConversionController {
       _page = 0;
       _total = 10;
       _phase = 0;
+      job.currentPage = _page;
+      job.totalPages = _total;
       notifyListeners();
       await Future<void>.delayed(const Duration(milliseconds: 10));
       _page = 5;
       _phase = 1;
+      job.currentPage = _page;
+      job.totalPages = _total;
       notifyListeners();
       await Future<void>.delayed(const Duration(milliseconds: 10));
       if (failAll) {
@@ -357,5 +361,41 @@ void main() {
 
     expect(find.textContaining('memory usage will be high'), findsNothing);
     expect(find.textContaining('pages — large documents'), findsNothing);
+  });
+
+  testWidgets('progress: kartu running menampilkan bar + metadata (enhance)',
+      (tester) async {
+    final controller = FakeConversionController();
+    await pumpWide(tester, MaterialApp(home: HomeScreen(controller: controller)));
+
+    controller.addFiles([PdfInput(name: 'a.pdf', path: 'a.pdf')]);
+    await tester.pump();
+    controller.convertAll();
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 5));
+
+    // Job running: ada LinearProgressIndicator (bar per file).
+    expect(find.byType(LinearProgressIndicator), findsWidgets);
+    // Metadata progress muncul (fake phase 0 → "Reading"; page 0 of 10).
+    expect(find.text('Reading'), findsWidgets);
+    expect(find.text('0 of 10 pages · 0%'), findsOneWidget);
+
+    await tester.pump(const Duration(milliseconds: 100));
+    await tester.pump();
+  });
+
+  testWidgets('progress: FileCard indeterminate saat total null (enhance)',
+      (tester) async {
+    final controller = FakeConversionController();
+    controller.addFiles([PdfInput(name: 'a.pdf', path: 'a.pdf')]);
+    controller.queue.single.currentPage = 3;
+    controller.queue.single.totalPages = null; // total belum diketahui
+    controller.queue.single.status = JobStatus.running;
+
+    await pumpWide(tester, MaterialApp(home: HomeScreen(controller: controller)));
+
+    // Running dengan total null → bar indeterminate (default phase 1).
+    expect(find.byType(LinearProgressIndicator), findsOneWidget);
+    expect(find.text('Converting'), findsOneWidget);
   });
 }

@@ -167,6 +167,7 @@ class LeftPanel extends StatelessWidget {
       onRemove: isRunning ? null : () => onRemove(job.id),
       // Progress per-job (concurrent): tiap kartu punya progress sendiri.
       progress: isActive ? job.progressFraction : null,
+      phase: controller.phase,
     );
   }
 
