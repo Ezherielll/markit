@@ -14,6 +14,10 @@ import 'messages.dart';
 class IsolateExecutor implements ConversionExecutor {
   IsolatePorts? _ports;
 
+  /// Job aktif (jobId → completer+progress). Routing concurrent: satu
+  /// handler persist mendistribusikan pesan worker per jobId (M2).
+  final Map<String, _PendingJob> _pending = {};
+
   @override
   Future<void> initialize() async {
     _ports ??= await _spawnWorker();
@@ -29,34 +33,7 @@ class IsolateExecutor implements ConversionExecutor {
   }) async {
     final ports = _ports!;
     final completer = Completer<JobExecutionResult>();
-
-    ports.setHandler!((message) {
-      if (message is ConvertProgress) {
-        onProgress?.call(
-          message.page,
-          message.total,
-          message.phase,
-          message.elapsedMs,
-        );
-      } else if (message is ConvertDone) {
-        if (!completer.isCompleted) {
-          completer.complete(JobExecutionResult(
-            success: true,
-            pageCount: message.pageCount,
-            failedPages: message.failedPages,
-            bodyFontSize: message.bodyFontSize,
-            outputPath: message.outputPath,
-          ));
-        }
-      } else if (message is ConvertFailed) {
-        if (!completer.isCompleted) {
-          completer.complete(JobExecutionResult.failure(
-            message.errorType,
-            message.message,
-          ));
-        }
-      }
-    });
+    _pending[jobId] = _PendingJob(completer, onProgress);
 
     ports.commandPort!.send(StartConvert(
       jobId: jobId,
@@ -66,10 +43,13 @@ class IsolateExecutor implements ConversionExecutor {
 
     return completer.future.timeout(
       const Duration(minutes: 30),
-      onTimeout: () => JobExecutionResult.failure(
-        'corrupt',
-        'Konversi melebihi batas waktu 30 menit.',
-      ),
+      onTimeout: () {
+        _pending.remove(jobId);
+        return JobExecutionResult.failure(
+          'corrupt',
+          'Konversi melebihi batas waktu 30 menit.',
+        );
+      },
     );
   }
 
@@ -110,9 +90,8 @@ class IsolateExecutor implements ConversionExecutor {
       exitPort: exitPort,
     );
 
-    // Handler default (langsung aktif): tangkap command/cancel port yang
-    // dikirim worker saat spawn — jangan sampai terlewat sebelum job pertama.
-    void Function(dynamic message)? jobHandler;
+    // Handler persist (langsung aktif): tangkap command/cancel port yang
+    // dikirim worker saat spawn, lalu routing pesan job per jobId (M2).
     ports.subscription = receivePort.listen((message) {
       if (message is SendPort && ports.commandPort == null) {
         ports.commandPort = message;
@@ -122,9 +101,8 @@ class IsolateExecutor implements ConversionExecutor {
         ports.cancelSender = message;
         return;
       }
-      jobHandler?.call(message);
+      _routeMessage(message);
     });
-    ports.setHandler = (h) => jobHandler = h;
 
     // Pastikan port worker sudah terdaftar sebelum job pertama dikirim.
     final deadline = DateTime.now().add(const Duration(seconds: 10));
@@ -134,6 +112,50 @@ class IsolateExecutor implements ConversionExecutor {
     }
     return ports;
   }
+
+  /// Distribusikan pesan worker ke job yang sesuai (via jobId).
+  void _routeMessage(dynamic message) {
+    if (message is ConvertProgress) {
+      final job = _pending[message.jobId];
+      job?.onProgress?.call(
+        message.page,
+        message.total,
+        message.phase,
+        message.elapsedMs,
+      );
+      return;
+    }
+    if (message is ConvertDone) {
+      final job = _pending.remove(message.jobId);
+      if (job != null && !job.completer.isCompleted) {
+        job.completer.complete(JobExecutionResult(
+          success: true,
+          pageCount: message.pageCount,
+          failedPages: message.failedPages,
+          bodyFontSize: message.bodyFontSize,
+          outputPath: message.outputPath,
+        ));
+      }
+      return;
+    }
+    if (message is ConvertFailed) {
+      final job = _pending.remove(message.jobId);
+      if (job != null && !job.completer.isCompleted) {
+        job.completer.complete(JobExecutionResult.failure(
+          message.errorType,
+          message.message,
+        ));
+      }
+    }
+  }
+}
+
+/// Job aktif di executor — completer + callback progress (routing jobId).
+class _PendingJob {
+  _PendingJob(this.completer, this.onProgress);
+
+  final Completer<JobExecutionResult> completer;
+  final void Function(int page, int total, int phase, int elapsedMs)? onProgress;
 }
 
 class IsolatePorts {
@@ -153,9 +175,6 @@ class IsolatePorts {
 
   /// Cancel port worker (diterima saat spawn).
   SendPort? cancelSender;
-
-  /// Ganti handler pesan untuk job aktif (Progress/Done/Failed).
-  void Function(void Function(dynamic) handler)? setHandler;
 
   Future<void> dispose() async {
     await subscription.cancel();
