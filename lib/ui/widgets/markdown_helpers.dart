@@ -24,20 +24,35 @@ import 'package:markit/ui/theme/typography.dart';
   );
 }
 
-/// Penghitung struktur markdown sederhana (heading/paragraf/list).
+/// Penghitung struktur markdown sederhana (heading/paragraf/list/tabel).
+/// Baris di dalam fenced code block (` ``` `) TIDAK dihitung — itu konten
+/// data (JSON/XML), bukan paragraf dokumen.
 class MdStats {
   int headings = 0;
   int paragraphs = 0;
   int listItems = 0;
+
+  /// Baris tabel markdown (`| … |`) — ditampilkan sebagai "rows".
+  int tableRows = 0;
   bool _inParagraph = false;
+  bool _inCodeBlock = false;
 
   void countLine(String line) {
     final t = line.trim();
+    if (t.startsWith('```')) {
+      _inCodeBlock = !_inCodeBlock;
+      _inParagraph = false;
+      return;
+    }
+    if (_inCodeBlock) return;
     if (t.startsWith('#')) {
       headings++;
       _inParagraph = false;
     } else if (t.startsWith('- ') || t.startsWith('* ')) {
       listItems++;
+      _inParagraph = false;
+    } else if (t.startsWith('|') && t.endsWith('|')) {
+      tableRows++;
       _inParagraph = false;
     } else if (t.isEmpty) {
       _inParagraph = false;
@@ -131,12 +146,22 @@ MarkdownStyleSheet documentMarkdownStyle(BuildContext context) {
       fontWeight: FontWeight.w600,
       color: ink,
     ),
+    tableHeadAlign: TextAlign.left,
+    // Max(Intrinsic, Flex): tabel sempit tetap mengisi lebar (flex), tabel
+    // lebar (CSV banyak kolom) → Intrinsic → horizontal scroll muncul,
+    // bukan cell dipaksa rapat/terpotong (plan M1).
+    tableColumnWidth: MaxColumnWidth(
+      IntrinsicColumnWidth(),
+      FlexColumnWidth(),
+    ),
     tableBody: TextStyle(
       fontFamily: PdflowTypography.ui,
       fontSize: 13,
       height: 1.5,
       color: ink,
     ),
+    tablePadding: const EdgeInsets.only(bottom: 8),
+    tableScrollbarThumbVisibility: true,
     horizontalRuleDecoration: BoxDecoration(
       border: Border(
         top: BorderSide(

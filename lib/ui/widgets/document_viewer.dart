@@ -165,13 +165,24 @@ class _DocumentViewerState extends State<DocumentViewer> {
                                   ),
                                 ),
                               if (_showRaw)
-                                SelectableText(
-                                  _preview!,
-                                  style: TextStyle(
-                                    fontFamily: PdflowTypography.mono,
-                                    fontSize: 12.5,
-                                    height: 1.6,
-                                    color: ink,
+                                // Raw view: baris utuh (no-wrap) + scroll
+                                // horizontal; seleksi tetap tersedia (M4).
+                                Scrollbar(
+                                  thumbVisibility: true,
+                                  child: SingleChildScrollView(
+                                    scrollDirection: Axis.horizontal,
+                                    child: SelectionArea(
+                                      child: Text(
+                                        _preview!,
+                                        softWrap: false,
+                                        style: TextStyle(
+                                          fontFamily: PdflowTypography.mono,
+                                          fontSize: 12.5,
+                                          height: 1.6,
+                                          color: ink,
+                                        ),
+                                      ),
+                                    ),
                                   ),
                                 )
                               else
@@ -216,11 +227,18 @@ class _ViewerToolbar extends StatelessWidget {
     final ink = isDark ? PdflowColors.inkDark : PdflowColors.inkLight;
     final inkMuted = isDark ? PdflowColors.inkMutedDark : PdflowColors.inkMutedLight;
 
+    final s = stats;
     final meta = [
-      if (stats != null)
-        '${stats!.headings} ${Strings.statsHeading.toLowerCase()} · '
-            '${stats!.paragraphs} ${Strings.statsParagraphs.toLowerCase()} · '
-            '${stats!.listItems} ${Strings.statsListItems.toLowerCase()}',
+      if (s != null) ...[
+        if (s.headings > 0)
+          '${s.headings} ${Strings.statsHeading.toLowerCase()} · ',
+        if (s.paragraphs > 0)
+          '${s.paragraphs} ${Strings.statsParagraphs.toLowerCase()} · ',
+        if (s.listItems > 0)
+          '${s.listItems} ${Strings.statsListItems.toLowerCase()} · ',
+        if (s.tableRows > 0)
+          '${s.tableRows} ${Strings.statsRows.toLowerCase()} · ',
+      ],
     ].join();
 
     return Container(
