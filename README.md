@@ -38,6 +38,25 @@ indexed, and fed to AI systems as input (RAG / LLM).
 
 ![About](screenshots/about.png)
 
+## Download
+
+[![Release](https://img.shields.io/github/v/release/Ezherielll/markit?label=Latest%20release&style=flat-square)](https://github.com/Ezherielll/markit/releases/latest)
+[![Downloads](https://img.shields.io/github/downloads/Ezherielll/markit/total?style=flat-square)](https://github.com/Ezherielll/markit/releases)
+
+Desktop builds (Windows / macOS / Linux) are published as GitHub Releases
+whenever a version tag (`vX.Y.Z`) is pushed — see
+`docs/desktop-release.md`. Grab the latest from
+[github.com/Ezherielll/markit/releases/latest](https://github.com/Ezherielll/markit/releases/latest).
+
+| Platform | Package | How to run |
+|----------|---------|------------|
+| Windows | `markit-windows-x64-<ver>.zip` | Extract and run `markit.exe`. If SmartScreen shows "Unknown publisher", click **More info → Run anyway** (the build is unsigned). |
+| macOS | `markit-macos-arm64-<ver>.dmg` | Open the DMG and drag **markit** to Applications. Because it is unsigned, right-click the app and choose **Open** the first time (or run `xattr -cr /Applications/markit.app`). Apple Silicon only. |
+| Linux | `markit-linux-x64-<ver>.tar.gz` | Extract and run `./markit` from the `bundle` folder. |
+
+Prefer not to download? Try the [web demo](https://ezherielll.github.io/markit/)
+instead — same app, runs in the browser, no install.
+
 ## Features (MVP)
 
 ### Extraction & layout
