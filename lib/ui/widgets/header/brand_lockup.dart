@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
-import 'package:pdflow/i18n/strings.dart';
-import 'package:pdflow/ui/theme/palette.dart';
-import 'package:pdflow/ui/theme/spacing.dart';
-import 'package:pdflow/ui/theme/typography.dart';
+import 'package:markit/i18n/strings.dart';
+import 'package:markit/ui/theme/palette.dart';
+import 'package:markit/ui/theme/spacing.dart';
+import 'package:markit/ui/theme/typography.dart';
 
-/// Brand lockup: ikon dokumen modern + nama "pdflow" + subtitle deskriptif.
+/// Brand lockup: ikon dokumen modern + nama "MarkIt" + subtitle deskriptif.
 /// Bagian kiri header — membangun identitas produk.
 class BrandLockup extends StatelessWidget {
   const BrandLockup({super.key, this.showSubtitle = true});
@@ -50,36 +50,38 @@ class BrandLockup extends StatelessWidget {
           ),
         ),
         const SizedBox(width: PdflowSpacing.md),
-        Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text(
-              Strings.appTitle,
-              style: TextStyle(
-                fontFamily: PdflowTypography.display,
-                fontSize: 20,
-                height: 1.1,
-                fontWeight: FontWeight.w600,
-                letterSpacing: -0.2,
-                color: ink,
-              ),
-            ),
-            if (showSubtitle) ...[
-              const SizedBox(height: 1),
+        Flexible(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: [
               Text(
-                Strings.headerSubtitle,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
+                Strings.appTitle,
                 style: TextStyle(
-                  fontFamily: PdflowTypography.ui,
-                  fontSize: 11.5,
-                  height: 1.2,
-                  color: inkMuted,
+                  fontFamily: PdflowTypography.display,
+                  fontSize: 20,
+                  height: 1.1,
+                  fontWeight: FontWeight.w600,
+                  letterSpacing: -0.2,
+                  color: ink,
                 ),
               ),
+              if (showSubtitle) ...[
+                const SizedBox(height: 1),
+                Text(
+                  Strings.headerSubtitle,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    fontFamily: PdflowTypography.ui,
+                    fontSize: 11.5,
+                    height: 1.2,
+                    color: inkMuted,
+                  ),
+                ),
+              ],
             ],
-          ],
+          ),
         ),
       ],
     );

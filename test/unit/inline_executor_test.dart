@@ -1,7 +1,7 @@
 import 'dart:typed_data';
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:pdflow/isolate/inline_executor.dart';
+import 'package:markit/isolate/inline_executor.dart';
 
 import '../helpers/pdf_factory.dart';
 

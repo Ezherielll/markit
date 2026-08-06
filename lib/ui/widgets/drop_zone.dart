@@ -3,11 +3,11 @@ import 'dart:async';
 import 'package:file_selector/file_selector.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
-import 'package:pdflow/i18n/strings.dart';
-import 'package:pdflow/models/pdf_input.dart';
-import 'package:pdflow/ui/theme/palette.dart';
-import 'package:pdflow/ui/theme/spacing.dart';
-import 'package:pdflow/ui/theme/typography.dart';
+import 'package:markit/i18n/strings.dart';
+import 'package:markit/models/pdf_input.dart';
+import 'package:markit/ui/theme/palette.dart';
+import 'package:markit/ui/theme/spacing.dart';
+import 'package:markit/ui/theme/typography.dart';
 import 'package:super_drag_and_drop/super_drag_and_drop.dart';
 
 /// Buka dialog picker PDF (multi-select). Dipakai drop zone & tombol "Add files".

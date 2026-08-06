@@ -2,9 +2,9 @@
 class Strings {
   const Strings._();
 
-  static const appTitle = 'pdflow';
-  static const tagline = 'PDF → Markdown, on your machine';
-  static const headerSubtitle = 'Convert PDFs into structured Markdown';
+  static const appTitle = 'MarkIt';
+  static const tagline = 'Documents → Markdown, on your machine';
+  static const headerSubtitle = 'Convert documents into structured Markdown';
   static const statusReady = 'Ready to process files';
   static const statusFilesLoaded = '%d files loaded';
   static const statusProcessing = 'Processing %d documents';

@@ -1,11 +1,11 @@
 import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:pdflow/core/converter.dart';
-import 'package:pdflow/core/output.dart';
-import 'package:pdflow/core/pdf_source.dart';
-import 'package:pdflow/core/pdfrx_source.dart';
-import 'package:pdflow/models/layout.dart';
+import 'package:markit/core/converter.dart';
+import 'package:markit/core/output.dart';
+import 'package:markit/core/pdf_source.dart';
+import 'package:markit/core/pdfrx_source.dart';
+import 'package:markit/models/layout.dart';
 
 import '../helpers/pdf_factory.dart';
 
@@ -14,7 +14,7 @@ void main() {
 
   late Directory tmp;
   setUp(() async {
-    tmp = await Directory.systemTemp.createTemp('pdflow_conv_test');
+    tmp = await Directory.systemTemp.createTemp('markit_conv_test');
   });
   tearDown(() async {
     await tmp.delete(recursive: true);

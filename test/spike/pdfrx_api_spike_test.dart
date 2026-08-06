@@ -10,7 +10,7 @@ void main() {
 
   late Directory tmp;
   setUp(() async {
-    tmp = await Directory.systemTemp.createTemp('pdflow_spike');
+    tmp = await Directory.systemTemp.createTemp('markit_spike');
   });
   tearDown(() async {
     await tmp.delete(recursive: true);

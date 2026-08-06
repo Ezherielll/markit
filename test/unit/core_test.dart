@@ -1,8 +1,8 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:pdflow/core/errors.dart';
-import 'package:pdflow/core/pdf_source.dart';
-import 'package:pdflow/core/pdfrx_source.dart';
-import 'package:pdflow/models/layout.dart';
+import 'package:markit/core/errors.dart';
+import 'package:markit/core/pdf_source.dart';
+import 'package:markit/core/pdfrx_source.dart';
+import 'package:markit/models/layout.dart';
 import 'package:pdfrx/pdfrx.dart';
 
 import '../helpers/pdf_factory.dart';

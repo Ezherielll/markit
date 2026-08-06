@@ -3,15 +3,15 @@ import 'dart:io';
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
-import 'package:pdflow/i18n/strings.dart';
-import 'package:pdflow/ui/theme/palette.dart';
-import 'package:pdflow/ui/theme/spacing.dart';
-import 'package:pdflow/ui/widgets/header/app_header.dart';
-import 'package:pdflow/ui/widgets/header/status_pill.dart';
-import 'package:pdflow/ui/widgets/document_viewer.dart';
-import 'package:pdflow/ui/widgets/left_panel.dart';
-import 'package:pdflow/ui/widgets/drop_zone.dart';
-import 'package:pdflow/ui/download_text.dart';
+import 'package:markit/i18n/strings.dart';
+import 'package:markit/ui/theme/palette.dart';
+import 'package:markit/ui/theme/spacing.dart';
+import 'package:markit/ui/widgets/header/app_header.dart';
+import 'package:markit/ui/widgets/header/status_pill.dart';
+import 'package:markit/ui/widgets/document_viewer.dart';
+import 'package:markit/ui/widgets/left_panel.dart';
+import 'package:markit/ui/widgets/drop_zone.dart';
+import 'package:markit/ui/download_text.dart';
 
 import '../../isolate/conversion_controller.dart';
 import '../../theme/theme_controller.dart';

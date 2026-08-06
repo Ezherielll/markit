@@ -33,7 +33,7 @@ migrate_working_dir/
 /build/
 /coverage/
 
-# pdflow specific
+# markit specific
 /benchmark/results/
 /corpus/pdfs/
 /corpus/out/

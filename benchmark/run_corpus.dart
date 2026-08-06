@@ -1,7 +1,7 @@
 import 'dart:io';
 
-import 'package:pdflow/core/converter.dart';
-import 'package:pdflow/core/output.dart';
+import 'package:markit/core/converter.dart';
+import 'package:markit/core/output.dart';
 
 import 'engine_source.dart';
 import 'golden_evaluator.dart';

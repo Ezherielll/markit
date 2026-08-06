@@ -2,15 +2,15 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:pdflow/core/markdown_writer.dart';
-import 'package:pdflow/core/output.dart';
-import 'package:pdflow/models/layout.dart';
+import 'package:markit/core/markdown_writer.dart';
+import 'package:markit/core/output.dart';
+import 'package:markit/models/layout.dart';
 
 void main() {
   late Directory tmp;
 
   setUp(() async {
-    tmp = await Directory.systemTemp.createTemp('pdflow_md_test');
+    tmp = await Directory.systemTemp.createTemp('markit_md_test');
   });
 
   tearDown(() async {

@@ -2,8 +2,8 @@ import 'dart:typed_data';
 
 import 'package:archive/archive.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:pdflow/isolate/conversion_controller.dart';
-import 'package:pdflow/models/pdf_input.dart';
+import 'package:markit/isolate/conversion_controller.dart';
+import 'package:markit/models/pdf_input.dart';
 
 void main() {
   group('downloadAllZip (bug #1 fix)', () {
