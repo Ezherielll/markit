@@ -180,41 +180,94 @@ Other formats: FormatExtractor (per-format) ────────────
 
 ```
 lib/
-  core/          → pure Dart pipeline (no Flutter dependency, unit-testable)
-      pdfrx layout pipeline:  pdf_source → line_grouper → paragraph_joiner
-                              → structure_classifier → doc_stats
-                              → converter → output
-      multi-format layer:     input_format → extractor
-                              → extractors/{text,csv,json,xml,html,registry}
-                              → markdown_writer
-  isolate/        → execution routing
-      ├─ conversion_executor_factory  (conditional import per platform)
-      │      → isolate_executor  → persistent worker (convert_isolate + messages)
-      │      → inline_executor   → web (main isolate)
-      └─ conversion_controller  → batch queue, cancel, probe
-  models/         → TextSpan / Line / Block / PdfInput (path | bytes)
-  theme/          → ThemeController (light / dark / system, persisted)
-  ui/
-    screens/      → home (empty → queue → running → summary), about
-    widgets/      → app header (brand lockup, toolbar), drop zone, file card,
-                    progress & result panels, document viewer (preview + raw),
-                    markdown helpers, stat chips
-    theme/        → ink/paper palette, typography (Fraunces / Inter /
-                    JetBrains Mono), spacing, MarkIt light & dark
-    download_*.dart  → platform-conditional helpers (Blob download on web)
-  i18n/           → string tables (localization, English)
-assets/fonts/     → bundled font assets (offline-safe)
-web/              → web entry (index.html splash, manifest, icons)
-benchmark/        → headless harness → golden evaluator
-corpus/           → synthetic PDFs, golden files, and conversion output
-test/
-  unit/           → pipeline, extractors, input_format, executors, stats
-  widget/         → home screen, header, multi-format preview, golden screenshots
-  integration/    → isolate controller + repro tests (desktop-tagged)
-  spike/          → pdfrx API probes, concurrency
-  helpers/        → PDF fixture factory (buildTestPdf)
-docs/             → benchmark results, MVP checklist, pdfrx spike notes,
-                    web deploy
+├── app/
+│   ├── app.dart
+│   ├── bootstrap.dart
+│   ├── router.dart
+│   └── localization/
+│
+├── core/                          # Pure Dart (no Flutter)
+│   ├── pipeline/
+│   │   ├── pdf/
+│   │   │   ├── pdf_source.dart
+│   │   │   ├── line_grouper.dart
+│   │   │   ├── paragraph_joiner.dart
+│   │   │   ├── structure_classifier.dart
+│   │   │   ├── document_statistics.dart
+│   │   │   └── converter.dart
+│   │   │
+│   │   ├── formats/
+│   │   │   ├── input_format.dart
+│   │   │   ├── extractor.dart
+│   │   │   ├── extractors/
+│   │   │   │   ├── text_extractor.dart
+│   │   │   │   ├── csv_extractor.dart
+│   │   │   │   ├── json_extractor.dart
+│   │   │   │   ├── xml_extractor.dart
+│   │   │   │   ├── html_extractor.dart
+│   │   │   │   └── registry.dart
+│   │   │   └── markdown_writer.dart
+│   │   │
+│   │   └── output/
+│   │       ├── markdown_output.dart
+│   │       └── output_formatter.dart
+│   │
+│   ├── models/
+│   │   ├── pdf_input.dart
+│   │   ├── text_span.dart
+│   │   ├── line.dart
+│   │   ├── block.dart
+│   │   ├── conversion_result.dart
+│   │   └── document_stats.dart
+│   │
+│   └── utils/
+│       ├── constants.dart
+│       ├── extensions.dart
+│       └── logger.dart
+│
+├── infrastructure/
+│   ├── isolate/
+│   │   ├── conversion_executor_factory.dart
+│   │   ├── isolate_executor.dart
+│   │   ├── inline_executor.dart
+│   │   ├── convert_isolate.dart
+│   │   ├── messages.dart
+│   │   └── conversion_controller.dart
+│   │
+│   ├── platform/
+│   │   ├── download.dart
+│   │   ├── download_io.dart
+│   │   ├── download_web.dart
+│   │   └── platform_info.dart
+│   │
+│   └── persistence/
+│       └── settings_storage.dart
+│
+├── presentation/
+│   ├── theme/
+│   │   ├── app_theme.dart
+│   │   ├── theme_controller.dart
+│   │   ├── palette.dart
+│   │   ├── typography.dart
+│   │   ├── spacing.dart
+│   │   ├── light_theme.dart
+│   │   └── dark_theme.dart
+│   │
+│   ├── screens/
+│   │   ├── home/
+│   │   └── about/
+│   │
+│   └── widgets/
+│       ├── app_header/
+│       ├── drop_zone/
+│       ├── file_card/
+│       ├── progress_panel/
+│       ├── result_panel/
+│       ├── document_viewer/
+│       ├── markdown/
+│       └── stat_chip/
+│
+└── main.dart
 ```
 
 ## UI design ("Document Studio")
