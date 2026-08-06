@@ -4,6 +4,7 @@ import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:pdflow/i18n/strings.dart';
+import 'package:pdflow/ui/theme/palette.dart';
 import 'package:pdflow/ui/theme/spacing.dart';
 import 'package:pdflow/ui/widgets/header/app_header.dart';
 import 'package:pdflow/ui/widgets/header/status_pill.dart';
@@ -217,25 +218,26 @@ class _HomeScreenState extends State<HomeScreen> {
                     );
 
                     if (wide) {
+                      // Workspace kiri (dominant, ~75%) + sidebar kanan
+                      // (panel utilitas ~25%) — reading flow kiri→kanan.
                       return Row(
                         crossAxisAlignment: CrossAxisAlignment.stretch,
                         children: [
-                          SizedBox(width: 360, child: leftPanel),
-                          const VerticalDivider(width: 1),
-                          Expanded(child: viewer),
+                          Expanded(flex: 3, child: viewer),
+                          SizedBox(width: 320, child: sidebarPanel(leftPanel)),
                         ],
                       );
                     }
-                    // Layar sempit: panel menumpuk, viewer dominan.
+                    // Layar sempit: workspace atas (dominant), sidebar bawah
+                    // sebagai drawer utilitas yang tetap mengalir.
                     return Column(
                       crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: [
+                        Expanded(child: viewer),
                         SizedBox(
                           height: constraints.maxHeight * 0.42,
-                          child: leftPanel,
+                          child: sidebarPanel(leftPanel),
                         ),
-                        const Divider(height: 1),
-                        Expanded(child: viewer),
                       ],
                     );
                   },
@@ -251,6 +253,27 @@ class _HomeScreenState extends State<HomeScreen> {
           ),
         ],
       ),
+    );
+  }
+
+  /// Sidebar sebagai panel utilitas: border kiri halus + shadow lembut,
+  /// bukan divider keras — terasa attached, bukan halaman terpisah.
+  Widget sidebarPanel(Widget child) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final hairline = isDark ? PdflowColors.hairlineDark : PdflowColors.hairlineLight;
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        border: Border(left: BorderSide(color: hairline)),
+        boxShadow: [
+          BoxShadow(
+            color: (isDark ? PdflowColors.inkDark : PdflowColors.inkLight)
+                .withValues(alpha: isDark ? 0.10 : 0.04),
+            blurRadius: 10,
+            offset: const Offset(-2, 0),
+          ),
+        ],
+      ),
+      child: child,
     );
   }
 }
