@@ -1,0 +1,122 @@
+name: Release Desktop
+
+# Build desktop releases (Windows ZIP, macOS DMG, Linux tarball) dan
+# menempelkannya ke GitHub Release (draft) ketika tag versi di-push:
+#
+#   git tag v1.1.0 && git push origin v1.1.0
+#
+# Tag '*-web' (milestone web) dikecualikan.
+
+on:
+  push:
+    tags:
+      - 'v*'
+    tags-ignore:
+      - '*-web'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build-windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+
+      - name: Build Windows
+        run: flutter build windows --release
+
+      - name: Package ZIP (portable)
+        shell: pwsh
+        run: |
+          $ver = $env:GITHUB_REF_NAME
+          Compress-Archive -Path build\windows\x64\runner\Release\* `
+            -DestinationPath "markit-windows-x64-$ver.zip"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: windows
+          path: markit-windows-x64-*.zip
+          if-no-files-found: error
+
+  build-macos:
+    runs-on: macos-14
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+
+      - name: Build macOS
+        run: |
+          flutter config --enable-macos-desktop
+          flutter build macos --release
+
+      - name: Package DMG
+        run: |
+          ver="${GITHUB_REF_NAME}"
+          hdiutil create \
+            -volname "MarkIt" \
+            -srcfolder "build/macos/Build/Products/Release/markit.app" \
+            -ov -format UDZO \
+            "markit-macos-arm64-${ver}.dmg"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: macos
+          path: markit-macos-*.dmg
+          if-no-files-found: error
+
+  build-linux:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+
+      - name: Install build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y clang cmake ninja-build pkg-config \
+            libgtk-3-dev liblzma-dev
+
+      - name: Build Linux
+        run: |
+          flutter config --enable-linux-desktop
+          flutter build linux --release
+
+      - name: Package tarball
+        run: |
+          ver="${GITHUB_REF_NAME}"
+          tar -C build/linux/x64/release -czf "markit-linux-x64-${ver}.tar.gz" bundle
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: linux
+          path: markit-linux-*.tar.gz
+          if-no-files-found: error
+
+  release:
+    needs: [build-windows, build-macos, build-linux]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+
+      - name: Create Draft Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ github.ref_name }}
+          name: ${{ github.ref_name }}
+          draft: true
+          generate_release_notes: true
+          files: artifacts/**/*

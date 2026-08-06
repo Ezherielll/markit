@@ -3,8 +3,9 @@ import 'package:markit/i18n/strings.dart';
 import 'package:markit/ui/theme/palette.dart';
 import 'package:markit/ui/theme/spacing.dart';
 import 'package:markit/ui/theme/typography.dart';
+import 'package:markit/ui/widgets/markit_mark.dart';
 
-/// Brand lockup: ikon dokumen modern + nama "MarkIt" + subtitle deskriptif.
+/// Brand lockup: logo [M] MarkIt + nama "MarkIt" + subtitle deskriptif.
 /// Bagian kiri header — membangun identitas produk.
 /// Bila [onTap] diberikan, seluruh lockup menjadi clickable (kembali ke
 /// halaman utama / reset) dengan hover & ripple halus.
@@ -26,34 +27,7 @@ class BrandLockup extends StatelessWidget {
 
     final lockup = Row(
       children: [
-        // Ikon dokumen modern dalam tile rounded.
-        Container(
-          width: 36,
-          height: 36,
-          decoration: BoxDecoration(
-            gradient: LinearGradient(
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-              colors: [
-                scheme.primary,
-                scheme.primary.withValues(alpha: 0.72),
-              ],
-            ),
-            borderRadius: BorderRadius.circular(10),
-            boxShadow: [
-              BoxShadow(
-                color: scheme.primary.withValues(alpha: 0.25),
-                blurRadius: 8,
-                offset: const Offset(0, 2),
-              ),
-            ],
-          ),
-          child: const Icon(
-            Icons.description_rounded,
-            size: 20,
-            color: Colors.white,
-          ),
-        ),
+        const MarkItMark(size: 36),
         const SizedBox(width: PdflowSpacing.md),
         Flexible(
           child: Column(
