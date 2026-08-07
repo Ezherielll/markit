@@ -39,6 +39,17 @@ migrate_working_dir/
 /corpus/out/
 *.partial
 
+# AI/agent instruction files — jangan dipublish ke GitHub
+/AGENTS.md
+/CLAUDE.md
+/GEMINI.md
+/.cursorrules
+/.cursor/
+/.github/copilot-instructions.md
+/opencode.json*
+/.skills/
+/docs/superpowers/
+
 # Symbolication related
 app.*.symbols
 
