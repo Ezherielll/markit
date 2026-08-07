@@ -37,7 +37,7 @@ dependencies:
   pdfrx: ^2.4.7
   file_selector: ^1.1.0
   url_launcher: ^6.3.2
-  flutter_markdown: ^0.7.7+1
+  flutter_markdown_plus: ^1.0.12
   super_drag_and_drop: ^0.9.1
   web: ^1.1.1
   shared_preferences: ^2.5.5
