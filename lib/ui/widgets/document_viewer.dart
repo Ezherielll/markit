@@ -2,7 +2,7 @@ import 'dart:io';
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter_markdown/flutter_markdown.dart';
+import 'package:flutter_markdown_plus/flutter_markdown_plus.dart';
 import 'package:markit/i18n/strings.dart';
 import 'package:markit/isolate/conversion_controller.dart';
 import 'package:markit/ui/theme/palette.dart';
