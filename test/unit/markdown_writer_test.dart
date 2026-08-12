@@ -202,6 +202,44 @@ void main() {
       );
     });
 
+    test(
+        'tableHeader setelah tabel sebelumnya → blank line di antara dua tabel',
+        () async {
+      // Simulasi dua tabel berurutan: header+row tabel pertama, lalu
+      // header+row tabel kedua — header baru TIDAK boleh menempel sebagai
+      // baris data tabel pertama.
+      final buffer = StringBuffer();
+      final w = MarkdownWriter(MemoryMdSink(buffer));
+      w.writeBlock(Block(
+        type: BlockType.tableHeader,
+        lines: const ['Old | Qty'],
+        cells: const ['Old', 'Qty'],
+      ));
+      w.writeBlock(Block(
+        type: BlockType.tableRow,
+        lines: const ['Apples | 10'],
+        cells: const ['Apples', '10'],
+      ));
+      w.writeBlock(Block(
+        type: BlockType.tableHeader,
+        lines: const ['New | Val'],
+        cells: const ['New', 'Val'],
+      ));
+      w.writeBlock(Block(
+        type: BlockType.tableRow,
+        lines: const ['Bananas | 20'],
+        cells: const ['Bananas', '20'],
+      ));
+      await w.close();
+      final out = buffer.toString();
+      expect(out, contains('\n\n| New |'));
+      expect(
+        out,
+        '| Old | Qty |\n| --- | --- |\n| Apples | 10 |\n\n'
+        '| New | Val |\n| --- | --- |\n| Bananas | 20 |\n',
+      );
+    });
+
     test('listItem depth=0 → "- item"', () async {
       final buffer = StringBuffer();
       final w = MarkdownWriter(MemoryMdSink(buffer));

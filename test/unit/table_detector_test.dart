@@ -56,7 +56,10 @@ void main() {
       expect(tagged.every((g) => !g.$2), isTrue);
     });
 
-    test('gap posisi tidak konsisten (variance >= 10pt) → bukan tabel', () {
+    test('gap posisi tidak konsisten (variance >= 20pt) → bukan tabel', () {
+      // Catatan tuning: plan awal memakai ambang 10pt, dinaikkan ke 20pt
+      // (maxGapVariancePt) karena lebar karakter sintetis (6pt/char) membuat
+      // variance X-gap mudah melewati 10pt pada data non-tabel biasa.
       final paragraphs = [
         _row([('A', 72), ('B', 200)], y: 700),
         _row([('C', 72), ('D', 220)], y: 675),

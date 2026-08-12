@@ -101,13 +101,16 @@ void main() {
     });
 
     test('baris berakhir "-" + KAPITAL → tidak digabung', () {
-      // "Smith-" + "Jones" → tetap terpisah
+      // "Smith-" + "Jones" → tetap terpisah (tidak ada merge hiphenasi):
+      // dua paragraf, masing-masing satu baris utuh.
       final paras = joiner.join(
         [gapLine('Smith-', 40, 100), gapLine('Jones', 200, 300, yTop: 85)],
         isHeading: notHeading,
       );
-      final allText = paras.expand((p) => p).map((l) => l.text).join('');
-      expect(allText, contains('Smith-'));
+      expect(paras, hasLength(2));
+      expect(paras[0].single.text, 'Smith-');
+      expect(paras[1].single.text, 'Jones');
+      expect(paras[0].single.text, isNot(contains('Smith-Jones')));
     });
 
     test('baris berakhir "-" + angka → tidak digabung ("5-" + "10")', () {
@@ -115,8 +118,10 @@ void main() {
         [gapLine('5-', 40, 60), gapLine('10', 200, 240, yTop: 85)],
         isHeading: notHeading,
       );
-      final allText = paras.expand((p) => p).map((l) => l.text).join('');
-      expect(allText, contains('5-'));
+      expect(paras, hasLength(2));
+      expect(paras[0].single.text, '5-');
+      expect(paras[1].single.text, '10');
+      expect(paras[0].single.text, isNot(contains('5-10')));
     });
   });
 }

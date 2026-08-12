@@ -20,8 +20,9 @@ class MarkdownWriter {
   void writeBlock(Block block) {
     if (_needsBlankLine) {
       // Tidak ada blank line antara baris tabel berurutan (satu tabel).
-      final isTableContinuation =
-          (block.type == BlockType.tableRow || block.type == BlockType.tableHeader) &&
+      // Hanya baris data (tableRow) yang "melanjutkan" tabel; tableHeader baru
+      // (tabel kedua / header ulang lintas halaman) harus tetap dipisahkan.
+      final isTableContinuation = block.type == BlockType.tableRow &&
           (_lastBlockType == BlockType.tableHeader || _lastBlockType == BlockType.tableRow);
       if (!isTableContinuation) _sink.write('\n');
     }
