@@ -8,14 +8,17 @@ import '../test/helpers/pdf_factory.dart';
 ///
 /// Menghasilkan:
 ///   corpus/pdfs/book_single.pdf     — buku satu kolom, heading jelas (best case)
-///   corpus/pdfs/with_tables.pdf     — baris berpola tabel (grid sederhana)
+///   corpus/pdfs/simple_table.pdf    — tabel sederhana 3 kolom (Fase C)
+///   corpus/pdfs/nested_list.pdf     — nested list flat + 1 level (Fase C)
 ///   corpus/golden/{name}.md         — golden reference manual
 void main() {
   Directory('corpus/pdfs').createSync(recursive: true);
   Directory('corpus/golden').createSync(recursive: true);
 
   _write('book_single.pdf', buildTestPdf(pages: largeBookPages(60, chapterEvery: 15)));
-  _write('with_tables.pdf', buildTestPdf(pages: _tablePdf()));
+  // PERUBAHAN: ganti with_tables dengan simple_table (golden yang benar)
+  _write('simple_table.pdf', buildTestPdf(pages: simpleTablePages()));
+  _write('nested_list.pdf', buildTestPdf(pages: nestedListPages()));
   // Fase A fixtures
   _write('nested_headings.pdf', buildTestPdf(pages: nestedHeadingsPages()));
   _write('numbered_sections.pdf', buildTestPdf(pages: numberedSectionsPages()));
@@ -29,28 +32,4 @@ void main() {
 
 void _write(String name, List<int> bytes) {
   File('corpus/pdfs/$name').writeAsBytesSync(bytes);
-}
-
-List<PdfPageSpec> _tablePdf() {
-  final pages = <PdfPageSpec>[];
-  final rows = [
-    ('Name', 'Qty', 'Price'),
-    ('Apples', '10', '2.50'),
-    ('Bananas', '20', '1.75'),
-    ('Cherries', '5', '8.00'),
-  ];
-  var y = 700.0;
-  final items = <PdfTextItem>[
-    PdfTextItem('Inventory Report', fontSize: 20, y: 740, bold: true),
-  ];
-  for (final row in rows) {
-    items.add(
-      PdfTextItem('${row.$1.padRight(12)}  ${row.$2.padRight(6)}  ${row.$3}',
-          x: 72, y: y),
-    );
-    y -= 22;
-  }
-  items.add(PdfTextItem('End of table with plain text after.', y: y - 10));
-  pages.add(PdfPageSpec(items));
-  return pages;
 }

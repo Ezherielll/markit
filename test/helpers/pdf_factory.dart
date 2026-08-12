@@ -263,3 +263,72 @@ List<PdfPageSpec> headerFooterPages() {
     ]),
   ];
 }
+
+/// Fixture Fase C: tabel sederhana 3 kolom, 4 baris (termasuk header).
+/// Kolom di x=72, x=200, x=260. Gap antar kolom > 20pt (syarat TableDetector).
+///
+/// PENTING (deviasi empiris dari sketsa brief): kolom ketiga di x=260, bukan
+/// x=350. Dengan x=350, ColumnSplitter (Fase B) memisahkan halaman menjadi
+/// 2 kolom (gap 132pt > 8%*612=48.96pt) sehingga sel kolom ketiga keluar
+/// dari baris tabel. x=260 tetap memberi gap 41.5pt > 20pt dari kata terlebar
+/// kolom kedua ('Qty' berakhir di ~218.5), dan masih <= 241.7+48.96 (running
+/// maxXRight baris 'End of table...' + threshold) sehingga halaman tetap
+/// single-column.
+///
+/// Judul di y=715 (bukan 750 dari sketsa awal): yTop ≈ 729.5 harus < 736.6
+/// (0.93*792) agar tidak disuppress zona header. Jarak judul→baris pertama
+/// yang rapat sengaja membuat threshold paragraf kecil (median gap tertarik
+/// ke bawah), sehingga tiap baris tabel jadi paragraf terpisah — syarat
+/// TableDetector (satu baris per paragraf).
+List<PdfPageSpec> simpleTablePages() {
+  const cols = [72.0, 200.0, 260.0];
+  final rows = [
+    ('Name', 'Qty', 'Price'),
+    ('Apples', '10', '2.50'),
+    ('Bananas', '20', '1.75'),
+    ('Cherries', '5', '8.00'),
+  ];
+  final items = <PdfTextItem>[
+    PdfTextItem('Inventory Report', fontSize: 20, x: 72, y: 715, bold: true),
+  ];
+  var y = 700.0;
+  for (final row in rows) {
+    items.addAll([
+      PdfTextItem(row.$1, x: cols[0], y: y),
+      PdfTextItem(row.$2, x: cols[1], y: y),
+      PdfTextItem(row.$3, x: cols[2], y: y),
+    ]);
+    y -= 22;
+  }
+  items.add(PdfTextItem('End of table with plain text after.', x: 72, y: y - 10));
+  return [PdfPageSpec(items)];
+}
+
+/// Fixture Fase C: nested list (flat + satu level nested).
+/// bodyLeftMargin=72, fontSize=12 → nested threshold ≈ 90pt.
+/// Flat items di x=72 (4 item), nested items di x=96 (3 item) — jumlah flat
+/// lebih banyak agar mode xLeft jatuh di 72 (tie-break menang 4 vs 3).
+/// 'Dairy' tambahan (resolusi controller) menjamin flat items mayoritas.
+///
+/// PENTING (deviasi empiris dari sketsa brief): '- Fruits' → '- Pears' dan
+/// '- Grains' → '- Grapes' (resolusi descender controller). Sampel xLeft
+/// pass 1 hanya memuat span dengan fontSize di band [0.8x..1.1x] body mode
+/// (~11.5pt); item tanpa huruf berdescender terukur ~8.8-9.0pt dan
+/// tereksklusi — tanpa swap ini sampel flat hanya 2 (Vegetables/Dairy) vs
+/// 2 nested (Apples/Oranges) → tie-break memilih 96 sebagai bodyLeftMargin
+/// → semua item jadi flat. Pears/Grapes ber-descender ('p') sehingga ke-4
+/// item flat masuk band → mode 72 (4 vs 2).
+List<PdfPageSpec> nestedListPages() {
+  return [
+    PdfPageSpec([
+      PdfTextItem('Nested List Example', fontSize: 18, x: 72, y: 715, bold: true),
+      PdfTextItem('- Pears', x: 72, y: 700),
+      PdfTextItem('-  Apples', x: 96, y: 680), // nested
+      PdfTextItem('-  Oranges', x: 96, y: 660), // nested
+      PdfTextItem('- Vegetables', x: 72, y: 640),
+      PdfTextItem('-  Carrots', x: 96, y: 620), // nested
+      PdfTextItem('- Grapes', x: 72, y: 600),
+      PdfTextItem('- Dairy', x: 72, y: 580),
+    ]),
+  ];
+}
