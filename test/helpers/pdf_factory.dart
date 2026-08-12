@@ -355,6 +355,26 @@ List<PdfPageSpec> hyphenatedPages() {
   ];
 }
 
+/// Fixture Fase D: tabel 4 baris data dengan satu paragraf penyela
+/// (interleaved) — TableDetector harus menghasilkan DUA tabel terpisah.
+List<PdfPageSpec> mixedTablePages() {
+  const cols = [72.0, 200.0];
+  List<PdfTextItem> row(double y, (String, String) cells) => [
+        PdfTextItem(cells.$1, x: cols[0], y: y),
+        PdfTextItem(cells.$2, x: cols[1], y: y),
+      ];
+  return [
+    PdfPageSpec([
+      PdfTextItem('Mixed Table Example', fontSize: 20, x: 72, y: 715, bold: true),
+      ...row(700, ('Name', 'Qty')),
+      ...row(678, ('Peaches', '10')),
+      PdfTextItem('A note about the table.', x: 72, y: 656),
+      ...row(634, ('Grapes', '20')),
+      ...row(612, ('Apricots', '5')),
+    ]),
+  ];
+}
+
 /// Fixture Fase C: nested list (flat + satu level nested).
 /// bodyLeftMargin=72, fontSize=12 → nested threshold ≈ 90pt.
 /// Flat items di x=72 (4 item), nested items di x=96 (3 item) — jumlah flat

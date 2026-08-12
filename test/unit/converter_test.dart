@@ -162,6 +162,23 @@ void main() {
     });
   });
 
+  group('Fase D: tabel campur paragraf (mixed table)', () {
+    test('mixed table: dua tabel dengan paragraf penyela di antara (Fase D)', () async {
+      final src = await PdfrxSource.openData(buildTestPdf(pages: mixedTablePages()));
+      final output = MemoryOutput();
+      await Converter().convert(source: src, output: output);
+      await src.dispose();
+
+      final md = output.content;
+      expect('| Name | Qty |'.allMatches(md), hasLength(1));
+      expect(md, contains('| Peaches | 10 |'));
+      expect(md, contains('A note about the table.'));
+      expect(md, contains('| Grapes | 20 |'));
+      expect(md, contains('| Apricots | 5 |'));
+      expect('| --- | --- |'.allMatches(md), hasLength(2));
+    });
+  });
+
   group('Fase D: tabel lintas halaman', () {
     test('header berulang di halaman 2 → baris data, satu tabel utuh', () async {
       final src = await PdfrxSource.openData(buildTestPdf(pages: multiPageTablePages()));

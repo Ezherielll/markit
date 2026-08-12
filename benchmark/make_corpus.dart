@@ -29,6 +29,7 @@ void main() {
   _write('header_footer.pdf', buildTestPdf(pages: headerFooterPages()));
   // Fase D fixtures
   _write('multi_page_table.pdf', buildTestPdf(pages: multiPageTablePages()));
+  _write('mixed_table.pdf', buildTestPdf(pages: mixedTablePages()));
 
   stdout.writeln('corpus sintetis dibuat di corpus/pdfs/ + corpus/golden/');
 }

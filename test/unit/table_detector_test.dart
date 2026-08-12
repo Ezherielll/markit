@@ -95,6 +95,63 @@ void main() {
     });
   });
 
+  group('Interupsi tunggal (Fase D)', () {
+    final detector = TableDetector();
+
+    test('2 baris + paragraf + 2 baris → dua grup tabel terpisah', () {
+      final paragraphs = [
+        _row([('Name', 72), ('Qty', 200)], y: 700),
+        _row([('Apples', 72), ('10', 200)], y: 675),
+        // paragraf penyela (tanpa gap)
+        [
+          Line(spans: [
+            TextSpan(
+              text: 'A note in the middle.',
+              xLeft: 72, xRight: 400,
+              yBottom: 630, yTop: 642,
+              fontSize: 12,
+            ),
+          ]),
+        ],
+        _row([('Bananas', 72), ('20', 200)], y: 610),
+        _row([('Cherries', 72), ('5', 200)], y: 585),
+      ];
+      final tagged = detector.tag(paragraphs, _profileWith());
+      // tabel(2), paragraf, tabel(2)
+      expect(tagged, hasLength(3));
+      expect(tagged[0].$2, isTrue);
+      expect(tagged[1].$2, isFalse);
+      expect(tagged[2].$2, isTrue);
+      expect(tagged[0].$1, hasLength(2));
+      expect(tagged[2].$1, hasLength(2));
+    });
+
+    test('2 baris + paragraf + 1 baris → tidak ada tabel (grup kecil)', () {
+      final paragraphs = [
+        _row([('Name', 72), ('Qty', 200)], y: 700),
+        _row([('Apples', 72), ('10', 200)], y: 675),
+        [Line(spans: [
+          TextSpan(text: 'Note.', xLeft: 72, xRight: 150, yBottom: 630, yTop: 642, fontSize: 12),
+        ])],
+        _row([('Bananas', 72), ('20', 200)], y: 610),
+      ];
+      final tagged = detector.tag(paragraphs, _profileWith());
+      expect(tagged.every((g) => !g.$2), isTrue);
+    });
+
+    test('dua penyela berturut-turut → fallback perilaku lama (tidak ada tabel)', () {
+      final paragraphs = [
+        _row([('Name', 72), ('Qty', 200)], y: 700),
+        [Line(spans: [TextSpan(text: 'Note one.', xLeft: 72, xRight: 150, yBottom: 670, yTop: 682, fontSize: 12)])],
+        [Line(spans: [TextSpan(text: 'Note two.', xLeft: 72, xRight: 150, yBottom: 640, yTop: 652, fontSize: 12)])],
+        _row([('Bananas', 72), ('20', 200)], y: 610),
+        _row([('Cherries', 72), ('5', 200)], y: 585),
+      ];
+      final tagged = detector.tag(paragraphs, _profileWith());
+      expect(tagged.every((g) => !g.$2), isTrue);
+    });
+  });
+
   group('computeAlignments (Fase D)', () {
     final detector = TableDetector();
 

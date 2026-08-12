@@ -16,6 +16,7 @@ import 'golden_evaluator.dart';
 double _thresholdFor(String name) {
   if (name.startsWith('simple_table')) return 0.70; // tableCellF1
   if (name.startsWith('multi_page_table')) return 0.70; // tableCellF1
+  if (name.startsWith('mixed_table')) return 0.70; // tableCellF1
   if (name.startsWith('nested_list')) return 0.80; // nestedListRecall
   if (name.startsWith('nested_headings')) return 0.85;
   if (name.startsWith('numbered_sections')) return 0.80;
@@ -31,6 +32,9 @@ double _thresholdFor(String name) {
     return (r.tableCellF1, 'tableCellF1');
   }
   if (name.startsWith('multi_page_table')) {
+    return (r.tableCellF1, 'tableCellF1');
+  }
+  if (name.startsWith('mixed_table')) {
     return (r.tableCellF1, 'tableCellF1');
   }
   if (name.startsWith('nested_list')) {

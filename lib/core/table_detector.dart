@@ -39,6 +39,13 @@ class TableDetector {
   static const double leftTolerance = 0.25;
 
   /// Tag paragraphs: kelompokkan ke dalam grup tabel / bukan tabel.
+  ///
+  /// Fase D: baris tabel boleh disela maksimal SATU paragraf non-tabel.
+  /// Bila terdeteksi: dua grup tabel terpisah (masing-masing >= 2 baris,
+  /// total >= [minTableRows], variance gap konsisten lintas semua baris),
+  /// dengan paragraf penyela di antara keduanya. Lebih dari satu penyela,
+  /// ukuran sub-grup < 2, atau variance tidak konsisten → fallback perilaku
+  /// Fase C (tiap paragraf non-tabel).
   TaggedParagraphs tag(List<List<Line>> paragraphs, DocProfile profile) {
     if (paragraphs.isEmpty) return [];
 
@@ -46,49 +53,139 @@ class TableDetector {
     var i = 0;
 
     while (i < paragraphs.length) {
-      final runEnd = _findTableRunEnd(paragraphs, i);
-      final runLength = runEnd - i;
-
-      if (runLength >= minTableRows) {
-        result.add((paragraphs.sublist(i, runEnd), true));
-        i = runEnd;
-      } else {
+      if (!_isTableRowShape(paragraphs[i])) {
         result.add(([paragraphs[i]], false));
         i++;
+        continue;
       }
+
+      // Run kontinu (perilaku Fase C)
+      final runEnd = _findTableRunEnd(paragraphs, i);
+      if (runEnd - i >= minTableRows) {
+        result.add((paragraphs.sublist(i, runEnd), true));
+        i = runEnd;
+        continue;
+      }
+
+      // Kandidat dengan penyela tunggal (Fase D)
+      final next = _tryInterruptedTable(paragraphs, i, result);
+      if (next != null) {
+        i = next;
+        continue;
+      }
+
+      result.add(([paragraphs[i]], false));
+      i++;
     }
 
     return result;
   }
 
-  /// Cari akhir run tabel dari indeks [start].
-  int _findTableRunEnd(List<List<Line>> paragraphs, int start) {
+  /// Coba kelompokkan dari [start] sebagai tabel dengan penyela tunggal.
+  /// Return indeks setelah kandidat bila berhasil (grup ditulis ke
+  /// [result]), atau null bila syarat Fase D tidak terpenuhi.
+  int? _tryInterruptedTable(
+      List<List<Line>> paragraphs, int start, List<TaggedGroup> result) {
+    final candidate = _collectTableCandidate(paragraphs, start);
+    if (candidate == null) return null;
+    final (rows, penyela, end) = candidate;
+    if (rows.length < minTableRows || !_gapsConsistent(rows)) return null;
+
+    if (penyela != null) {
+      // Pecah di penyela: jumlah baris sebelum penyela = indeks penyela
+      final leftCount =
+          _rowsBeforeInterrupter(paragraphs, start, end, penyela.single);
+      if (leftCount < 2 || rows.length - leftCount < 2) return null;
+      result.add((rows.sublist(0, leftCount), true));
+      result.add((penyela, false));
+      result.add((rows.sublist(leftCount), true));
+    } else {
+      // Penyela null dengan run >= minTableRows: sudah ditangani
+      // _findTableRunEnd — jalur defensif.
+      result.add((rows, true));
+    }
+    return end;
+  }
+
+  /// Jumlah baris tabel sebelum [penyela] dalam rentang [start..end).
+  int _rowsBeforeInterrupter(
+      List<List<Line>> paragraphs, int start, int end, List<Line> penyela) {
+    var count = 0;
+    for (var k = start; k < end; k++) {
+      if (identical(paragraphs[k], penyela)) break;
+      count++;
+    }
+    return count;
+  }
+
+  /// Baris berbentuk baris tabel: jumlah X-gap dalam rentang kolom yang
+  /// didukung (minColumns-1 .. maxColumns-1).
+  bool _isTableRowShape(List<Line> para) {
+    final gaps = _detectGaps(para);
+    return gaps.length >= minColumns - 1 && gaps.length <= maxColumns - 1;
+  }
+
+  /// Variance posisi gap lintas baris < [maxGapVariancePt] untuk tiap kolom.
+  bool _gapsConsistent(List<List<Line>> rows) {
     final gapPositions = <int, List<double>>{};
-
-    var j = start;
-    while (j < paragraphs.length) {
-      final gaps = _detectGaps(paragraphs[j]);
+    for (final para in rows) {
+      final gaps = _detectGaps(para);
       if (gaps.length < minColumns - 1 || gaps.length > maxColumns - 1) {
-        break;
+        return false;
       }
-
       for (var k = 0; k < gaps.length; k++) {
         gapPositions.putIfAbsent(k, () => []).add(gaps[k]);
+      }
+    }
+    for (final positions in gapPositions.values) {
+      if (_variance(positions) >= maxGapVariancePt) return false;
+    }
+    return true;
+  }
+
+  /// Cari akhir run tabel kontinu dari [start] (perilaku Fase C, kini
+  /// memakai helper bersama).
+  int _findTableRunEnd(List<List<Line>> paragraphs, int start) {
+    var j = start;
+    while (j < paragraphs.length && _isTableRowShape(paragraphs[j])) {
+      j++;
+    }
+    final runLength = j - start;
+    if (runLength < minTableRows) return j;
+    if (!_gapsConsistent(paragraphs.sublist(start, j))) return start;
+    return j;
+  }
+
+  /// Kumpulkan kandidat baris tabel dari [start] (dijamin baris tabel),
+  /// dengan toleransi maksimal SATU paragraf penyela di antara baris-barisnya.
+  ///
+  /// Return: (rows, penyela, end) — `rows` berisi baris tabel saja (termasuk
+  /// yang dipisah penyela), `penyela` null bila tidak ada, `end` = indeks
+  /// setelah kandidat. Return null bila tidak ada baris sama sekali, atau
+  /// penyela menggantung di akhir tanpa baris setelahnya (bukan interupsi).
+  (List<List<Line>> rows, List<List<Line>>? penyela, int end)?
+      _collectTableCandidate(List<List<Line>> paragraphs, int start) {
+    final rows = <List<Line>>[];
+    List<List<Line>>? penyela;
+    var j = start;
+
+    while (j < paragraphs.length) {
+      final para = paragraphs[j];
+      if (_isTableRowShape(para)) {
+        rows.add(para);
+      } else if (penyela == null) {
+        penyela = [para]; // penyela tunggal diizinkan
+      } else {
+        break; // penyela kedua → kandidat berakhir (tidak dikonsumsi)
       }
       j++;
     }
 
-    final runLength = j - start;
-    if (runLength < minTableRows) return j;
-
-    // Cek konsistensi: variance setiap posisi gap harus < maxGapVariancePt
-    for (final positions in gapPositions.values) {
-      if (_variance(positions) >= maxGapVariancePt) {
-        return start; // variance terlalu besar → tidak ada tabel
-      }
+    if (rows.isEmpty) return null;
+    if (penyela != null && identical(penyela.single, paragraphs[j - 1])) {
+      penyela = null; // penyela menggantung di akhir → bukan interupsi
     }
-
-    return j;
+    return (rows, penyela, j);
   }
 
   /// Deteksi posisi X-gap dalam satu baris.
