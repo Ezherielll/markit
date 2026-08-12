@@ -182,7 +182,7 @@ class _DropZoneState extends State<DropZone> {
 
   /// Kelompokkan baris uri-list hasil drop web: URL (butuh jaringan —
   /// melanggar NG3) vs placeholder yang tak bisa dibaca (arahkan ke picker).
-  ({bool sawUrl, bool sawUnreadable}) _classifyDropLines(List<String> lines) {
+  static ({bool sawUrl, bool sawUnreadable}) _classifyDropLines(List<String> lines) {
     var sawUrl = false;
     var sawUnreadable = false;
     for (final line in lines) {

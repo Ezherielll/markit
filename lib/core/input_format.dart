@@ -130,7 +130,7 @@ const _extensionRules = <(String, InputFormat)>[
 /// dan format tanpa magic bytes.
 InputFormat _detectByExtension(String lower) {
   for (final (ext, format) in _extensionRules) {
-    if (lower.endsWith(ext)) return format;
+    if (lower.endsWith('.$ext')) return format;
   }
   return InputFormat.unknown;
 }

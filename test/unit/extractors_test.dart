@@ -122,6 +122,15 @@ void main() {
       expect(md, contains('| 3 | 4 |'));
     });
 
+    test('CR tunggal (classic Mac) mengakhiri baris (regresi \\r)', () async {
+      final md = await _run(
+        const CsvExtractor(),
+        _utf8('a,b\rc,d'),
+      );
+      expect(md, contains('| a | b |'));
+      expect(md, contains('| c | d |'));
+    });
+
     test('empty → ConvertException noText', () async {
       expect(
         () => _run(const CsvExtractor(), _utf8('')),

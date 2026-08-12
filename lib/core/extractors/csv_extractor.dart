@@ -109,7 +109,7 @@ class CsvExtractor implements FormatExtractor {
             _flushCell(row, field);
             field = StringBuffer();
           case '\r':
-            break; // skip (CRLF dihandle saat '\n')
+          // Perilaku baseline: case kosong → fall-through; \r mengakhiri baris.
           case '\n':
             _flushCell(row, field);
             field = StringBuffer();

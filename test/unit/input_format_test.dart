@@ -113,6 +113,11 @@ void main() {
     test('unknown untuk ekstensi tak dikenal', () {
       expect(detectFormat('a.xyz', _bytes('x')), InputFormat.unknown);
     });
+    test('nama tanpa titik sebelum ekstensi → unknown (regresi .ext)', () {
+      for (final name in ['mypdf', 'datacsv', 'indexhtml', 'filexml', 'docx', 'a.txtcsv']) {
+        expect(detectFormat(name, _bytes('x')), InputFormat.unknown, reason: name);
+      }
+    });
   });
 
   group('isUrlName', () {
