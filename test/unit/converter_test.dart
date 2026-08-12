@@ -229,6 +229,40 @@ void main() {
     });
   });
 
+  group('Fase D: hiphenasi lintas halaman', () {
+    test("kata terpotong '-' di akhir halaman 1 digabung dengan halaman 2",
+        () async {
+      final src = await PdfrxSource.openData(buildTestPdf(pages: hyphenatedPages()));
+      final output = MemoryOutput();
+      await Converter().convert(source: src, output: output);
+      await src.dispose();
+
+      final md = output.content;
+      expect(md, contains('document continues here.'));
+      expect(md, isNot(contains('docu-')));
+      expect(md, isNot(contains('docu ment')));
+    });
+
+    test("pending paragraf tanpa '-' ditulis apa adanya di awal halaman berikutnya",
+        () async {
+      final src = await PdfrxSource.openData(buildTestPdf(pages: [
+        PdfPageSpec([
+          PdfTextItem('Plain ending paragraph.', y: 600),
+        ]),
+        PdfPageSpec([
+          PdfTextItem('Next page paragraph.', y: 600),
+        ]),
+      ]));
+      final output = MemoryOutput();
+      await Converter().convert(source: src, output: output);
+      await src.dispose();
+
+      final md = output.content;
+      expect(md, contains('Plain ending paragraph.'));
+      expect(md, contains('Next page paragraph.'));
+    });
+  });
+
   group('Fase B: column + header/footer end-to-end', () {
     test('header/footer spans tidak muncul di output (Fase B)', () async {
       final src = await PdfrxSource.openData(buildTestPdf(pages: headerFooterPages()));

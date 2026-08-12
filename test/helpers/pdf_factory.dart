@@ -341,6 +341,20 @@ List<PdfPageSpec> multiPageTablePages() {
   ];
 }
 
+/// Fixture Fase D: paragraf halaman 1 berakhir 'docu-' (kata terpotong),
+/// halaman 2 melanjutkan 'ment continues here.'.
+List<PdfPageSpec> hyphenatedPages() {
+  return [
+    PdfPageSpec([
+      PdfTextItem('Hyphenated Document', fontSize: 20, x: 72, y: 715, bold: true),
+      PdfTextItem('The last word of this page is docu-', y: 660),
+    ]),
+    PdfPageSpec([
+      PdfTextItem('ment continues here.', y: 660),
+    ]),
+  ];
+}
+
 /// Fixture Fase C: nested list (flat + satu level nested).
 /// bodyLeftMargin=72, fontSize=12 → nested threshold ≈ 90pt.
 /// Flat items di x=72 (4 item), nested items di x=96 (3 item) — jumlah flat

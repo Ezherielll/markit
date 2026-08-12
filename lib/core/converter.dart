@@ -192,25 +192,23 @@ class Converter {
   /// Fase D: proses blok hasil klasifikasi satu kolom — tabel lintas halaman
   /// (drop header berulang) + penahanan blok terakhir (pending block, O(1)).
   ///
-  /// Urutan: (0) flush blok yang ditahan halaman/kolom sebelumnya (penahanan
-  /// hanya menunda SATU blok — output akhir identik) → (a) drop header
+  /// Urutan: (0) flush blok yang ditahan halaman/kolom sebelumnya — dengan
+  /// koreksi hiphenasi lintas halaman (Task 6): pending paragraph berakhiran
+  /// '-' digabung ke blok pertama halaman ini bila memenuhi syarat; blok yang
+  /// ditulis di (0) TIDAK ikut dihitung untuk state tabel → (a) drop header
   /// BERULANG di halaman lanjutan → (b) tulis semua blok kecuali terakhir,
   /// tahan yang terakhir → (c) perbarui flag tabel dari blok yang ditahan.
-  /// Task 6 menyisipkan merge hiphenasi lintas halaman antara (0) dan (a)
-  /// di helper ini (convert() tetap di bawah gate cognitive complexity).
   void _postClassifyBlocks(
     List<Block> blocks,
     MarkdownWriter writer,
     _CrossPageState state,
   ) {
-    // (0) Tulis blok yang ditahan dari halaman/kolom sebelumnya. Tanpa ini
-    //     pending block dari halaman antara hilang (hanya blok terakhir
-    //     konversi yang terflush) — output tidak identik dengan sebelum
-    //     Fase D.
-    if (state.pendingBlock != null) {
-      writer.writeBlock(state.pendingBlock!);
-      state.pendingBlock = null;
-    }
+    // (0) Flush blok yang ditahan dari halaman/kolom sebelumnya — dengan
+    //     koreksi hiphenasi lintas halaman (Task 6). Tanpa flush ini pending
+    //     block dari halaman antara hilang (hanya blok terakhir konversi yang
+    //     terflush) — output tidak identik dengan sebelum Fase D. Blok yang
+    //     ditulis di (0) TIDAK ikut dihitung untuk state tabel.
+    blocks = _flushPending(state, writer, blocks);
 
     // (a) Tabel lintas halaman: header BERULANG di halaman lanjutan DIBUANG
     //     (pola cetak umum: tiap halaman mengulang header). Demote ke baris
@@ -246,6 +244,47 @@ class Converter {
     if (blocks.isNotEmpty) {
       _updateCrossPageTable(state);
     }
+  }
+
+  /// Flush blok yang ditahan dari halaman/kolom sebelumnya: uji merge
+  /// hiphenasi lintas halaman (Task 6) dengan blok pertama halaman ini;
+  /// bila mergeable, blok pertama digantikan hasil gabungan (pending TIDAK
+  /// ditulis terpisah), selain itu pending ditulis apa adanya. Mengembalikan
+  /// daftar blok untuk diproses lebih lanjut.
+  List<Block> _flushPending(
+    _CrossPageState state,
+    MarkdownWriter writer,
+    List<Block> blocks,
+  ) {
+    final pending = state.pendingBlock;
+    if (pending == null) return blocks;
+    state.pendingBlock = null;
+    final merged = blocks.isEmpty
+        ? null
+        : _tryMergeCrossPage(pending, blocks.first);
+    if (merged != null) {
+      return [merged, ...blocks.skip(1)];
+    }
+    writer.writeBlock(pending);
+    return blocks;
+  }
+
+  /// Gabungkan paragraf lintas halaman yang terpotong hiphen.
+  /// Rule (konsisten dengan ParagraphJoiner Fase C): blok A berakhir '-'
+  /// DAN blok B (paragraf) diawali [a-z] → gabung tanpa '-'.
+  /// Return null bila tidak memenuhi syarat.
+  Block? _tryMergeCrossPage(Block a, Block b) {
+    if (a.type != BlockType.paragraph || b.type != BlockType.paragraph) {
+      return null;
+    }
+    final textA = a.text.trimRight();
+    if (!textA.endsWith('-') || textA.length < 2) return null;
+    final textB = b.text.trimLeft();
+    if (textB.isEmpty || !RegExp(r'^[a-z]').hasMatch(textB)) return null;
+    return Block(
+      type: BlockType.paragraph,
+      lines: ['${textA.substring(0, textA.length - 1)}$textB'],
+    );
   }
 
   /// Cari header tabel yang DIULANG (konten sama dengan [openHeader]) yang
