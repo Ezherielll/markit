@@ -65,7 +65,7 @@ class InlineExecutor implements ConversionExecutor {
           success: true,
           pageCount: result.pageCount,
           failedPages: result.failedPages.map((p) => p + 1).toList(),
-          bodyFontSize: result.stats.bodyFontSize,
+          bodyFontSize: result.profile.bodyFontSize,
           outputPath: outputPath,
           content: output.content,
         );

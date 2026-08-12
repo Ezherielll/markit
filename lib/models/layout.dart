@@ -48,8 +48,26 @@ class Line {
   /// Ukuran font representatif baris (terbesar).
   double get fontSize => spans.map((s) => s.fontSize).reduce(math.max);
 
-  /// Teks baris: gabungan teks span berurutan (span pdfrx sudah mengandung spasi).
-  String get text => spans.map((s) => s.text).join();
+  /// Teks baris dengan word spacing normalization (Fase B):
+  /// jika gap antar fragment > 0.3 * fontSize, tambahkan spasi.
+  /// Gap kecil / teks yang sudah mengandung spasi tidak digandakan.
+  String get text {
+    if (spans.length == 1) return spans.first.text;
+    final buf = StringBuffer();
+    for (var i = 0; i < spans.length; i++) {
+      final s = spans[i];
+      buf.write(s.text);
+      if (i < spans.length - 1) {
+        final next = spans[i + 1];
+        final gap = next.xLeft - s.xRight;
+        final threshold = s.fontSize * 0.3;
+        if (gap > threshold && !s.text.endsWith(' ') && !next.text.startsWith(' ')) {
+          buf.write(' ');
+        }
+      }
+    }
+    return buf.toString();
+  }
 }
 
 /// Jenis blok yang diklasifikasikan oleh pipeline.

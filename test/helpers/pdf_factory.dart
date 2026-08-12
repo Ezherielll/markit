@@ -139,27 +139,27 @@ List<PdfPageSpec> largeBookPages(int pageCount, {int chapterEvery = 20}) {
 List<PdfPageSpec> nestedHeadingsPages() {
   return [
     PdfPageSpec([
-      PdfTextItem('Paper Overview and Goals', fontSize: 22, y: 750, bold: true),
-      PdfTextItem('Background and Related Work', fontSize: 18, y: 700, bold: true),
-      PdfTextItem('This paper presents the background of the project.', y: 660),
-      PdfTextItem('The related work appears in the next pages.', y: 640),
-      PdfTextItem('Motivation and Scope', fontSize: 15, y: 600, bold: true),
-      PdfTextItem('The motivation is simple: people need better tools.', y: 560),
-      PdfTextItem('The scope covers many types of documents.', y: 540),
-      PdfTextItem('Approach and Design', fontSize: 15, y: 500, bold: true),
-      PdfTextItem('The approach applies layout-aware parsing steps.', y: 460),
-      PdfTextItem('The design keeps memory usage per page constant.', y: 440),
+      PdfTextItem('Paper Overview and Goals', fontSize: 22, y: 715, bold: true),
+      PdfTextItem('Background and Related Work', fontSize: 18, y: 660, bold: true),
+      PdfTextItem('This paper presents the background of the project.', y: 620),
+      PdfTextItem('The related work appears in the next pages.', y: 600),
+      PdfTextItem('Motivation and Scope', fontSize: 15, y: 560, bold: true),
+      PdfTextItem('The motivation is simple: people need better tools.', y: 520),
+      PdfTextItem('The scope covers many types of documents.', y: 500),
+      PdfTextItem('Approach and Design', fontSize: 15, y: 460, bold: true),
+      PdfTextItem('The approach applies layout-aware parsing steps.', y: 420),
+      PdfTextItem('The design keeps memory usage per page constant.', y: 400),
     ]),
     PdfPageSpec([
-      PdfTextItem('Implementation Details', fontSize: 18, y: 700, bold: true),
-      PdfTextItem('The implementation groups fragments into lines.', y: 660),
-      PdfTextItem('Paragraph joining happens after line grouping.', y: 640),
-      PdfTextItem('Evaluation Setup', fontSize: 15, y: 600, bold: true),
-      PdfTextItem('The evaluation runs against a synthetic corpus.', y: 560),
-      PdfTextItem('Every fixture is compared with a golden file.', y: 540),
-      PdfTextItem('Appendix and References', fontSize: 22, y: 500, bold: true),
-      PdfTextItem('The appendix contains supplementary material.', y: 460),
-      PdfTextItem('References appear in the final section.', y: 440),
+      PdfTextItem('Implementation Details', fontSize: 18, y: 660, bold: true),
+      PdfTextItem('The implementation groups fragments into lines.', y: 620),
+      PdfTextItem('Paragraph joining happens after line grouping.', y: 600),
+      PdfTextItem('Evaluation Setup', fontSize: 15, y: 560, bold: true),
+      PdfTextItem('The evaluation runs against a synthetic corpus.', y: 520),
+      PdfTextItem('Every fixture is compared with a golden file.', y: 500),
+      PdfTextItem('Appendix and References', fontSize: 22, y: 460, bold: true),
+      PdfTextItem('The appendix contains supplementary material.', y: 420),
+      PdfTextItem('References appear in the final section.', y: 400),
     ]),
   ];
 }
@@ -169,25 +169,25 @@ List<PdfPageSpec> nestedHeadingsPages() {
 List<PdfPageSpec> numberedSectionsPages() {
   return [
     PdfPageSpec([
-      PdfTextItem('1. Background and Scope', fontSize: 22, y: 750, bold: true),
-      PdfTextItem('This section introduces the problem being solved.', y: 710),
-      PdfTextItem('It explains the purpose and scope of the work.', y: 690),
-      PdfTextItem('1.1 Related Papers', fontSize: 18, y: 650, bold: true),
-      PdfTextItem('The related papers describe similar systems.', y: 610),
-      PdfTextItem('They compare speed and output quality.', y: 590),
-      PdfTextItem('1.1.1 Comparison Approach', fontSize: 15, y: 550, bold: true),
-      PdfTextItem('The comparison approach uses the golden files.', y: 510),
+      PdfTextItem('1. Background and Scope', fontSize: 22, y: 715, bold: true),
+      PdfTextItem('This section introduces the problem being solved.', y: 655),
+      PdfTextItem('It explains the purpose and scope of the work.', y: 635),
+      PdfTextItem('1.1 Related Papers', fontSize: 18, y: 595, bold: true),
+      PdfTextItem('The related papers describe similar systems.', y: 555),
+      PdfTextItem('They compare speed and output quality.', y: 535),
+      PdfTextItem('1.1.1 Comparison Approach', fontSize: 15, y: 495, bold: true),
+      PdfTextItem('The comparison approach uses the golden files.', y: 455),
     ]),
     PdfPageSpec([
-      PdfTextItem('2. Experimental Setup', fontSize: 22, y: 750, bold: true),
-      PdfTextItem('The experiments run on a synthetic corpus.', y: 710),
-      PdfTextItem('The corpus pages are converted to markdown.', y: 690),
-      PdfTextItem('2.1 Evaluation Approach', fontSize: 18, y: 650, bold: true),
-      PdfTextItem('The metrics follow the project requirements.', y: 610),
-      PdfTextItem('2.1.1 Paragraph Scoring', fontSize: 15, y: 550, bold: true),
-      PdfTextItem('The scoring compares output with golden text.', y: 510),
-      PdfTextItem('2.1.2 Heading Scoring', fontSize: 15, y: 470, bold: true),
-      PdfTextItem('The heading scoring checks the level number.', y: 430),
+      PdfTextItem('2. Experimental Setup', fontSize: 22, y: 715, bold: true),
+      PdfTextItem('The experiments run on a synthetic corpus.', y: 655),
+      PdfTextItem('The corpus pages are converted to markdown.', y: 635),
+      PdfTextItem('2.1 Evaluation Approach', fontSize: 18, y: 595, bold: true),
+      PdfTextItem('The metrics follow the project requirements.', y: 555),
+      PdfTextItem('2.1.1 Paragraph Scoring', fontSize: 15, y: 515, bold: true),
+      PdfTextItem('The scoring compares output with golden text.', y: 475),
+      PdfTextItem('2.1.2 Heading Scoring', fontSize: 15, y: 435, bold: true),
+      PdfTextItem('The heading scoring checks the level number.', y: 395),
     ]),
   ];
 }
@@ -196,19 +196,70 @@ List<PdfPageSpec> numberedSectionsPages() {
 List<PdfPageSpec> orderedListPages() {
   return [
     PdfPageSpec([
-      PdfTextItem('Shopping List', fontSize: 18, y: 750, bold: true),
-      PdfTextItem('1. Buy apples', y: 700),
-      PdfTextItem('2. Buy bananas', y: 680),
-      PdfTextItem('3. Buy oranges', y: 660),
-      PdfTextItem('4. Buy grapes', y: 640),
-      PdfTextItem('Remember to buy some grapes.', y: 600),
+      PdfTextItem('Shopping List', fontSize: 18, y: 715, bold: true),
+      PdfTextItem('1. Buy apples', y: 680),
+      PdfTextItem('2. Buy bananas', y: 660),
+      PdfTextItem('3. Buy oranges', y: 640),
+      PdfTextItem('4. Buy grapes', y: 620),
+      PdfTextItem('Remember to buy some grapes.', y: 580),
     ]),
     PdfPageSpec([
-      PdfTextItem('Garden Tasks', fontSize: 18, y: 750, bold: true),
-      PdfTextItem('1. Water the plants', y: 700),
-      PdfTextItem('2. Take out the garbage', y: 680),
-      PdfTextItem('3. Walk the dog', y: 660),
-      PdfTextItem('That completes the weekly tasks.', y: 600),
+      PdfTextItem('Garden Tasks', fontSize: 18, y: 715, bold: true),
+      PdfTextItem('1. Water the plants', y: 680),
+      PdfTextItem('2. Take out the garbage', y: 660),
+      PdfTextItem('3. Walk the dog', y: 640),
+      PdfTextItem('That completes the weekly tasks.', y: 580),
+    ]),
+  ];
+}
+
+/// Fixture Fase B: dokumen 2-kolom (paper style).
+/// Kolom kiri: x=72, Kolom kanan: x=320, pageWidth=612.
+/// Judul pendek (3 kata, muat dalam lebar kolom kiri) agar histogram xLeft
+/// tetap hanya punya 1 gap besar (2 cluster), dan y=715 agar tidak masuk
+/// zona header (0.93*792).
+List<PdfPageSpec> twoColumnPages() {
+  return [
+    PdfPageSpec([
+      PdfTextItem('Two Column Paper', fontSize: 20, x: 72, y: 715, bold: true),
+      // Kolom kiri
+      PdfTextItem('Left column first paragraph', x: 72, y: 660),
+      PdfTextItem('continues on second line.', x: 72, y: 640),
+      PdfTextItem('Left column second paragraph', x: 72, y: 600),
+      // Kolom kanan
+      PdfTextItem('Right column first paragraph', x: 320, y: 660),
+      PdfTextItem('continues on second line.', x: 320, y: 640),
+      PdfTextItem('Right column second paragraph', x: 320, y: 600),
+    ]),
+    PdfPageSpec([
+      // Halaman 2: sama
+      PdfTextItem('Left page two paragraph', x: 72, y: 660),
+      PdfTextItem('Right page two paragraph', x: 320, y: 660),
+    ]),
+  ];
+}
+
+/// Fixture Fase B: dokumen dengan header dan footer.
+/// Header di y=770 (pageHeight=792 → 97% > 93%), Footer di y=30 (4% < 8%).
+List<PdfPageSpec> headerFooterPages() {
+  return [
+    PdfPageSpec([
+      // Header (harus disuppress)
+      PdfTextItem('Chapter Title Header', x: 200, y: 770),
+      PdfTextItem('Page 1 of 10', x: 500, y: 770),
+      // Body content (harus muncul)
+      PdfTextItem('Main content paragraph', x: 72, y: 600),
+      PdfTextItem('continues here.', x: 72, y: 580),
+      PdfTextItem('Second paragraph of content.', x: 72, y: 540),
+      // Footer (harus disuppress)
+      PdfTextItem('University of Example', x: 200, y: 30),
+      PdfTextItem('2024', x: 520, y: 30),
+    ]),
+    PdfPageSpec([
+      PdfTextItem('Chapter Title Header', x: 200, y: 770),
+      PdfTextItem('Page 2 of 10', x: 500, y: 770),
+      PdfTextItem('Third paragraph here.', x: 72, y: 600),
+      PdfTextItem('University of Example', x: 200, y: 30),
     ]),
   ];
 }

@@ -7,9 +7,15 @@ import 'doc_stats.dart';
 /// berdasarkan jarak yCenter relatif terhadap tinggi baris yang sedang dibangun.
 /// Dalam satu baris, span diurutkan left-to-right.
 class LineGrouper {
-  LineGrouper({this.config = const PipelineConfig()});
+  LineGrouper({
+    this.config = const PipelineConfig(),
+    this.profile, // Fase B: opsional, untuk future use (mis. tolerance adaptif)
+  });
 
   final PipelineConfig config;
+
+  /// Profil pass 1 (Fase B, opsional — backward compat).
+  final DocProfile? profile;
 
   /// Koordinat PDF: y semakin besar = semakin atas halaman.
   List<Line> group(List<TextSpan> spans) {

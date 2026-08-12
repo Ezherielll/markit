@@ -102,8 +102,8 @@ Future<void> _runPdf(
         pageCount: result.pageCount,
         failedPages: result.failedPages.map((p) => p + 1).toList(),
         elapsedMs: result.elapsed.inMilliseconds,
-        bodyFontSize: result.stats.bodyFontSize,
-        emptyPages: result.stats.emptyPages,
+        bodyFontSize: result.profile.bodyFontSize,
+        emptyPages: result.profile.emptyPages,
       ));
     } finally {
       // WAJIB: tutup document sebelum job berikutnya — handle native PDFium

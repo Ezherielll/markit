@@ -41,7 +41,7 @@ void main() {
     // ignore: avoid_print
     print('--- generated markdown ---\n$md\n---');
     // ignore: avoid_print
-    print('--- stats: bodyFontSize=${result.stats.bodyFontSize}, empty=${result.stats.emptyPages} ---');
+    print('--- stats: bodyFontSize=${result.profile.bodyFontSize}, empty=${result.profile.emptyPages} ---');
 
     expect(md, contains('# The Quick Brown Fox'));
     expect(md, contains('This is the first paragraph of the sample document.'));
@@ -152,13 +152,57 @@ void main() {
       await Converter().convert(source: src, output: output);
       await src.dispose();
 
+    final md = output.content;
+    expect(md, contains('# 1. Background and Scope'));
+    expect(md, contains('## 1.1 Related Papers'));
+    expect(md, contains('### 1.1.1 Comparison Approach'));
+    expect(md, contains('# 2. Experimental Setup'));
+    expect(md, contains('## 2.1 Evaluation Approach'));
+    expect(md, contains('### 2.1.2 Heading Scoring'));
+    });
+  });
+
+  group('Fase B: column + header/footer end-to-end', () {
+    test('header/footer spans tidak muncul di output (Fase B)', () async {
+      final src = await PdfrxSource.openData(buildTestPdf(pages: headerFooterPages()));
+      final output = MemoryOutput();
+      await Converter().convert(source: src, output: output);
+      await src.dispose();
+
       final md = output.content;
-      expect(md, contains('# 1. Background and Scope'));
-      expect(md, contains('## 1.1 Related Papers'));
-      expect(md, contains('### 1.1.1 Comparison Approach'));
-      expect(md, contains('# 2. Experimental Setup'));
-      expect(md, contains('## 2.1 Evaluation Approach'));
-      expect(md, contains('### 2.1.2 Heading Scoring'));
+      // Header text tidak boleh muncul
+      expect(md.contains('Page 1 of 10'), isFalse); // nomor halaman di header
+      expect(md.contains('Chapter Title Header'), isFalse); // judul di header
+      expect(md.contains('University of Example'), isFalse); // footer
+      expect(md.contains('2024'), isFalse); // tahun di footer
+      // Body text harus muncul
+      expect(md.contains('Main content paragraph continues here.'), isTrue);
+      expect(md.contains('Second paragraph of content.'), isTrue);
+      expect(md.contains('Third paragraph here.'), isTrue);
+    });
+
+    test('2-column PDF: reading order kiri sebelum kanan (Fase B)', () async {
+      final src = await PdfrxSource.openData(buildTestPdf(pages: twoColumnPages()));
+      final output = MemoryOutput();
+      await Converter().convert(source: src, output: output);
+      await src.dispose();
+
+      final md = output.content;
+      final leftIdx = md.indexOf('Left column first paragraph');
+      final rightIdx = md.indexOf('Right column first paragraph');
+      // Kolom kiri harus muncul sebelum kolom kanan
+      expect(leftIdx, lessThan(rightIdx));
+      expect(leftIdx, isNot(-1));
+      expect(rightIdx, isNot(-1));
+      // Judul di atas segalanya
+      expect(md.indexOf('Two Column Paper'), lessThan(leftIdx));
+      // Baris tidak boleh tercampur antar kolom
+      expect(
+        md.contains(
+          'Left column first paragraph Right column first paragraph',
+        ),
+        isFalse,
+      );
     });
   });
 }

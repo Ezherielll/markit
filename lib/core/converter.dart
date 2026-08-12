@@ -1,4 +1,5 @@
 import '../models/layout.dart';
+import 'column_splitter.dart';
 import 'doc_stats.dart';
 import 'errors.dart';
 import 'line_grouper.dart';
@@ -14,7 +15,7 @@ class ConversionResult {
     required this.outputPath,
     required this.pageCount,
     required this.failedPages,
-    required this.stats,
+    required this.profile,
     required this.elapsed,
   });
 
@@ -26,7 +27,8 @@ class ConversionResult {
   /// Halaman yang gagal diekstrak (FR-10c) — index 0-based.
   final List<int> failedPages;
 
-  final DocStats stats;
+  /// Profil dokumen hasil pass 1 (Fase B: pengganti DocStats).
+  final DocProfile profile;
   final Duration elapsed;
 
   bool get hasFailures => failedPages.isNotEmpty;
@@ -86,12 +88,17 @@ class Converter {
     final failedPages = <int>[];
     final sink = await output.openSink();
     final writer = MarkdownWriter(sink);
-    final grouper = LineGrouper(config: config);
+    final columnSplitter = const ColumnSplitter(); // Fase B
+    final grouper = LineGrouper(config: config, profile: profile); // Fase B
     final joiner = ParagraphJoiner(config: config);
     final classifier = StructureClassifier.withProfile(
       profile: profile,
       config: config,
     );
+
+    // Batas zona header/footer dari profil + config (Fase B)
+    final headerBottom = profile.pageHeight * config.headerZoneFraction;
+    final footerTop = profile.pageHeight * config.footerZoneFraction;
 
     var cancelled = false;
     try {
@@ -101,22 +108,34 @@ class Converter {
           break;
         }
 
-        final List<TextSpan> spans;
+        final List<TextSpan> rawSpans;
         try {
-          spans = await source.loadFull(i);
+          rawSpans = await source.loadFull(i);
         } catch (e) {
           failedPages.add(i);
           continue;
         }
 
-        final lines = grouper.group(spans);
-        final paragraphs = joiner.join(
-          lines,
-          isHeading: classifier.isHeading,
-        );
-        final blocks = classifier.classify(paragraphs);
-        for (final block in blocks) {
-          writer.writeBlock(block);
+        // Fase B: filter header/footer spans sebelum processing
+        // Header: yTop > headerBottom; Footer: yTop < footerTop
+        final spans = profile.pageHeight > 0
+            ? rawSpans
+                .where((s) => s.yTop <= headerBottom && s.yTop >= footerTop)
+                .toList()
+            : rawSpans;
+
+        // Fase B: split ke kolom, proses per kolom (reading order kiri→kanan)
+        final columns = columnSplitter.split(spans, profile);
+        for (final columnSpans in columns) {
+          final lines = grouper.group(columnSpans);
+          final paragraphs = joiner.join(
+            lines,
+            isHeading: classifier.isHeading,
+          );
+          final blocks = classifier.classify(paragraphs);
+          for (final block in blocks) {
+            writer.writeBlock(block);
+          }
         }
         await writer.flush();
 
@@ -144,12 +163,7 @@ class Converter {
       outputPath: output is FileOutput ? output.outputPath : null,
       pageCount: source.pageCount,
       failedPages: failedPages,
-      // Deprecated: arahkan ke DocProfile (Fase B akan migrasi penuh).
-      stats: DocStats(
-        bodyFontSize: profile.bodyFontSize,
-        totalPages: profile.totalPages,
-        emptyPages: profile.emptyPages,
-      ),
+      profile: profile,
       elapsed: sw.elapsed,
     );
   }
