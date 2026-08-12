@@ -12,10 +12,18 @@ class MarkdownWriter {
   final MdSink _sink;
   bool _needsBlankLine = false;
 
+  /// Jenis blok terakhir yang ditulis; dipakai untuk menekan blank line
+  /// di antara baris tabel yang berurutan (mereka satu tabel).
+  BlockType? _lastBlockType;
+
   /// Tulis satu blok; otomatis sisipkan baris kosong antar-blok.
   void writeBlock(Block block) {
     if (_needsBlankLine) {
-      _sink.write('\n');
+      // Tidak ada blank line antara baris tabel berurutan (satu tabel).
+      final isTableContinuation =
+          (block.type == BlockType.tableRow || block.type == BlockType.tableHeader) &&
+          (_lastBlockType == BlockType.tableHeader || _lastBlockType == BlockType.tableRow);
+      if (!isTableContinuation) _sink.write('\n');
     }
     switch (block.type) {
       case BlockType.heading:
@@ -24,16 +32,27 @@ class MarkdownWriter {
         _sink.write('${_escapeLine(block.text)}\n');
       case BlockType.listItem:
       case BlockType.unorderedListItem:
-        _sink.write('- ${_escapeLine(block.text)}\n');
+        // Fase C: 2 spasi indent per level nested.
+        final indent = '  ' * block.listDepth;
+        _sink.write('$indent- ${_escapeLine(block.text)}\n');
       case BlockType.orderedListItem:
+        final indent = '  ' * block.listDepth;
         final idx = block.listIndex ?? 1;
-        _sink.write('$idx. ${_escapeLine(block.text)}\n');
+        _sink.write('$indent$idx. ${_escapeLine(block.text)}\n');
       case BlockType.tableHeader:
+        // Fase C: baris header + separator. Sel tidak di posisi awal baris,
+        // jadi escaping line-start (mis. "2.50" → "\2.50") tidak berlaku.
+        final cells = block.cells ?? [block.text];
+        _sink.write('| ${cells.map(_escapeHeadingText).join(' | ')} |\n');
+        _sink.write('| ${cells.map((_) => '---').join(' | ')} |\n');
       case BlockType.tableRow:
-        // Rendering tabel diimplementasikan pada Task 4 (MarkdownWriter);
-        // blok tabel belum diproduksi classifier sehingga no-op aman.
-        break;
+        // Fase C: baris data (tanpa separator).
+        final cells = block.cells ?? [block.text];
+        _sink.write('| ${cells.map(_escapeHeadingText).join(' | ')} |\n');
     }
+    _lastBlockType = block.type;
+    // Blank line tetap dibutuhkan setelah blok apa pun — termasuk setelah
+    // tabel selesai; blank line di tengah tabel ditekan via _lastBlockType.
     _needsBlankLine = true;
   }
 
