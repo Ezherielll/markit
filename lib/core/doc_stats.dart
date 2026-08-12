@@ -7,6 +7,8 @@ class PipelineConfig {
     this.headingFontFactor = 1.2,
     this.paragraphGapFactor = 1.5,
     this.lineToleranceFactor = 0.6,
+    this.headerZoneFraction = 0.93, // Fase B: yTop > pageHeight * 0.93 = header
+    this.footerZoneFraction = 0.08, // Fase B: yTop < pageHeight * 0.08 = footer
   });
 
   /// Baris dengan fontSize >= body * [headingFontFactor] → heading (FR-05).
@@ -17,6 +19,12 @@ class PipelineConfig {
 
   /// Fragment digabung ke baris jika jarak y < lineHeight * [lineToleranceFactor] (FR-03).
   final double lineToleranceFactor;
+
+  /// Fraksi tinggi halaman untuk zona header (Fase B).
+  final double headerZoneFraction;
+
+  /// Fraksi tinggi halaman untuk zona footer (Fase B).
+  final double footerZoneFraction;
 }
 
 /// Statistik seluruh dokumen hasil pass 1 (histogram ringan).
@@ -73,6 +81,10 @@ class DocProfile {
     required this.headingBands,
     required this.totalPages,
     required this.emptyPages,
+    this.pageWidth = 0, // Fase B: lebar halaman (median, unit PDF)
+    this.pageHeight = 0, // Fase B: tinggi halaman (median, unit PDF)
+    this.bodyLeftMargin = 0, // Fase B: margin kiri body (mode xLeft)
+    this.bodyRightMargin = 0, // Fase B: margin kanan body
   });
 
   /// Proxy fontSize "body text" = bucket paling sering (mode).
@@ -85,6 +97,27 @@ class DocProfile {
 
   /// Jumlah halaman tanpa teks terdeteksi (indikasi scan, FR-10d).
   final int emptyPages;
+
+  /// Lebar halaman (median seluruh halaman) dalam unit PDF (Fase B).
+  final double pageWidth;
+
+  /// Tinggi halaman (median seluruh halaman) dalam unit PDF (Fase B).
+  final double pageHeight;
+
+  /// Margin kiri body text (mode xLeft spans body) (Fase B).
+  final double bodyLeftMargin;
+
+  /// Margin kanan body text (default: simetris dengan kiri) (Fase B).
+  final double bodyRightMargin;
+
+  /// Lebar konten utama (antara margin kiri dan kanan) (Fase B).
+  double get bodyWidth => bodyRightMargin - bodyLeftMargin;
+
+  /// Zona header: yTop > [pageHeight] * [fraction] dianggap header (Fase B).
+  double headerZoneBottom(double fraction) => pageHeight * fraction;
+
+  /// Zona footer: yTop < [pageHeight] * [fraction] dianggap footer (Fase B).
+  double footerZoneTop(double fraction) => pageHeight * fraction;
 
   /// Halaman tanpa teks >= 95% total → kemungkinan besar PDF hasil scan.
   bool get likelyScanned => totalPages > 0 && emptyPages / totalPages >= 0.95;
@@ -104,10 +137,14 @@ class DocProfile {
   /// 2. Body band = band yang memuat mode.
   /// 3. Heading bands = band dengan min > body * 1.1 dan frekuensi >= 2.
   /// 4. Sort bands desc size → H1, H2, H3, ... (maksimal H4).
+  /// Fase B: pageWidth/pageHeight (median) + bodyLeftMargin (mode xLeft).
   static DocProfile fromHistogram(
     Map<double, int> hist, {
     required int totalPages,
     int emptyPages = 0,
+    List<double> pageWidths = const [],
+    List<double> pageHeights = const [],
+    List<double> bodyXLeftSamples = const [],
   }) {
     if (hist.isEmpty) {
       return DocProfile(
@@ -115,6 +152,10 @@ class DocProfile {
         headingBands: const [],
         totalPages: totalPages,
         emptyPages: emptyPages,
+        pageWidth: _median(pageWidths.isEmpty ? [0] : pageWidths),
+        pageHeight: _median(pageHeights.isEmpty ? [0] : pageHeights),
+        bodyLeftMargin: _modeDouble(bodyXLeftSamples),
+        bodyRightMargin: 0,
       );
     }
 
@@ -139,13 +180,41 @@ class DocProfile {
       if (level > 4) break; // maksimal H4 dalam praktik
     }
 
+    final pw = _median(pageWidths.isEmpty ? [0] : pageWidths);
+    final ph = _median(pageHeights.isEmpty ? [0] : pageHeights);
+    final leftMargin = _modeDouble(bodyXLeftSamples);
+    final rightMargin = pw > 0 ? pw - leftMargin : 0.0;
+
     return DocProfile(
       bodyFontSize: body,
       headingBands: headingBands,
       totalPages: totalPages,
       emptyPages: emptyPages,
+      pageWidth: pw,
+      pageHeight: ph,
+      bodyLeftMargin: leftMargin,
+      bodyRightMargin: rightMargin,
     );
   }
+}
+
+/// Mode dari list nilai double (rounded ke 1pt).
+double _modeDouble(List<double> values) {
+  if (values.isEmpty) return 0;
+  final freq = <int, int>{};
+  for (final v in values) {
+    final key = v.round();
+    freq[key] = (freq[key] ?? 0) + 1;
+  }
+  return freq.entries.reduce((a, b) => a.value >= b.value ? a : b).key.toDouble();
+}
+
+/// Median dari list double.
+double _median(List<double> values) {
+  if (values.isEmpty) return 0;
+  final sorted = [...values]..sort();
+  final mid = sorted.length ~/ 2;
+  return sorted.length.isOdd ? sorted[mid] : (sorted[mid - 1] + sorted[mid]) / 2;
 }
 
 /// Cluster bucket histogram berurutan: bucket dengan gap <= 1.5pt dianggap
@@ -222,6 +291,8 @@ class DocStatsComputer {
   Future<DocProfile> computeProfile() async {
     final hist = <double, int>{};
     var emptyPages = 0;
+    final pageWidths = <double>[];
+    final pageHeights = <double>[];
 
     for (var i = 0; i < _source.pageCount; i++) {
       final page = await _source.loadLight(i);
@@ -229,6 +300,9 @@ class DocStatsComputer {
         emptyPages++;
         continue;
       }
+      // Fase B: kumpulkan geometri halaman (media box)
+      if (page.pageWidth > 0) pageWidths.add(page.pageWidth);
+      if (page.pageHeight > 0) pageHeights.add(page.pageHeight);
       for (final h in page.lineHeights) {
         if (h <= 0) continue;
         final bucket = (h / bucketSize).round() * bucketSize;
@@ -236,10 +310,14 @@ class DocStatsComputer {
       }
     }
 
+    // Catatan: bodyXLeftSamples kosong — loadLight tidak mengekspos xLeft
+    // (refinement Fase B: sample dari loadFull halaman pertama bila perlu).
     return DocProfile.fromHistogram(
       hist,
       totalPages: _source.pageCount,
       emptyPages: emptyPages,
+      pageWidths: pageWidths,
+      pageHeights: pageHeights,
     );
   }
 

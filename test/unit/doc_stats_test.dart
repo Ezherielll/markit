@@ -1,7 +1,10 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:markit/core/doc_stats.dart';
 import 'package:markit/core/pdf_source.dart';
+import 'package:markit/core/pdfrx_source.dart';
 import 'package:markit/models/layout.dart';
+
+import '../helpers/pdf_factory.dart';
 
 /// Fake source: histogram sintetik tanpa file PDF.
 class FakeSource implements PdfSource {
@@ -178,6 +181,65 @@ void main() {
       expect(profile.totalPages, 2);
       expect(profile.emptyPages, 0);
       expect(profile.likelyScanned, isFalse);
+    });
+  });
+
+  group('DocProfile geometry fields (Fase B)', () {
+    test('bodyLeftMargin adalah mode xLeft dari body-sized spans', () {
+      // Histogram dengan body size 12pt; spans xLeft di 72 (dominan) dan 100
+      final hist = {12.0: 100, 18.0: 10};
+      final xLeftSamples = <double>[72, 72, 72, 72, 72, 100, 100, 72, 72, 100];
+      final profile = DocProfile.fromHistogram(
+        hist,
+        totalPages: 3,
+        pageWidths: [612, 612, 612],
+        pageHeights: [792, 792, 792],
+        bodyXLeftSamples: xLeftSamples,
+      );
+      expect(profile.pageWidth, closeTo(612, 1));
+      expect(profile.pageHeight, closeTo(792, 1));
+      expect(profile.bodyLeftMargin, closeTo(72, 5)); // mode dari samples
+      // bodyRightMargin = pageWidth - bodyLeftMargin (simetris default)
+      expect(profile.bodyRightMargin, closeTo(612 - 72, 10));
+    });
+
+    test('pageWidth/pageHeight adalah median dari semua halaman', () {
+      final hist = {12.0: 100};
+      final profile = DocProfile.fromHistogram(
+        hist,
+        totalPages: 3,
+        pageWidths: [612, 612, 595], // A4 mixed dengan Letter
+        pageHeights: [792, 792, 842],
+        bodyXLeftSamples: [72.0],
+      );
+      expect(profile.pageWidth, closeTo(612, 1)); // median
+      expect(profile.pageHeight, closeTo(792, 1)); // median
+    });
+
+    test('DocProfile menyimpan pageWidth/pageHeight dari PdfrxSource',
+        () async {
+      // PdfrxSource.openData() menghasilkan PDF 612x792 (US Letter dari pdf_factory)
+      final src = await PdfrxSource.openData(buildTestPdf());
+      final profile = await DocStatsComputer(src).computeProfile();
+      await src.dispose();
+
+      // PDF factory pakai MediaBox [0 0 612 792]
+      expect(profile.pageWidth, closeTo(612, 5));
+      expect(profile.pageHeight, closeTo(792, 5));
+    });
+  });
+
+  group('PipelineConfig zona header/footer (Fase B)', () {
+    test('default: headerZoneFraction=0.93, footerZoneFraction=0.08', () {
+      const config = PipelineConfig();
+      expect(config.headerZoneFraction, closeTo(0.93, 0.001));
+      expect(config.footerZoneFraction, closeTo(0.08, 0.001));
+    });
+
+    test('override header/footer zone', () {
+      const config = PipelineConfig(headerZoneFraction: 0.95, footerZoneFraction: 0.05);
+      expect(config.headerZoneFraction, closeTo(0.95, 0.001));
+      expect(config.footerZoneFraction, closeTo(0.05, 0.001));
     });
   });
 }

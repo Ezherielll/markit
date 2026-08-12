@@ -85,6 +85,8 @@ class PdfrxSource implements PdfSource {
       pageIndex: pageIndex,
       charCount: fullText.length,
       lineHeights: lineHeights.where((h) => h > 0).toList(),
+      pageWidth: page.width, // Fase B: dari MediaBox pdfrx
+      pageHeight: page.height,
     );
   }
 

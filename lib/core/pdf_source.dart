@@ -7,6 +7,8 @@ class LightPageData {
     required this.pageIndex,
     required this.charCount,
     required this.lineHeights,
+    this.pageWidth = 0, // Fase B: lebar halaman dalam unit PDF
+    this.pageHeight = 0, // Fase B: tinggi halaman dalam unit PDF
   });
 
   final int pageIndex;
@@ -16,6 +18,12 @@ class LightPageData {
   /// dengan [PdfrxSource.loadFull] — line height, bukan x-height).
   /// Dasar histogram body font (FR-05).
   final List<double> lineHeights;
+
+  /// Lebar halaman (MediaBox) dalam unit PDF; 0 bila tidak tersedia (Fase B).
+  final double pageWidth;
+
+  /// Tinggi halaman (MediaBox) dalam unit PDF; 0 bila tidak tersedia (Fase B).
+  final double pageHeight;
 
   bool get hasText => charCount > 0;
 }

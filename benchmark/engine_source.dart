@@ -41,6 +41,8 @@ class EnginePdfSource implements PdfSource {
       pageIndex: pageIndex,
       charCount: fullText.length,
       lineHeights: lineHeights.where((h) => h > 0).toList(),
+      pageWidth: _doc.pages[pageIndex].width, // Fase B: dari MediaBox
+      pageHeight: _doc.pages[pageIndex].height,
     );
   }
 
