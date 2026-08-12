@@ -53,7 +53,13 @@ class Line {
 }
 
 /// Jenis blok yang diklasifikasikan oleh pipeline.
-enum BlockType { heading, paragraph, listItem }
+enum BlockType {
+  heading,
+  paragraph,
+  listItem, // alias backward-compat
+  unorderedListItem, // Fase A: item bullet
+  orderedListItem, // Fase A: item bernomor
+}
 
 /// Blok semantik hasil klasifikasi, siap dirender ke markdown.
 class Block {
@@ -61,6 +67,7 @@ class Block {
     required this.type,
     required this.lines,
     this.headingLevel = 0,
+    this.listIndex, // Fase A: nomor ordered list (1-based); null untuk bullet
   });
 
   final BlockType type;
@@ -68,6 +75,9 @@ class Block {
 
   /// Level heading 1-based; 0 bila bukan heading.
   final int headingLevel;
+
+  /// Nomor ordered list item (1-based); null bila bukan ordered list.
+  final int? listIndex;
 
   String get text => lines.join('\n');
 }

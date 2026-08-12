@@ -19,11 +19,15 @@ class MarkdownWriter {
     }
     switch (block.type) {
       case BlockType.heading:
-        _sink.write('${'#' * block.headingLevel} ${_escapeLine(block.text)}\n');
+        _sink.write('${'#' * block.headingLevel} ${_escapeHeadingText(block.text)}\n');
       case BlockType.paragraph:
         _sink.write('${_escapeLine(block.text)}\n');
       case BlockType.listItem:
+      case BlockType.unorderedListItem:
         _sink.write('- ${_escapeLine(block.text)}\n');
+      case BlockType.orderedListItem:
+        final idx = block.listIndex ?? 1;
+        _sink.write('$idx. ${_escapeLine(block.text)}\n');
     }
     _needsBlankLine = true;
   }
@@ -54,6 +58,17 @@ class MarkdownWriter {
       result = '\\$result';
     }
     // Backtick tunggal bisa menutup inline code.
+    result = result.replaceAll('`', r'\`');
+    return result;
+  }
+
+  /// Escaping teks heading: angka+'.' tidak perlu di-escape (sudah di dalam
+  /// prefix '#'), hanya '#' di awal teks yang bisa mengubah struktur.
+  String _escapeHeadingText(String text) {
+    var result = text;
+    if (result.startsWith('#')) {
+      result = '\\$result';
+    }
     result = result.replaceAll('`', r'\`');
     return result;
   }

@@ -91,4 +91,45 @@ void main() {
     await w.close();
     expect(buffer.toString(), 'web output\n');
   });
+
+  group('Fase A: ordered/unordered list rendering', () {
+    test('orderedListItem → "N. text" sesuai listIndex', () async {
+      final buffer = StringBuffer();
+      final w = MarkdownWriter(MemoryMdSink(buffer));
+      w.writeBlock(Block(
+        type: BlockType.orderedListItem,
+        lines: const ['Buy apples'],
+        listIndex: 1,
+      ));
+      w.writeBlock(Block(
+        type: BlockType.orderedListItem,
+        lines: const ['Buy bananas'],
+        listIndex: 2,
+      ));
+      await w.close();
+      expect(buffer.toString(), '1. Buy apples\n\n2. Buy bananas\n');
+    });
+
+    test('orderedListItem tanpa listIndex → fallback 1', () async {
+      final buffer = StringBuffer();
+      final w = MarkdownWriter(MemoryMdSink(buffer));
+      w.writeBlock(Block(
+        type: BlockType.orderedListItem,
+        lines: const ['Alpha'],
+      ));
+      await w.close();
+      expect(buffer.toString(), '1. Alpha\n');
+    });
+
+    test('unorderedListItem → "- text"', () async {
+      final buffer = StringBuffer();
+      final w = MarkdownWriter(MemoryMdSink(buffer));
+      w.writeBlock(Block(
+        type: BlockType.unorderedListItem,
+        lines: const ['Item one'],
+      ));
+      await w.close();
+      expect(buffer.toString(), '- Item one\n');
+    });
+  });
 }
