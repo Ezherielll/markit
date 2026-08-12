@@ -91,20 +91,10 @@ class _FileCardState extends State<FileCard> {
         curve: Curves.easeOut,
         padding: const EdgeInsets.all(PdflowSpacing.md),
         decoration: BoxDecoration(
-          color: widget.selected
-              ? primary.withValues(alpha: isDark ? 0.12 : 0.08)
-              : _hovered
-                  ? primary.withValues(alpha: isDark ? 0.06 : 0.04)
-                  : (isDark
-                      ? PdflowColors.surfaceDark
-                      : PdflowColors.surfaceLight),
+          color: _cardColor(isDark, primary),
           borderRadius: BorderRadius.circular(PdflowSpacing.radiusCard),
           border: Border.all(
-            color: widget.selected
-                ? primary
-                : _hovered && isInteractive
-                    ? primary
-                    : baseBorder,
+            color: _cardBorder(primary, baseBorder, isInteractive),
           ),
         ),
         child: InkWell(
@@ -116,147 +106,187 @@ class _FileCardState extends State<FileCard> {
             children: [
               Row(
                 children: [
-                  Container(
-                    width: 36,
-                    height: 44,
-                    decoration: BoxDecoration(
-                      color: primary.withValues(alpha: 0.08),
-                      borderRadius: BorderRadius.circular(6),
-                    ),
-                    child: Icon(
-                      iconForFormat(job.input.format),
-                      size: 22,
-                      color: primary,
-                    ),
-                  ),
+                  _buildIcon(primary),
                   const SizedBox(width: PdflowSpacing.md),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(job.fileName,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: TextStyle(
-                              fontFamily: PdflowTypography.mono,
-                              fontSize: 12.5,
-                              fontWeight: FontWeight.w500,
-                              color: ink,
-                            )),
-                        const SizedBox(height: 2),
-                        Text(
-                          [
-                            ?size,
-                            if (job.pageCount != null)
-                              '${job.pageCount} ${Strings.pagesLabel}',
-                          ].join('  ·  '),
-                          style: TextStyle(
-                            fontSize: 11,
-                            fontFeatures: PdflowTypography.tabularFigures,
-                            color: inkMuted,
-                          ),
-                        ),
-                        if (widget.showStatus &&
-                            job.status == JobStatus.failed) ...[
-                          const SizedBox(height: 2),
-                          Text(
-                            _errorText(job),
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: TextStyle(
-                              fontSize: 10.5,
-                              color: isDark
-                                  ? PdflowColors.stampRedDark
-                                  : PdflowColors.stampRedLight,
-                            ),
-                          ),
-                        ],
-                      ],
-                    ),
-                  ),
-                  if (widget.showStatus) ...[
-                    const SizedBox(width: PdflowSpacing.sm),
-                    _StatusChip(status: job.status),
-                  ],
-                  if (widget.onDownload != null) ...[
-                    const SizedBox(width: 2),
-                    IconButton(
-                      onPressed: widget.onDownload,
-                      icon: const Icon(Icons.download_outlined, size: 17),
-                      tooltip: Strings.download,
-                      visualDensity: VisualDensity.compact,
-                    ),
-                  ],
-                  if (widget.onRemove != null) ...[
-                    const SizedBox(width: 2),
-                    IconButton(
-                      onPressed: widget.onRemove,
-                      icon: const Icon(Icons.close, size: 17),
-                      tooltip: Strings.removeFile,
-                      visualDensity: VisualDensity.compact,
-                    ),
-                  ],
+                  Expanded(child: _buildInfo(ink, inkMuted, isDark, size)),
+                  ..._buildActions(),
                 ],
               ),
-              if (widget.progress != null || job.status == JobStatus.running) ...[
-                const SizedBox(height: PdflowSpacing.sm),
-                // Label phase + metadata progress (page X of Y · %).
-                Row(
-                  children: [
-                    Text(
-                      widget.phase == 0
-                          ? Strings.phaseReadingShort
-                          : Strings.phaseConvertingShort,
-                      style: TextStyle(
-                        fontSize: 10,
-                        fontWeight: FontWeight.w600,
-                        letterSpacing: 0.4,
-                        color: inkMuted,
-                      ),
-                    ),
-                    const Spacer(),
-                    if (widget.progress != null)
-                      Text(
-                        _progressText(job, widget.progress!),
-                        style: TextStyle(
-                          fontFamily: PdflowTypography.mono,
-                          fontSize: 10,
-                          fontFeatures: PdflowTypography.tabularFigures,
-                          color: inkMuted,
-                        ),
-                      ),
-                  ],
-                ),
-                const SizedBox(height: 3),
-                // Bar animasi halus; indeterminate saat total belum diketahui.
-                ClipRRect(
-                  borderRadius: BorderRadius.circular(3),
-                  child: SizedBox(
-                    height: 5,
-                    child: widget.progress == null
-                        ? const LinearProgressIndicator(minHeight: 5)
-                        : TweenAnimationBuilder<double>(
-                            tween: Tween(
-                              begin: 0,
-                              end: widget.progress!.clamp(0.0, 1.0),
-                            ),
-                            duration: const Duration(milliseconds: 300),
-                            curve: Curves.easeOut,
-                            builder: (context, value, _) =>
-                                LinearProgressIndicator(
-                              value: value,
-                              minHeight: 5,
-                              backgroundColor: hairline,
-                            ),
-                          ),
-                  ),
-                ),
-              ],
+              if (widget.progress != null || job.status == JobStatus.running)
+                ..._buildProgress(inkMuted, hairline),
             ],
           ),
         ),
       ),
     );
+  }
+
+  /// Warna latar kartu: selected → hover → surface (urutan prioritas).
+  Color _cardColor(bool isDark, Color primary) {
+    if (widget.selected) {
+      return primary.withValues(alpha: isDark ? 0.12 : 0.08);
+    }
+    if (_hovered) {
+      return primary.withValues(alpha: isDark ? 0.06 : 0.04);
+    }
+    return isDark ? PdflowColors.surfaceDark : PdflowColors.surfaceLight;
+  }
+
+  /// Warna border kartu: selected/hover-interaktif → primary, else base.
+  Color _cardBorder(Color primary, Color baseBorder, bool isInteractive) {
+    if (widget.selected) return primary;
+    if (_hovered && isInteractive) return primary;
+    return baseBorder;
+  }
+
+  /// Ikon format 36×44 di kiri kartu.
+  Widget _buildIcon(Color primary) {
+    return Container(
+      width: 36,
+      height: 44,
+      decoration: BoxDecoration(
+        color: primary.withValues(alpha: 0.08),
+        borderRadius: BorderRadius.circular(6),
+      ),
+      child: Icon(
+        iconForFormat(widget.job.input.format),
+        size: 22,
+        color: primary,
+      ),
+    );
+  }
+
+  /// Kolom info: nama file, ukuran + halaman, pesan error (bila failed).
+  Widget _buildInfo(Color ink, Color inkMuted, bool isDark, String? size) {
+    final job = widget.job;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(job.fileName,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: TextStyle(
+              fontFamily: PdflowTypography.mono,
+              fontSize: 12.5,
+              fontWeight: FontWeight.w500,
+              color: ink,
+            )),
+        const SizedBox(height: 2),
+        Text(
+          [
+            ?size,
+            if (job.pageCount != null)
+              '${job.pageCount} ${Strings.pagesLabel}',
+          ].join('  ·  '),
+          style: TextStyle(
+            fontSize: 11,
+            fontFeatures: PdflowTypography.tabularFigures,
+            color: inkMuted,
+          ),
+        ),
+        if (widget.showStatus && job.status == JobStatus.failed) ...[
+          const SizedBox(height: 2),
+          Text(
+            _errorText(job),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: TextStyle(
+              fontSize: 10.5,
+              color: isDark
+                  ? PdflowColors.stampRedDark
+                  : PdflowColors.stampRedLight,
+            ),
+          ),
+        ],
+      ],
+    );
+  }
+
+  /// Aksi kanan kartu: chip status + tombol download/remove (conditional).
+  List<Widget> _buildActions() {
+    return [
+      if (widget.showStatus) ...[
+        const SizedBox(width: PdflowSpacing.sm),
+        _StatusChip(status: widget.job.status),
+      ],
+      if (widget.onDownload != null) ...[
+        const SizedBox(width: 2),
+        IconButton(
+          onPressed: widget.onDownload,
+          icon: const Icon(Icons.download_outlined, size: 17),
+          tooltip: Strings.download,
+          visualDensity: VisualDensity.compact,
+        ),
+      ],
+      if (widget.onRemove != null) ...[
+        const SizedBox(width: 2),
+        IconButton(
+          onPressed: widget.onRemove,
+          icon: const Icon(Icons.close, size: 17),
+          tooltip: Strings.removeFile,
+          visualDensity: VisualDensity.compact,
+        ),
+      ],
+    ];
+  }
+
+  /// Bagian progress (muncul saat running/indeterminate): label phase,
+  /// metadata halaman & bar animasi.
+  List<Widget> _buildProgress(Color inkMuted, Color hairline) {
+    final job = widget.job;
+    return [
+      const SizedBox(height: PdflowSpacing.sm),
+      // Label phase + metadata progress (page X of Y · %).
+      Row(
+        children: [
+          Text(
+            widget.phase == 0
+                ? Strings.phaseReadingShort
+                : Strings.phaseConvertingShort,
+            style: TextStyle(
+              fontSize: 10,
+              fontWeight: FontWeight.w600,
+              letterSpacing: 0.4,
+              color: inkMuted,
+            ),
+          ),
+          const Spacer(),
+          if (widget.progress != null)
+            Text(
+              _progressText(job, widget.progress!),
+              style: TextStyle(
+                fontFamily: PdflowTypography.mono,
+                fontSize: 10,
+                fontFeatures: PdflowTypography.tabularFigures,
+                color: inkMuted,
+              ),
+            ),
+        ],
+      ),
+      const SizedBox(height: 3),
+      // Bar animasi halus; indeterminate saat total belum diketahui.
+      ClipRRect(
+        borderRadius: BorderRadius.circular(3),
+        child: SizedBox(
+          height: 5,
+          child: widget.progress == null
+              ? const LinearProgressIndicator(minHeight: 5)
+              : TweenAnimationBuilder<double>(
+                  tween: Tween(
+                    begin: 0,
+                    end: widget.progress!.clamp(0.0, 1.0),
+                  ),
+                  duration: const Duration(milliseconds: 300),
+                  curve: Curves.easeOut,
+                  builder: (context, value, _) => LinearProgressIndicator(
+                    value: value,
+                    minHeight: 5,
+                    backgroundColor: hairline,
+                  ),
+                ),
+        ),
+      ),
+    ];
   }
 
   static String _errorText(QueuedFile job) {

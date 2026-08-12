@@ -96,57 +96,10 @@ class _DropZoneState extends State<DropZone> {
     var sawUrl = false;
     var sawUnreadable = false;
     for (final item in event.session.items) {
-      final reader = item.dataReader;
-      if (reader == null) continue;
-
-      if (reader.canProvide(Formats.fileUri)) {
-        final completer = Completer<Uri?>();
-        reader.getValue<Uri>(Formats.fileUri, (uri) {
-          completer.complete(uri);
-        }, onError: (_) {
-          if (!completer.isCompleted) completer.complete(null);
-        });
-        final uri = await completer.future;
-        final path = uri?.toFilePath();
-        if (path == null) continue;
-        if (kIsWeb) {
-          // Web: fileUri tidak bisa dibaca (tidak ada filesystem) — path yang
-          // diberikan browser adalah placeholder. Arahkan ke picker.
-          sawUnreadable = true;
-          continue;
-        }
-        final name = path.split(RegExp(r'[\\/]')).last;
-        final header = await _readHeader(path);
-        inputs.add(
-          PdfInput(
-            name: name,
-            path: path,
-            format: detectFormat(name, header),
-          ),
-        );
-      } else if (kIsWeb && reader.canProvide(Formats.plainText)) {
-        // Web: browser memberi File object — coba lewat uri-list text.
-        final completer = Completer<String?>();
-        reader.getValue<String>(Formats.plainText, (text) {
-          completer.complete(text);
-        }, onError: (_) {
-          if (!completer.isCompleted) completer.complete(null);
-        });
-        final text = await completer.future;
-        for (final line in (text ?? '').split('\n')) {
-          final trimmed = line.trim();
-          if (trimmed.isEmpty) continue;
-          if (isUrlName(trimmed)) {
-            // URL butuh jaringan — melanggar NG3 (100% lokal).
-            sawUrl = true;
-            continue;
-          }
-          // Path uri-list browser adalah placeholder yang tak bisa dibaca di
-          // web — jangan buat PdfInput palsu (itu menyebabkan error corrupt
-          // saat konversi). Arahkan ke picker.
-          sawUnreadable = true;
-        }
-      }
+      final result = await _handleDropItem(item);
+      if (result.input != null) inputs.add(result.input!);
+      sawUrl = sawUrl || result.sawUrl;
+      sawUnreadable = sawUnreadable || result.sawUnreadable;
     }
     if (sawUrl && mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -170,6 +123,78 @@ class _DropZoneState extends State<DropZone> {
         ),
       );
     }
+  }
+
+  /// Baca satu item drop: file (desktop) atau flag kendala (web).
+  ///
+  /// - fileUri (desktop): path nyata → [PdfInput] siap konversi.
+  /// - fileUri (web): placeholder browser (tanpa filesystem) → unreadable.
+  /// - plainText (web): uri-list → diklasifikasi per baris (URL/unreadable).
+  Future<({PdfInput? input, bool sawUrl, bool sawUnreadable})>
+      _handleDropItem(DropItem item) async {
+    final reader = item.dataReader;
+    if (reader == null) return (input: null, sawUrl: false, sawUnreadable: false);
+
+    if (reader.canProvide(Formats.fileUri)) {
+      final completer = Completer<Uri?>();
+      reader.getValue<Uri>(Formats.fileUri, (uri) {
+        completer.complete(uri);
+      }, onError: (_) {
+        if (!completer.isCompleted) completer.complete(null);
+      });
+      final uri = await completer.future;
+      if (uri == null) return (input: null, sawUrl: false, sawUnreadable: false);
+      if (kIsWeb) {
+        // Web: fileUri tidak bisa dibaca (tidak ada filesystem) — path yang
+        // diberikan browser adalah placeholder. Arahkan ke picker.
+        return (input: null, sawUrl: false, sawUnreadable: true);
+      }
+      final path = uri.toFilePath();
+      final name = path.split(RegExp(r'[\\/]')).last;
+      final header = await _readHeader(path);
+      return (
+        input: PdfInput(
+          name: name,
+          path: path,
+          format: detectFormat(name, header),
+        ),
+        sawUrl: false,
+        sawUnreadable: false,
+      );
+    }
+
+    if (kIsWeb && reader.canProvide(Formats.plainText)) {
+      // Web: browser memberi File object — coba lewat uri-list text.
+      final completer = Completer<String?>();
+      reader.getValue<String>(Formats.plainText, (text) {
+        completer.complete(text);
+      }, onError: (_) {
+        if (!completer.isCompleted) completer.complete(null);
+      });
+      final text = await completer.future;
+      final (:sawUrl, :sawUnreadable) =
+          _classifyDropLines((text ?? '').split('\n'));
+      return (input: null, sawUrl: sawUrl, sawUnreadable: sawUnreadable);
+    }
+
+    return (input: null, sawUrl: false, sawUnreadable: false);
+  }
+
+  /// Kelompokkan baris uri-list hasil drop web: URL (butuh jaringan —
+  /// melanggar NG3) vs placeholder yang tak bisa dibaca (arahkan ke picker).
+  ({bool sawUrl, bool sawUnreadable}) _classifyDropLines(List<String> lines) {
+    var sawUrl = false;
+    var sawUnreadable = false;
+    for (final line in lines) {
+      final trimmed = line.trim();
+      if (trimmed.isEmpty) continue;
+      if (isUrlName(trimmed)) {
+        sawUrl = true;
+      } else {
+        sawUnreadable = true;
+      }
+    }
+    return (sawUrl: sawUrl, sawUnreadable: sawUnreadable);
   }
 
   @override

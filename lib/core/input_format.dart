@@ -57,6 +57,15 @@ InputFormat detectFormat(String name, Uint8List bytes) {
   final trimmed = _trimLeadingWhitespace(bytes);
 
   // Magic bytes kuat — diutamakan dari ekstensi.
+  final byContent = _detectByContent(bytes, trimmed, lower);
+  if (byContent != null) return byContent;
+
+  return _detectByExtension(lower);
+}
+
+/// Deteksi via konten (magic bytes + karakter awal). Null bila tidak ada
+/// kecocokan konten (lanjut ke ekstensi).
+InputFormat? _detectByContent(Uint8List bytes, List<int> trimmed, String lower) {
   if (_startsWithBytes(bytes, [0x25, 0x50, 0x44, 0x46])) {
     return InputFormat.pdf; // %PDF
   }
@@ -82,36 +91,46 @@ InputFormat detectFormat(String name, Uint8List bytes) {
     if (c == 0x7B || c == 0x5B) return InputFormat.json;
     if (c == 0x3C) return _detectMarkup(lower, bytes);
   }
-  if (lower.endsWith('.pdf')) return InputFormat.pdf;
-  if (lower.endsWith('.txt')) return InputFormat.text;
-  if (lower.endsWith('.md') || lower.endsWith('.markdown')) {
-    return InputFormat.markdown;
-  }
-  if (lower.endsWith('.csv')) return InputFormat.csv;
-  if (lower.endsWith('.json')) return InputFormat.json;
-  if (lower.endsWith('.xml')) return InputFormat.xml;
-  if (lower.endsWith('.html') || lower.endsWith('.htm')) return InputFormat.html;
-  if (lower.endsWith('.docx')) return InputFormat.docx;
-  if (lower.endsWith('.xlsx')) return InputFormat.xlsx;
-  if (lower.endsWith('.pptx')) return InputFormat.pptx;
-  if (lower.endsWith('.epub')) return InputFormat.epub;
-  if (lower.endsWith('.zip')) return InputFormat.zip;
-  if (lower.endsWith('.jpg') ||
-      lower.endsWith('.jpeg') ||
-      lower.endsWith('.png') ||
-      lower.endsWith('.gif') ||
-      lower.endsWith('.webp') ||
-      lower.endsWith('.bmp') ||
-      lower.endsWith('.tiff')) {
-    return InputFormat.image;
-  }
-  if (lower.endsWith('.mp3') ||
-      lower.endsWith('.flac') ||
-      lower.endsWith('.ogg') ||
-      lower.endsWith('.wav') ||
-      lower.endsWith('.m4a') ||
-      lower.endsWith('.aac')) {
-    return InputFormat.audio;
+  return null;
+}
+
+/// Tabel ekstensi → format (urutan = prioritas original; ekstensi saling
+/// eksklusif sehingga urutan tidak mengubah hasil).
+const _extensionRules = <(String, InputFormat)>[
+  ('pdf', InputFormat.pdf),
+  ('txt', InputFormat.text),
+  ('md', InputFormat.markdown),
+  ('markdown', InputFormat.markdown),
+  ('csv', InputFormat.csv),
+  ('json', InputFormat.json),
+  ('xml', InputFormat.xml),
+  ('html', InputFormat.html),
+  ('htm', InputFormat.html),
+  ('docx', InputFormat.docx),
+  ('xlsx', InputFormat.xlsx),
+  ('pptx', InputFormat.pptx),
+  ('epub', InputFormat.epub),
+  ('zip', InputFormat.zip),
+  ('jpg', InputFormat.image),
+  ('jpeg', InputFormat.image),
+  ('png', InputFormat.image),
+  ('gif', InputFormat.image),
+  ('webp', InputFormat.image),
+  ('bmp', InputFormat.image),
+  ('tiff', InputFormat.image),
+  ('mp3', InputFormat.audio),
+  ('flac', InputFormat.audio),
+  ('ogg', InputFormat.audio),
+  ('wav', InputFormat.audio),
+  ('m4a', InputFormat.audio),
+  ('aac', InputFormat.audio),
+];
+
+/// Deteksi via ekstensi (nama sudah di-lowercase) — fallback untuk teks
+/// dan format tanpa magic bytes.
+InputFormat _detectByExtension(String lower) {
+  for (final (ext, format) in _extensionRules) {
+    if (lower.endsWith(ext)) return format;
   }
   return InputFormat.unknown;
 }

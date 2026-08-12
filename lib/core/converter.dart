@@ -99,17 +99,20 @@ class Converter {
     final failedPages = <int>[];
     final sink = await output.openSink();
     final writer = MarkdownWriter(sink);
-    final columnSplitter = const ColumnSplitter(); // Fase B
-    final grouper = LineGrouper(config: config, profile: profile); // Fase B
-    final joiner = ParagraphJoiner(config: config);
-    final classifier = StructureClassifier.withProfile(
+    final pipeline = (
+      writer: writer,
+      columnSplitter: const ColumnSplitter(), // Fase B
+      grouper: LineGrouper(config: config, profile: profile), // Fase B
+      joiner: ParagraphJoiner(config: config),
+      classifier: StructureClassifier.withProfile(
+        profile: profile,
+        config: config,
+      ),
       profile: profile,
-      config: config,
+      // Batas zona header/footer dari profil + config (Fase B)
+      headerBottom: profile.pageHeight * config.headerZoneFraction,
+      footerTop: profile.pageHeight * config.footerZoneFraction,
     );
-
-    // Batas zona header/footer dari profil + config (Fase B)
-    final headerBottom = profile.pageHeight * config.headerZoneFraction;
-    final footerTop = profile.pageHeight * config.footerZoneFraction;
 
     var cancelled = false;
     try {
@@ -127,28 +130,7 @@ class Converter {
           continue;
         }
 
-        // Fase B: filter header/footer spans sebelum processing
-        // Header: yTop > headerBottom; Footer: yTop < footerTop
-        final spans = profile.pageHeight > 0
-            ? rawSpans
-                .where((s) => s.yTop <= headerBottom && s.yTop >= footerTop)
-                .toList()
-            : rawSpans;
-
-        // Fase B: split ke kolom, proses per kolom (reading order kiri→kanan)
-        final columns = columnSplitter.split(spans, profile);
-        for (final columnSpans in columns) {
-          final lines = grouper.group(columnSpans);
-          final paragraphs = joiner.join(
-            lines,
-            isHeading: classifier.isHeading,
-          );
-          final blocks = classifier.classify(paragraphs);
-          for (final block in blocks) {
-            writer.writeBlock(block);
-          }
-        }
-        await writer.flush();
+        await _convertPage(rawSpans, pipeline);
 
         onProgress?.call(ConversionProgress(
           page: i + 1,
@@ -178,7 +160,49 @@ class Converter {
       elapsed: sw.elapsed,
     );
   }
+
+  /// Proses spans satu halaman: filter header/footer → split kolom →
+  /// line grouping → paragraph join → klasifikasi → write (streaming).
+  Future<void> _convertPage(List<TextSpan> rawSpans, _PagePipeline pipeline) async {
+    final profile = pipeline.profile;
+    // Fase B: filter header/footer spans sebelum processing
+    // Header: yTop > headerBottom; Footer: yTop < footerTop
+    final spans = profile.pageHeight > 0
+        ? rawSpans
+            .where((s) => s.yTop <= pipeline.headerBottom &&
+                s.yTop >= pipeline.footerTop)
+            .toList()
+        : rawSpans;
+
+    // Fase B: split ke kolom, proses per kolom (reading order kiri→kanan)
+    final columns = pipeline.columnSplitter.split(spans, profile);
+    for (final columnSpans in columns) {
+      final lines = pipeline.grouper.group(columnSpans);
+      final paragraphs = pipeline.joiner.join(
+        lines,
+        isHeading: pipeline.classifier.isHeading,
+      );
+      final blocks = pipeline.classifier.classify(paragraphs);
+      for (final block in blocks) {
+        pipeline.writer.writeBlock(block);
+      }
+    }
+    await pipeline.writer.flush();
+  }
 }
+
+/// Pipeline pass 2 yang dipakai bersama untuk semua halaman (konstruksi
+/// sekali di [Converter.convert], dibagi antar panggilan [_convertPage]).
+typedef _PagePipeline = ({
+  MarkdownWriter writer,
+  ColumnSplitter columnSplitter,
+  LineGrouper grouper,
+  ParagraphJoiner joiner,
+  StructureClassifier classifier,
+  DocProfile profile,
+  double headerBottom,
+  double footerTop,
+});
 
 class _CancelledException implements Exception {
   const _CancelledException();

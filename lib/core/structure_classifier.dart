@@ -140,24 +140,31 @@ class StructureClassifier {
       final isMarkerLine = ordered ? isOrderedLine : _isBullet(t);
 
       if (isMarkerLine) {
-        blocks.add(Block(
-          type: ordered ? BlockType.orderedListItem : BlockType.unorderedListItem,
-          lines: [ordered ? _stripOrdered(t) : _stripBullet(t)],
-          listIndex: ordered ? _parseIndex(t) : null,
-          listDepth: _listDepth(line),
-        ));
+        blocks.add(_buildListItem(line, t, ordered));
       } else if (blocks.isNotEmpty && blocks.last.type != BlockType.paragraph) {
-        blocks[blocks.length - 1] = Block(
-          type: blocks.last.type,
-          lines: [...blocks.last.lines, t],
-          listIndex: blocks.last.listIndex,
-          listDepth: blocks.last.listDepth,
-        );
+        blocks[blocks.length - 1] = _appendLine(blocks.last, t);
       } else {
         blocks.add(Block(type: BlockType.paragraph, lines: [t]));
       }
     }
   }
+
+  /// Item list baru dari satu baris ber-marker (bullet/ordered).
+  Block _buildListItem(Line line, String text, bool ordered) => Block(
+        type: ordered ? BlockType.orderedListItem : BlockType.unorderedListItem,
+        lines: [ordered ? _stripOrdered(text) : _stripBullet(text)],
+        listIndex: ordered ? _parseIndex(text) : null,
+        listDepth: _listDepth(line),
+      );
+
+  /// Sambung baris lanjutan (tanpa marker) ke item list sebelumnya,
+  /// mempertahankan metadata item.
+  Block _appendLine(Block block, String text) => Block(
+        type: block.type,
+        lines: [...block.lines, text],
+        listIndex: block.listIndex,
+        listDepth: block.listDepth,
+      );
 
   bool _isHeading(Line line) {
     if (bodyFontSize <= 0) return false;

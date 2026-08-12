@@ -164,21 +164,8 @@ class DocProfile {
     final bodyBand =
         bands.firstWhere((b) => b.contains(body), orElse: () => bands.first);
 
-    final headingBands = <HeadingBand>[];
     final sorted = [...bands]..sort((a, b) => b.maxSize.compareTo(a.maxSize));
-    var level = 1;
-    for (final band in sorted) {
-      if (identical(band, bodyBand)) continue;
-      if (band.minSize <= body * 1.1) continue; // terlalu dekat dengan body
-      if (band.count < 2) continue; // outlier sekali muncul
-      headingBands.add(HeadingBand(
-        minSize: band.minSize,
-        maxSize: band.maxSize,
-        headingLevel: level,
-      ));
-      level++;
-      if (level > 4) break; // maksimal H4 dalam praktik
-    }
+    final headingBands = _levelBands(sorted, body, bodyBand);
 
     final pw = _median(pageWidths.isEmpty ? [0] : pageWidths);
     final ph = _median(pageHeights.isEmpty ? [0] : pageHeights);
@@ -196,6 +183,32 @@ class DocProfile {
       bodyRightMargin: rightMargin,
     );
   }
+}
+
+/// Petakan band terurut-desc ke level heading H1..H4 (maksimal 4 level).
+///
+/// Body band dilewati; band yang terlalu dekat dengan body (≤ 1.1×) atau
+/// berfrekuensi < 2 dianggap noise, bukan heading.
+List<HeadingBand> _levelBands(
+  List<_FontBand> sorted,
+  double bodySize,
+  _FontBand bodyBand,
+) {
+  final headingBands = <HeadingBand>[];
+  var level = 1;
+  for (final band in sorted) {
+    if (identical(band, bodyBand)) continue;
+    if (band.minSize <= bodySize * 1.1) continue; // terlalu dekat dengan body
+    if (band.count < 2) continue; // outlier sekali muncul
+    headingBands.add(HeadingBand(
+      minSize: band.minSize,
+      maxSize: band.maxSize,
+      headingLevel: level,
+    ));
+    level++;
+    if (level > 4) break; // maksimal H4 dalam praktik
+  }
+  return headingBands;
 }
 
 /// Mode dari list nilai double (rounded ke 1pt).
@@ -293,7 +306,6 @@ class DocStatsComputer {
     var emptyPages = 0;
     final pageWidths = <double>[];
     final pageHeights = <double>[];
-    final bodyXLeftSamples = <double>[];
     var firstTextPage = -1;
 
     for (var i = 0; i < _source.pageCount; i++) {
@@ -319,19 +331,9 @@ class DocStatsComputer {
     // dieksklusikan agar mode xLeft tidak bergeser. Bila loadFull gagal,
     // sampel dikosongkan (bodyLeftMargin default 0 — perilaku Fase B).
     final bodyFontSize = _mode(hist);
-    if (bodyXLeftSamples.isEmpty && firstTextPage >= 0 && bodyFontSize > 0) {
-      try {
-        final spans = await _source.loadFull(firstTextPage);
-        for (final s in spans) {
-          if (s.fontSize >= bodyFontSize * 0.8 &&
-              s.fontSize <= bodyFontSize * 1.1) {
-            bodyXLeftSamples.add(s.xLeft);
-          }
-        }
-      } catch (_) {
-        // skip sampling — margin default 0 (kompatibel behavior lama)
-      }
-    }
+    final bodyXLeftSamples = firstTextPage >= 0
+        ? await _sampleBodyXLefts(firstTextPage, bodyFontSize)
+        : const <double>[];
 
     return DocProfile.fromHistogram(
       hist,
@@ -341,6 +343,30 @@ class DocStatsComputer {
       pageHeights: pageHeights,
       bodyXLeftSamples: bodyXLeftSamples,
     );
+  }
+
+  /// Sampel xLeft span berukuran body (0.8×..1.1× [bodyFontSize]) dari
+  /// halaman pertama berisi teks. Kosong bila gagal load atau ukuran tidak
+  /// valid (margin default 0).
+  Future<List<double>> _sampleBodyXLefts(
+    int firstTextPage,
+    double bodyFontSize,
+  ) async {
+    if (bodyFontSize <= 0) return const [];
+    try {
+      final spans = await _source.loadFull(firstTextPage);
+      final samples = <double>[];
+      for (final s in spans) {
+        if (s.fontSize >= bodyFontSize * 0.8 &&
+            s.fontSize <= bodyFontSize * 1.1) {
+          samples.add(s.xLeft);
+        }
+      }
+      return samples;
+    } catch (_) {
+      // skip sampling — margin default 0 (kompatibel behavior lama)
+      return const [];
+    }
   }
 
   /// Bucket dengan densitas tertinggi di window ±[bucketSize]

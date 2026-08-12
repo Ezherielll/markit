@@ -62,42 +62,54 @@ class _HomeScreenState extends State<HomeScreen> {
     // Konfirmasi overwrite sekali per batch (FR-12) — hanya desktop;
     // di web output selalu di memory (tidak ada filesystem).
     if (!kIsWeb && !_overwriteConfirmed) {
-      final conflicts = <String>[];
-      for (final job in controller.queue) {
-        if (await File(job.outputPath).exists()) {
-          conflicts.add(job.outputPath);
-        }
-      }
-      if (conflicts.isNotEmpty && mounted) {
-        final proceed = await showDialog<bool>(
-          context: context,
-          builder: (ctx) => AlertDialog(
-            title: const Text(Strings.overwriteTitle),
-            content: Text(Strings.overwriteBody
-                .replaceFirst('%d', '${conflicts.length}')),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.pop(ctx, false),
-                child: const Text(Strings.cancel),
-              ),
-              FilledButton(
-                onPressed: () => Navigator.pop(ctx, true),
-                child: const Text(Strings.overwriteConfirm),
-              ),
-            ],
-          ),
-        );
-        if (proceed != true || !mounted) return;
-      }
+      final proceed = await _confirmOverwrite(controller);
+      if (proceed != true || !mounted) return;
       _overwriteConfirmed = true;
     }
 
+    _startConversion();
+    await controller.convertAll();
+  }
+
+  /// Dialog konfirmasi overwrite (FR-12): muncul bila ada output .md yang
+  /// sudah ada. Return true bila user menyetujui (atau tidak ada konflik).
+  Future<bool> _confirmOverwrite(ConversionController controller) async {
+    final conflicts = <String>[];
+    for (final job in controller.queue) {
+      if (await File(job.outputPath).exists()) {
+        conflicts.add(job.outputPath);
+      }
+    }
+    if (conflicts.isEmpty || !mounted) return true;
+
+    final proceed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text(Strings.overwriteTitle),
+        content: Text(Strings.overwriteBody
+            .replaceFirst('%d', '${conflicts.length}')),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text(Strings.cancel),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text(Strings.overwriteConfirm),
+          ),
+        ],
+      ),
+    );
+    return proceed == true && mounted;
+  }
+
+  /// Mulai ticker refresh UI + catat waktu mulai konversi.
+  void _startConversion() {
     _startTime = DateTime.now();
     _ticker?.cancel();
     _ticker = Timer.periodic(const Duration(milliseconds: 250), (_) {
       if (mounted) setState(() {});
     });
-    await controller.convertAll();
   }
 
   void _reset() {

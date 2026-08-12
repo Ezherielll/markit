@@ -167,29 +167,33 @@ class HtmlExtractor implements FormatExtractor {
       if (node is dom.Text) {
         sb.write(node.text);
       } else if (node is dom.Element) {
-        final tag = node.localName;
-        if (tag == 'a') {
-          final href = node.attributes['href'];
-          final label = _inlineText(node);
-          if (href != null && href.isNotEmpty && label.trim().isNotEmpty) {
-            sb.write('$label ($href)');
-          } else {
-            sb.write(label);
-          }
-        } else if (tag == 'br') {
-          sb.write(' ');
-        } else if (tag == 'strong' || tag == 'b') {
-          sb.write('**${_inlineText(node)}**');
-        } else if (tag == 'em' || tag == 'i') {
-          sb.write('_${_inlineText(node)}_');
-        } else if (tag == 'code') {
-          sb.write('`${_inlineText(node)}`');
-        } else {
-          sb.write(_inlineText(node));
-        }
+        sb.write(_inlineTag(node));
       }
     }
     return sb.toString().replaceAll(RegExp(r'\s+'), ' ').trim();
+  }
+
+  /// Teks markdown untuk satu elemen inline (a/br/strong/em/code; elemen
+  /// lain di-flatten rekursif).
+  String _inlineTag(dom.Element node) {
+    final tag = node.localName;
+    if (tag == 'a') return _linkText(node);
+    if (tag == 'br') return ' ';
+    if (tag == 'strong' || tag == 'b') return '**${_inlineText(node)}**';
+    if (tag == 'em' || tag == 'i') return '_${_inlineText(node)}_';
+    if (tag == 'code') return '`${_inlineText(node)}`';
+    return _inlineText(node);
+  }
+
+  /// Link markdown "label (URL)" bila href valid dan label non-kosong;
+  /// fallback ke label saja.
+  String _linkText(dom.Element node) {
+    final href = node.attributes['href'];
+    final label = _inlineText(node);
+    if (href != null && href.isNotEmpty && label.trim().isNotEmpty) {
+      return '$label ($href)';
+    }
+    return label;
   }
 
   /// Teks yang "dimiliki" elemen langsung — bukan anak block elemen.
