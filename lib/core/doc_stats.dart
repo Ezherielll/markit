@@ -293,6 +293,8 @@ class DocStatsComputer {
     var emptyPages = 0;
     final pageWidths = <double>[];
     final pageHeights = <double>[];
+    final bodyXLeftSamples = <double>[];
+    var firstTextPage = -1;
 
     for (var i = 0; i < _source.pageCount; i++) {
       final page = await _source.loadLight(i);
@@ -300,6 +302,7 @@ class DocStatsComputer {
         emptyPages++;
         continue;
       }
+      if (firstTextPage < 0) firstTextPage = i;
       // Fase B: kumpulkan geometri halaman (media box)
       if (page.pageWidth > 0) pageWidths.add(page.pageWidth);
       if (page.pageHeight > 0) pageHeights.add(page.pageHeight);
@@ -310,14 +313,33 @@ class DocStatsComputer {
       }
     }
 
-    // Catatan: bodyXLeftSamples kosong — loadLight tidak mengekspos xLeft
-    // (refinement Fase B: sample dari loadFull halaman pertama bila perlu).
+    // Fase C: loadLight tidak mengekspos xLeft → ambil sampel xLeft dari
+    // halaman pertama berisi teks via loadFull. Hanya span berukuran body
+    // (band ±0.8x..1.1x bodyFontSize) yang disertakan; heading/caption
+    // dieksklusikan agar mode xLeft tidak bergeser. Bila loadFull gagal,
+    // sampel dikosongkan (bodyLeftMargin default 0 — perilaku Fase B).
+    final bodyFontSize = _mode(hist);
+    if (bodyXLeftSamples.isEmpty && firstTextPage >= 0 && bodyFontSize > 0) {
+      try {
+        final spans = await _source.loadFull(firstTextPage);
+        for (final s in spans) {
+          if (s.fontSize >= bodyFontSize * 0.8 &&
+              s.fontSize <= bodyFontSize * 1.1) {
+            bodyXLeftSamples.add(s.xLeft);
+          }
+        }
+      } catch (_) {
+        // skip sampling — margin default 0 (kompatibel behavior lama)
+      }
+    }
+
     return DocProfile.fromHistogram(
       hist,
       totalPages: _source.pageCount,
       emptyPages: emptyPages,
       pageWidths: pageWidths,
       pageHeights: pageHeights,
+      bodyXLeftSamples: bodyXLeftSamples,
     );
   }
 

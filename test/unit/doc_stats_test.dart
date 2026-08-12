@@ -8,11 +8,15 @@ import '../helpers/pdf_factory.dart';
 
 /// Fake source: histogram sintetik tanpa file PDF.
 class FakeSource implements PdfSource {
-  FakeSource(this.pages);
+  FakeSource(this.pages, {this.fullPages = const []});
 
   /// Tiap entry: daftar tinggi char (proxy fontSize) per halaman.
   /// Halaman dengan daftar kosong = halaman tanpa teks.
   final List<List<double>> pages;
+
+  /// Fase C: spans berposisi per halaman (untuk sampling xLeft).
+  /// Kosong = tidak tersedia → loadFull mengembalikan daftar kosong.
+  final List<List<TextSpan>> fullPages;
 
   @override
   int get pageCount => pages.length;
@@ -28,7 +32,8 @@ class FakeSource implements PdfSource {
       );
 
   @override
-  Future<List<TextSpan>> loadFull(int pageIndex) async => [];
+  Future<List<TextSpan>> loadFull(int pageIndex) async =>
+      fullPages.isEmpty ? const [] : fullPages[pageIndex];
 
   @override
   Future<void> dispose() async {}
@@ -226,6 +231,43 @@ void main() {
       // PDF factory pakai MediaBox [0 0 612 792]
       expect(profile.pageWidth, closeTo(612, 5));
       expect(profile.pageHeight, closeTo(792, 5));
+    });
+
+    test('computeProfile: bodyLeftMargin = mode xLeft dari spans body-band',
+        () async {
+      // Halaman penuh: 3 spans body (xLeft 72) + 4 spans ukuran heading
+      // (xLeft 150, fontSize 24) yang harus DIEKSKLUSI band filter
+      // (12*1.1=13.2 < 24) — tanpa filter mode-nya 150, dengan filter 72.
+      final src = FakeSource(
+        [
+          [...List.filled(200, 12.0)],
+        ],
+        fullPages: [
+          [
+            for (var i = 0; i < 3; i++)
+              TextSpan(
+                text: 'body',
+                xLeft: 72,
+                xRight: 90,
+                yBottom: 0,
+                yTop: 12,
+                fontSize: 12,
+              ),
+            for (var i = 0; i < 4; i++)
+              TextSpan(
+                text: 'Heading',
+                xLeft: 150,
+                xRight: 200,
+                yBottom: 0,
+                yTop: 24,
+                fontSize: 24,
+              ),
+          ],
+        ],
+      );
+      final profile = await DocStatsComputer(src).computeProfile();
+      expect(profile.bodyFontSize, 12.0);
+      expect(profile.bodyLeftMargin, closeTo(72, 1)); // mode xLeft body-band
     });
   });
 

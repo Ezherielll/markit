@@ -25,6 +25,36 @@ List<List<Line>> _paras(List<List<(String, double)>> raw) {
 DocProfile _profileWith(Map<double, int> hist) =>
     DocProfile.fromHistogram(hist, totalPages: 1);
 
+/// Satu baris tabel sintetik: tiap kolom satu span di posisi [xLeft],
+/// lebar tetap 60pt (gap antar-kolom konsisten untuk deteksi tabel).
+Line _tableLine(List<(String, double)> cols, {required double y}) {
+  return Line(spans: [
+    for (final (text, x) in cols)
+      TextSpan(
+        text: text,
+        xLeft: x,
+        xRight: x + 60,
+        yBottom: y - 12,
+        yTop: y,
+        fontSize: 12,
+      ),
+  ]);
+}
+
+/// Satu baris list sintetik: span tunggal di [xLeft] (probe nested list).
+Line _listLine(String text, {required double xLeft}) {
+  return Line(spans: [
+    TextSpan(
+      text: text,
+      xLeft: xLeft,
+      xRight: xLeft + text.length * 5.0,
+      yBottom: 0,
+      yTop: 12,
+      fontSize: 12,
+    ),
+  ]);
+}
+
 void main() {
   group('StructureClassifier (FR-05/06)', () {
     test('heading vs body via bodyFontSize stats (bukan hardcode)', () {
@@ -220,6 +250,60 @@ void main() {
       expect(blocks.single.type, BlockType.orderedListItem);
       expect(blocks.single.lines, ['Long item', 'continues here']);
       expect(blocks.single.listIndex, 1);
+    });
+  });
+
+  group('TableDetector integration (Fase C)', () {
+    test('3 baris tabel → tableHeader + 2 tableRow blocks', () {
+      final profile = DocProfile(
+        bodyFontSize: 12,
+        headingBands: const [],
+        totalPages: 1,
+        emptyPages: 0,
+        pageWidth: 612,
+        pageHeight: 792,
+        bodyLeftMargin: 72,
+        bodyRightMargin: 540,
+      );
+      final classifier = StructureClassifier.withProfile(profile: profile);
+
+      // Paragraf = satu baris masing-masing (baris tabel)
+      // Kolom di x=72, x=200, x=350 (gap > 20pt)
+      final row1 = [_tableLine([('Name', 72.0), ('Qty', 200.0), ('Price', 350.0)], y: 700)];
+      final row2 = [_tableLine([('Apples', 72.0), ('10', 200.0), ('2.50', 350.0)], y: 675)];
+      final row3 = [_tableLine([('Bananas', 72.0), ('20', 200.0), ('1.75', 350.0)], y: 650)];
+
+      final blocks = classifier.classify([row1, row2, row3]);
+
+      expect(blocks.where((b) => b.type == BlockType.tableHeader), hasLength(1));
+      expect(blocks.where((b) => b.type == BlockType.tableRow), hasLength(2));
+      final header = blocks.firstWhere((b) => b.type == BlockType.tableHeader);
+      expect(header.cells, contains('Name'));
+    });
+  });
+
+  group('Nested list detection (Fase C)', () {
+    test('item dengan xLeft > bodyLeftMargin + 1.5*fontSize → depth=1', () {
+      // bodyLeftMargin=72, fontSize=12 → threshold = 72 + 1.5*12 = 90
+      final profile = DocProfile(
+        bodyFontSize: 12,
+        headingBands: const [],
+        totalPages: 1,
+        emptyPages: 0,
+        pageWidth: 612,
+        pageHeight: 792,
+        bodyLeftMargin: 72,
+        bodyRightMargin: 540,
+      );
+      final classifier = StructureClassifier.withProfile(profile: profile);
+
+      final flatItem = [_listLine('- flat item', xLeft: 72)];
+      final nestedItem = [_listLine('- nested item', xLeft: 96)]; // > 90
+
+      final blocks = classifier.classify([flatItem, nestedItem]);
+
+      expect(blocks[0].listDepth, 0);
+      expect(blocks[1].listDepth, 1);
     });
   });
 }
