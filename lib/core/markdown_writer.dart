@@ -43,9 +43,20 @@ class MarkdownWriter {
       case BlockType.tableHeader:
         // Fase C: baris header + separator. Sel tidak di posisi awal baris,
         // jadi escaping line-start (mis. "2.50" → "\2.50") tidak berlaku.
+        // Fase D: separator mengikuti alignment kolom (:--- left, :---: center,
+        // ---: right); default ---.
         final cells = block.cells ?? [block.text];
+        final alignments = block.alignments ?? const [];
+        final seps = <String>[
+          for (var i = 0; i < cells.length; i++)
+            switch (i < alignments.length ? alignments[i] : 'left') {
+              'center' => ':---:',
+              'right' => '---:',
+              _ => '---',
+            },
+        ];
         _sink.write('| ${cells.map(_escapeHeadingText).join(' | ')} |\n');
-        _sink.write('| ${cells.map((_) => '---').join(' | ')} |\n');
+        _sink.write('| ${seps.join(' | ')} |\n');
       case BlockType.tableRow:
         // Fase C: baris data (tanpa separator).
         final cells = block.cells ?? [block.text];

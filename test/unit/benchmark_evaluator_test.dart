@@ -153,4 +153,13 @@ void main() {
       expect(report.nestedListRecall, closeTo(1.0, 0.01));
     });
   });
+
+  group('Fase D metrics', () {
+    test('tableCellF1: separator dengan alignment (:---:) di-skip', () {
+      const output = '| Name | Qty |\n| :---: | ---: |\n| Apples | 10 |\n';
+      const golden = '| Name | Qty |\n| --- | --- |\n| Apples | 10 |\n';
+      final report = evaluate(output, golden);
+      expect(report.tableCellF1, closeTo(1.0, 0.01));
+    });
+  });
 }

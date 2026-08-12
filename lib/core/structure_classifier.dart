@@ -82,6 +82,7 @@ class StructureClassifier {
   void _classifyTable(List<List<Line>> tableParas, List<Block> blocks) {
     if (tableParas.isEmpty) return;
     final splitXs = _tableDetector.computeMedianSplitXs(tableParas);
+    final alignments = _tableDetector.computeAlignments(tableParas, splitXs);
 
     for (var i = 0; i < tableParas.length; i++) {
       final line = tableParas[i].first;
@@ -91,6 +92,7 @@ class StructureClassifier {
         type: type,
         lines: [cells.join(' | ')],
         cells: cells,
+        alignments: alignments.isEmpty ? null : alignments,
       ));
     }
   }

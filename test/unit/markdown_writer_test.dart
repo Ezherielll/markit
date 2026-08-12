@@ -274,4 +274,32 @@ void main() {
       expect(buffer.toString(), '  2. sub step\n');
     });
   });
+
+  group('MarkdownWriter Fase D (alignment separator)', () {
+    test('tableHeader dengan alignments center/right → separator :---: dan ---:',
+        () async {
+      final buffer = StringBuffer();
+      final w = MarkdownWriter(MemoryMdSink(buffer));
+      w.writeBlock(Block(
+        type: BlockType.tableHeader,
+        lines: const ['Name | Qty'],
+        cells: const ['Name', 'Qty'],
+        alignments: const ['center', 'right'],
+      ));
+      await w.close();
+      expect(buffer.toString(), '| Name | Qty |\n| :---: | ---: |\n');
+    });
+
+    test('tableHeader tanpa alignments → separator default ---', () async {
+      final buffer = StringBuffer();
+      final w = MarkdownWriter(MemoryMdSink(buffer));
+      w.writeBlock(Block(
+        type: BlockType.tableHeader,
+        lines: const ['Name | Qty'],
+        cells: const ['Name', 'Qty'],
+      ));
+      await w.close();
+      expect(buffer.toString(), '| Name | Qty |\n| --- | --- |\n');
+    });
+  });
 }

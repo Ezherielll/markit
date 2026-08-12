@@ -42,4 +42,21 @@ void main() {
       expect(BlockType.values, contains(BlockType.tableHeader));
     });
   });
+
+  group('Block alignments (Fase D)', () {
+    test('Block default: alignments null', () {
+      final block = Block(type: BlockType.tableRow, lines: ['a | b'], cells: ['a', 'b']);
+      expect(block.alignments, isNull);
+    });
+
+    test('Block tableRow dengan alignments', () {
+      final block = Block(
+        type: BlockType.tableRow,
+        lines: ['a | b'],
+        cells: ['a', 'b'],
+        alignments: const ['left', 'center'],
+      );
+      expect(block.alignments, ['left', 'center']);
+    });
+  });
 }

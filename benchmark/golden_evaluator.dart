@@ -315,7 +315,8 @@ List<String> _extractTableCells(String text) {
   final cells = <String>[];
   for (final line in text.split('\n')) {
     if (!line.contains('|')) continue;
-    if (RegExp(r'^\|[\s-|]+\|$').hasMatch(line.trim())) continue; // separator
+    // Separator row: hanya |, -, :, spasi (alignment :---: / ---: / ---)
+    if (RegExp(r'^\|[\s\-:|]+\|$').hasMatch(line.trim())) continue; // separator
     final parts = line.split('|').map((c) => c.trim()).where((c) => c.isNotEmpty);
     cells.addAll(parts);
   }

@@ -90,6 +90,7 @@ class Block {
     this.listDepth = 0, // Fase C: kedalaman nested list (0=flat, 1=nested)
     this.cells, // Fase C: sel tabel (non-null hanya untuk tableRow/tableHeader)
     this.listIndex, // Fase A: nomor ordered list (1-based); null untuk bullet
+    this.alignments, // Fase D: 'left'|'center'|'right' per kolom; null = left
   });
 
   final BlockType type;
@@ -106,6 +107,9 @@ class Block {
 
   /// Nomor ordered list item (1-based); null bila bukan ordered list.
   final int? listIndex;
+
+  /// Alignment per kolom tabel ('left'|'center'|'right'); null = semua left.
+  final List<String>? alignments;
 
   String get text => lines.join('\n');
 }

@@ -94,4 +94,41 @@ void main() {
       expect(tagged, isEmpty);
     });
   });
+
+  group('computeAlignments (Fase D)', () {
+    final detector = TableDetector();
+
+    test('sel rata kiri → semua kolom left', () {
+      final rows = [
+        _row([('Name', 72.0), ('Qty', 200.0)], y: 700),
+        _row([('Apples', 72.0), ('10', 200.0)], y: 675),
+      ];
+      final splitXs = detector.computeMedianSplitXs(rows);
+      final alignments = detector.computeAlignments(rows, splitXs);
+      expect(alignments, ['left', 'left']);
+    });
+
+    test('sel di tengah kolom → center', () {
+      // Batas kolom diambil dari EKSTENT SEL lintas baris (bukan gap center):
+      // Kolom 0 extent = [72, 120] (dari baris lebar 'WideText' 8 char).
+      // 'Mid' (3 char, 18pt) di x=90 → [90,108]: center 99, colCenter 96 →
+      // |3| <= 0.15*48 = 7.2 → center. Baris lebar penuh → left (1 suara).
+      // Kolom 1 extent = [200, 260] (dari 'DataCell12' 10 char).
+      // 'Qty' di x=224 → [224,242]: center 233, colCenter 230 →
+      // |3| <= 0.15*60 = 9 → center. Mayoritas: center (2 suara).
+      final rows = [
+        _row([('Mid', 90.0), ('Qty', 224.0)], y: 700),
+        _row([('Mid', 90.0), ('Qty', 224.0)], y: 675),
+        _row([('WideText', 72.0), ('DataCell12', 200.0)], y: 650),
+      ];
+      final splitXs = detector.computeMedianSplitXs(rows);
+      final alignments = detector.computeAlignments(rows, splitXs);
+      expect(alignments, ['center', 'center']);
+    });
+
+    test('splitXs kosong → list kosong', () {
+      final rows = [_row([('A', 72.0), ('B', 200.0)], y: 700)];
+      expect(detector.computeAlignments(rows, const []), isEmpty);
+    });
+  });
 }

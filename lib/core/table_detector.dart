@@ -30,6 +30,14 @@ class TableDetector {
   final double gapThresholdPt;
   final double maxGapVariancePt;
 
+  /// Toleransi center: sel dianggap center bila |cellCenter - colCenter| <=
+  /// [centerTolerance] * lebar kolom.
+  static const double centerTolerance = 0.15;
+
+  /// Toleransi kiri: sel dianggap left bila cellLeft - colLeft <
+  /// [leftTolerance] * lebar kolom (setelah lolos cek center).
+  static const double leftTolerance = 0.25;
+
   /// Tag paragraphs: kelompokkan ke dalam grup tabel / bukan tabel.
   TaggedParagraphs tag(List<List<Line>> paragraphs, DocProfile profile) {
     if (paragraphs.isEmpty) return [];
@@ -160,6 +168,86 @@ class TableDetector {
     }
 
     return cells.map((c) => c.toString().trim()).toList();
+  }
+
+  /// Deteksi alignment per kolom dari posisi sel vs ekstent kolom.
+  ///
+  /// Batas kolom diambil dari EKSTENT SEL lintas semua baris (bukan gap
+  /// center — gap center menghasilkan kolom asimetris yang membuat sel
+  /// sempit tak pernah center):
+  /// colLeft[c] = min xLeft sel kolom c lintas baris; colRight[c] = max xRight.
+  /// Per sel: center bila SEL LEBIH SEMPIT dari 0.75*lebar kolom DAN
+  /// |cellCenter - colCenter| <= [centerTolerance]*lebar kolom; else left
+  /// bila menempel batas kiri ([leftTolerance]); else right bila menempel
+  /// batas kanan; else center. Mayoritas suara lintas baris; tie → 'left'.
+  List<String> computeAlignments(List<List<Line>> tableParas, List<double> splitXs) {
+    if (splitXs.isEmpty || tableParas.isEmpty) return const [];
+
+    final colCount = splitXs.length + 1;
+    final colLefts = List.generate(colCount, (_) => double.infinity);
+    final colRights = List.generate(colCount, (_) => double.negativeInfinity);
+    final cellData = <(int col, double left, double right)>[];
+
+    for (final para in tableParas) {
+      if (para.isEmpty) continue;
+      for (final span in para.first.spans) {
+        final idx = _columnIndex(span, splitXs);
+        if (span.xLeft < colLefts[idx]) colLefts[idx] = span.xLeft;
+        if (span.xRight > colRights[idx]) colRights[idx] = span.xRight;
+        cellData.add((idx, span.xLeft, span.xRight));
+      }
+    }
+
+    final votes = List.generate(colCount, (_) => <String>[]);
+    for (final (col, left, right) in cellData) {
+      votes[col].add(_cellAlignment(left, right, colLefts[col], colRights[col]));
+    }
+
+    return [for (var c = 0; c < colCount; c++) _majority(votes[c])];
+  }
+
+  /// Indeks kolom sebuah span: posisi split pertama yang dilampaui xMid
+  /// (konsisten dengan [extractCells]).
+  static int _columnIndex(TextSpan span, List<double> splitXs) {
+    final xMid = (span.xLeft + span.xRight) / 2;
+    for (var i = 0; i < splitXs.length; i++) {
+      if (xMid < splitXs[i]) return i;
+    }
+    return splitXs.length;
+  }
+
+  /// Suara alignment satu sel terhadap batas kolom lintas baris:
+  /// center bila sel lebih sempit dari 0.75*lebar kolom DAN center sel
+  /// dalam [centerTolerance]*lebar kolom dari center kolom; else left bila
+  /// menempel batas kiri ([leftTolerance]); else right bila menempel batas
+  /// kanan; else center.
+  static String _cellAlignment(
+      double left, double right, double colLeft, double colRight) {
+    final colWidth = colRight - colLeft;
+    if (colWidth <= 0) return 'left';
+    final colCenter = (colLeft + colRight) / 2;
+    final cellCenter = (left + right) / 2;
+    final cellWidth = right - left;
+
+    if (cellWidth < colWidth * 0.75 &&
+        (cellCenter - colCenter).abs() <= colWidth * centerTolerance) {
+      return 'center';
+    }
+    if (left - colLeft < colWidth * leftTolerance) return 'left';
+    if (colRight - right < colWidth * leftTolerance) return 'right';
+    return 'center';
+  }
+
+  /// Mayoritas suara alignment lintas baris; tie → 'left'.
+  static String _majority(List<String> votes) {
+    if (votes.isEmpty) return 'left';
+    final counts = <String, int>{};
+    for (final a in votes) {
+      counts[a] = (counts[a] ?? 0) + 1;
+    }
+    return counts.entries
+        .reduce((a, b) => a.value >= b.value ? a : b)
+        .key;
   }
 
   static double _medianDouble(List<double> values) {
