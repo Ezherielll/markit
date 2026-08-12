@@ -15,9 +15,12 @@ class ParagraphJoiner {
   List<List<Line>> join(List<Line> lines, {required bool Function(Line) isHeading}) {
     if (lines.isEmpty) return [];
 
+    // BARU (Fase C): pre-pass untuk hiphenasi intra-halaman
+    final processed = _deHyphenate(lines);
+
     final gaps = <double>[];
-    for (var i = 1; i < lines.length; i++) {
-      gaps.add(_gapBetween(lines[i - 1], lines[i]));
+    for (var i = 1; i < processed.length; i++) {
+      gaps.add(_gapBetween(processed[i - 1], processed[i]));
     }
     final threshold = _splitThreshold(gaps, config.paragraphGapFactor);
 
@@ -31,20 +34,20 @@ class ParagraphJoiner {
       }
     }
 
-    for (var i = 0; i < lines.length; i++) {
-      final line = lines[i];
+    for (var i = 0; i < processed.length; i++) {
+      final line = processed[i];
       final isFirst = i == 0;
-      final hasIndent = isFirst ? false : _hasFirstLineIndent(lines[i - 1], line);
+      final hasIndent = isFirst ? false : _hasFirstLineIndent(processed[i - 1], line);
 
       if (isFirst) {
         current = [line];
         continue;
       }
 
-      final gap = _gapBetween(lines[i - 1], line);
+      final gap = _gapBetween(processed[i - 1], line);
       final breaksParagraph = gap > threshold;
       final startsWithHeading = isHeading(line);
-      final prevIsHeading = isHeading(lines[i - 1]);
+      final prevIsHeading = isHeading(processed[i - 1]);
 
       if (breaksParagraph || hasIndent || startsWithHeading || prevIsHeading) {
         flush();
@@ -53,6 +56,59 @@ class ParagraphJoiner {
     }
     flush();
     return paragraphs;
+  }
+
+  /// Pre-pass: gabungkan pasangan baris yang terhifen.
+  /// Rule: baris A berakhir '-' DAN karakter pertama baris B adalah [a-z].
+  List<Line> _deHyphenate(List<Line> lines) {
+    if (lines.length < 2) return lines;
+
+    final result = <Line>[];
+    var i = 0;
+    while (i < lines.length) {
+      final line = lines[i];
+      final lineText = line.text.trimRight();
+
+      if (i + 1 < lines.length &&
+          lineText.endsWith('-') &&
+          lineText.length > 1) {
+        final nextText = lines[i + 1].text.trimLeft();
+        if (nextText.isNotEmpty && RegExp(r'^[a-z]').hasMatch(nextText)) {
+          // Gabungkan: hapus '-', gabung spans
+          result.add(_mergeHyphenated(line, lines[i + 1]));
+          i += 2;
+          continue;
+        }
+      }
+
+      result.add(line);
+      i++;
+    }
+    return result;
+  }
+
+  /// Buat Line baru dengan menggabungkan baris A (tanpa trailing '-') + baris B.
+  Line _mergeHyphenated(Line a, Line b) {
+    // Salin spans baris A, hapus '-' dari span terakhir
+    final aSpans = a.spans.toList();
+    if (aSpans.isNotEmpty && b.spans.isNotEmpty) {
+      final last = aSpans.last;
+      final trimmed = last.text.trimRight();
+      if (trimmed.endsWith('-')) {
+        aSpans[aSpans.length - 1] = TextSpan(
+          text: trimmed.substring(0, trimmed.length - 1),
+          // xRight diteruskan ke xLeft span pertama baris B sehingga gap X
+          // antar-fragmen = 0 → Line.text tidak menyisipkan spasi
+          // ("docu-" + "ment" → "document", bukan "docu ment").
+          xLeft: last.xLeft,
+          xRight: b.spans.first.xLeft,
+          yBottom: last.yBottom,
+          yTop: last.yTop,
+          fontSize: last.fontSize,
+        );
+      }
+    }
+    return Line(spans: [...aSpans, ...b.spans]);
   }
 
   double _gapBetween(Line a, Line b) => a.yBottom - b.yTop;

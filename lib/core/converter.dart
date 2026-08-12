@@ -59,6 +59,17 @@ class Converter {
 
   final PipelineConfig config;
 
+  /// State cross-page untuk hiphenasi (Fase C).
+  ///
+  /// Nantinya (Fase D) menyimpan teks baris terakhir halaman yang baru
+  /// selesai diproses, untuk di-cek di awal halaman berikutnya apakah kata
+  /// terpenggal ("word-" + "rest") harus disambung.
+  /// LIMITASI: koreksi cross-page membutuhkan output buffering (tidak bisa
+  /// undo write yang sudah terjadi) — defer ke Fase D. Di Fase C state ini
+  /// hanya dideklarasikan, belum diisi/dibaca (deteksi lanjutan di Fase D).
+  // ignore: unused_field — placeholder cross-page state (Fase D)
+  String? _lastPageLastLineText;
+
   /// Jalankan konversi.
   ///
   /// [source] dibuka oleh caller; [onProgress] dipanggil per halaman;
