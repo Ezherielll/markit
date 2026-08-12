@@ -72,4 +72,47 @@ void main() {
       expect(report.noiseBlocks, isEmpty);
     });
   });
+
+  group('Fase B metrics', () {
+    test('readingOrderScore: urutan sempurna → 1.0', () {
+      const output = 'A\n\nB\n\nC\n';
+      const golden = 'A\n\nB\n\nC\n';
+      final report = evaluate(output, golden);
+      expect(report.readingOrderScore, closeTo(1.0, 0.01));
+    });
+
+    test('readingOrderScore: urutan terbalik sempurna → 0.0 (tau=-1 → mapped to 0)',
+        () {
+      const output = 'C\n\nB\n\nA\n';
+      const golden = 'A\n\nB\n\nC\n';
+      final report = evaluate(output, golden);
+      // Kendall tau = -1 → normalized ke 0
+      expect(report.readingOrderScore, lessThan(0.3));
+    });
+
+    test('readingOrderScore: dua block ditukar → sedikit di bawah 1.0', () {
+      const output = 'A\n\nC\n\nB\n'; // B dan C ditukar
+      const golden = 'A\n\nB\n\nC\n';
+      final report = evaluate(output, golden);
+      // 3 pairs: (A,C)=benar, (A,B)=benar, (B,C)=salah → tau = (2-1)/3 = 0.33
+      // normalized: (0.33 + 1) / 2 = 0.67
+      expect(report.readingOrderScore, greaterThan(0.5));
+      expect(report.readingOrderScore, lessThan(0.9));
+    });
+
+    test('headerSuppressionRecall: golden tanpa header di output → 1.0', () {
+      // golden tanpa header markers, output tanpa teks header
+      const output = 'Main content here.';
+      const golden = 'Main content here.';
+      final report = evaluate(output, golden);
+      expect(report.headerSuppressionRecall, closeTo(1.0, 0.01));
+    });
+
+    test('headerSuppressionRecall: konten golden hilang → turun', () {
+      const output = 'Only partial content.';
+      const golden = 'Main content here.';
+      final report = evaluate(output, golden);
+      expect(report.headerSuppressionRecall, lessThan(0.5));
+    });
+  });
 }

@@ -21,6 +21,8 @@ class EvalReport {
     required this.headingLevelF1,
     required this.orderedListPrecision,
     required this.wordCompleteness,
+    required this.readingOrderScore,
+    required this.headerSuppressionRecall,
   });
 
   final double paragraphF1;
@@ -37,6 +39,14 @@ class EvalReport {
   /// Fase A: word recall — teks golden yang muncul di output.
   final double wordCompleteness;
 
+  /// Fase B: Kendall's tau (dinormalisasi ke [0,1]) urutan blok output
+  /// vs golden — reading order antar kolom/paragraf.
+  final double readingOrderScore;
+
+  /// Fase B: recall konten — memastikan body tidak ikut tersuppress
+  /// oleh header/footer filter.
+  final double headerSuppressionRecall;
+
   @override
   String toString() {
     final sb = StringBuffer();
@@ -46,6 +56,8 @@ class EvalReport {
     sb.writeln('list item recall: ${(listRecall * 100).toStringAsFixed(1)}%');
     sb.writeln('ordered list precision: ${(orderedListPrecision * 100).toStringAsFixed(1)}%');
     sb.writeln('word completeness: ${(wordCompleteness * 100).toStringAsFixed(1)}%');
+    sb.writeln('reading order score: ${(readingOrderScore * 100).toStringAsFixed(1)}%');
+    sb.writeln('header suppression recall: ${(headerSuppressionRecall * 100).toStringAsFixed(1)}%');
     sb.writeln('noise blocks (extra): ${noiseBlocks.length}');
     for (final n in noiseBlocks.take(5)) {
       sb.writeln('  noise: "$n"');
@@ -77,6 +89,8 @@ EvalReport evaluate(String output, String golden) {
     headingLevelF1: _headingLevelF1(outBlocks, goldenBlocks),
     orderedListPrecision: _orderedListPrecision(outBlocks, goldenBlocks),
     wordCompleteness: _wordCompleteness(output, golden),
+    readingOrderScore: _readingOrderScore(outBlocks, goldenBlocks),
+    headerSuppressionRecall: _headerSuppressionRecall(outBlocks, goldenBlocks),
   );
 }
 
@@ -218,6 +232,52 @@ List<String> _words(String s) => s
     .split(RegExp(r'[^a-z0-9]+'))
     .where((w) => w.isNotEmpty)
     .toList();
+
+/// Fase B: Kendall's tau antara urutan block output dan golden,
+/// dinormalisasi ke [0,1] (tau=-1 → 0, tau=0 → 0.5, tau=1 → 1).
+/// Hanya block yang ada di golden yang dihitung (noise diabaikan).
+double _readingOrderScore(List<_Block> out, List<_Block> golden) {
+  final goldenRank = <String, int>{};
+  for (var i = 0; i < golden.length; i++) {
+    goldenRank[golden[i].text] = i;
+  }
+
+  final filtered = out.where((b) => goldenRank.containsKey(b.text)).toList();
+  if (filtered.length < 2) return 1.0; // tidak cukup data
+
+  var concordant = 0;
+  var discordant = 0;
+  for (var i = 0; i < filtered.length; i++) {
+    for (var j = i + 1; j < filtered.length; j++) {
+      final ri = goldenRank[filtered[i].text]!;
+      final rj = goldenRank[filtered[j].text]!;
+      if (ri < rj) {
+        concordant++;
+      } else if (ri > rj) {
+        discordant++;
+      }
+      // ties diabaikan
+    }
+  }
+
+  final total = concordant + discordant;
+  if (total == 0) return 1.0;
+
+  final tau = (concordant - discordant) / total;
+  return (tau + 1) / 2;
+}
+
+/// Fase B: recall konten golden yang ada di output — memastikan
+/// header/footer suppression tidak menghilangkan body text.
+double _headerSuppressionRecall(List<_Block> out, List<_Block> golden) {
+  if (golden.isEmpty) return 1.0;
+  final outTexts = out.map((b) => b.text).toSet();
+  var hit = 0;
+  for (final g in golden) {
+    if (outTexts.contains(g.text)) hit++;
+  }
+  return hit / golden.length;
+}
 
 String _normalize(String s) {
   return s.replaceAll('\\', '').trim();

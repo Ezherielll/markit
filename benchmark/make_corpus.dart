@@ -20,6 +20,9 @@ void main() {
   _write('nested_headings.pdf', buildTestPdf(pages: nestedHeadingsPages()));
   _write('numbered_sections.pdf', buildTestPdf(pages: numberedSectionsPages()));
   _write('ordered_list.pdf', buildTestPdf(pages: orderedListPages()));
+  // Fase B fixtures
+  _write('multi_column_paper.pdf', buildTestPdf(pages: twoColumnPages()));
+  _write('header_footer.pdf', buildTestPdf(pages: headerFooterPages()));
 
   stdout.writeln('corpus sintetis dibuat di corpus/pdfs/ + corpus/golden/');
 }

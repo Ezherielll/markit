@@ -6,15 +6,18 @@ import 'package:markit/core/output.dart';
 import 'engine_source.dart';
 import 'golden_evaluator.dart';
 
-/// Ambang akurasi per jenis dokumen (PRD §4 + Fase A).
+/// Ambang akurasi per jenis dokumen (PRD §4 + Fase A/B).
 /// - single-column book: F1 paragraf ≥ 0.90 (exit criteria M0)
 /// - tabel sederhana: baseline v2 (FR-23), di sini hanya dicatat.
 /// - Fase A fixtures: headingLevelF1 / orderedListPrecision.
+/// - Fase B fixtures: readingOrderScore / headerSuppressionRecall.
 double _thresholdFor(String name) {
   if (name.startsWith('with_tables')) return 0.60;
   if (name.startsWith('nested_headings')) return 0.85;
   if (name.startsWith('numbered_sections')) return 0.80;
   if (name.startsWith('ordered_list')) return 0.80;
+  if (name.startsWith('multi_column_paper')) return 0.80; // readingOrderScore
+  if (name.startsWith('header_footer')) return 0.90; // headerSuppressionRecall
   return 0.90;
 }
 
@@ -25,6 +28,12 @@ double _thresholdFor(String name) {
   }
   if (name.startsWith('ordered_list')) {
     return (r.orderedListPrecision, 'orderedListPrecision');
+  }
+  if (name.startsWith('multi_column_paper')) {
+    return (r.readingOrderScore, 'readingOrderScore');
+  }
+  if (name.startsWith('header_footer')) {
+    return (r.headerSuppressionRecall, 'headerSuppressionRecall');
   }
   return (r.paragraphF1, 'paragraphF1');
 }
