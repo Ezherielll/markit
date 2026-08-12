@@ -145,5 +145,12 @@ void main() {
       final report = evaluate(output, golden);
       expect(report.nestedListRecall, closeTo(0.0, 0.01));
     });
+
+    test('nestedListRecall: item depth 2 (4 spasi) ikut terhitung', () {
+      const output = '- P\n    - Deep item\n';
+      const golden = '- P\n    - Deep item\n';
+      final report = evaluate(output, golden);
+      expect(report.nestedListRecall, closeTo(1.0, 0.01));
+    });
   });
 }

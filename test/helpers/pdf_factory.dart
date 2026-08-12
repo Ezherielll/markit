@@ -318,15 +318,18 @@ List<PdfPageSpec> simpleTablePages() {
 /// 2 nested (Apples/Oranges) → tie-break memilih 96 sebagai bodyLeftMargin
 /// → semua item jadi flat. Pears/Grapes ber-descender ('p') sehingga ke-4
 /// item flat masuk band → mode 72 (4 vs 2).
+/// Fixture Fase C+D: nested list 3 level (flat, depth 1, depth 2).
+/// bodyLeftMargin ≈ 80 (mode xLeft sampling), step ≈ 12.75 →
+/// bullet x=72 → depth 0, x=96 → 1, x=114 → 2.
 List<PdfPageSpec> nestedListPages() {
   return [
     PdfPageSpec([
-      PdfTextItem('Nested List Example', fontSize: 18, x: 72, y: 715, bold: true),
-      PdfTextItem('- Pears', x: 72, y: 700),
-      PdfTextItem('-  Apples', x: 96, y: 680), // nested
-      PdfTextItem('-  Oranges', x: 96, y: 660), // nested
+      PdfTextItem('Nested List Example', fontSize: 18, y: 715, bold: true),
+      PdfTextItem('- Fruits', x: 72, y: 700),
+      PdfTextItem('-  Apples', x: 96, y: 680),
+      PdfTextItem('-   Fuji Apples', x: 114, y: 660),
       PdfTextItem('- Vegetables', x: 72, y: 640),
-      PdfTextItem('-  Carrots', x: 96, y: 620), // nested
+      PdfTextItem('-  Carrots', x: 96, y: 620),
       PdfTextItem('- Grapes', x: 72, y: 600),
       PdfTextItem('- Dairy', x: 72, y: 580),
     ]),

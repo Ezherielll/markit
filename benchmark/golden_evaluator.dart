@@ -334,5 +334,10 @@ double _nestedListRecall(String output, String golden) {
   return hit / goldenNested.length;
 }
 
+/// Item nested level berapa pun: baris dimulai >= 2 spasi lalu '- '.
 List<String> _extractNestedItems(String text) =>
-    text.split('\n').where((l) => l.startsWith('  - ')).map((l) => l.trim()).toList();
+    text
+        .split('\n')
+        .where((l) => RegExp(r'^ {2,}- ').hasMatch(l))
+        .map((l) => l.trim())
+        .toList();

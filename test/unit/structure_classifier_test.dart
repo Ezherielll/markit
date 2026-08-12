@@ -22,6 +22,26 @@ List<List<Line>> _paras(List<List<(String, double)>> raw) {
   ];
 }
 
+/// Helper probe xLeft: tiap baris punya xLeft sendiri (Fase D ladder).
+/// (text, fontSize, xLeft) → satu paragraf satu baris.
+List<List<Line>> _parasAtX(List<(String, double, double)> raw) {
+  return [
+    for (final (text, h, x) in raw)
+      [
+        Line(spans: [
+          TextSpan(
+            text: text,
+            xLeft: x,
+            xRight: x + text.length * 6.0,
+            yBottom: 0,
+            yTop: h,
+            fontSize: h,
+          ),
+        ]),
+      ],
+  ];
+}
+
 DocProfile _profileWith(Map<double, int> hist) =>
     DocProfile.fromHistogram(hist, totalPages: 1);
 
@@ -304,6 +324,36 @@ void main() {
 
       expect(blocks[0].listDepth, 0);
       expect(blocks[1].listDepth, 1);
+    });
+  });
+
+  group('Nested list multi-level (Fase D)', () {
+    DocProfile profile() => DocProfile(
+          bodyFontSize: 12,
+          headingBands: const [],
+          totalPages: 1,
+          emptyPages: 0,
+          pageWidth: 612,
+          pageHeight: 792,
+          bodyLeftMargin: 72,
+          bodyRightMargin: 540,
+        );
+
+    // step = 1.5 * bodyFontSize = 18pt
+    test('xLeft ladder: 72→depth 0, 96→1, 114→2, 132→3, 150→clamp 3', () {
+      final classifier = StructureClassifier.withProfile(profile: profile());
+      final blocks = classifier.classify(_parasAtX([
+        ('- flat', 12.0, 72.0), // (72-72)/18 = 0
+        ('- one', 12.0, 96.0), // (96-72)/18 = 1.33 → 1
+        ('- two', 12.0, 114.0), // (114-72)/18 = 2.33 → 2
+        ('- three', 12.0, 132.0), // (132-72)/18 = 3.33 → 3
+        ('- deep', 12.0, 150.0), // 4.33 → clamp 3
+      ]));
+      expect(blocks[0].listDepth, 0);
+      expect(blocks[1].listDepth, 1);
+      expect(blocks[2].listDepth, 2);
+      expect(blocks[3].listDepth, 3);
+      expect(blocks[4].listDepth, 3); // cap
     });
   });
 }

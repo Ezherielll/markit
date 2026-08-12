@@ -11,7 +11,7 @@ import 'table_detector.dart';
 /// `1.` / `1)` / `a.` / `a)` didukung.
 /// Fase C: [TableDetector] men-tag paragraf lebih dahulu (grup tabel →
 /// BlockType.tableHeader/tableRow); nested list via [DocProfile.bodyLeftMargin]
-/// (item dengan xLeft lebih dalam dari margin → listDepth 1).
+/// (Fase D: xLeft ladder → listDepth 0..3, step 1.5 * bodyFontSize).
 class StructureClassifier {
   StructureClassifier({
     required this.bodyFontSize,
@@ -95,16 +95,22 @@ class StructureClassifier {
     }
   }
 
-  /// Hitung kedalaman nested list berdasarkan xLeft (Fase C).
-  /// Max depth = 1: xLeft > bodyLeftMargin + 1.5 * bodyFontSize
-  /// (keputusan Fase C; perlu pengamatan corpus untuk depth > 1).
-  int _listDepth(Line line) {
-    final p = _profile;
-    if (p == null || p.bodyLeftMargin <= 0) return 0;
-    final xLeft = line.spans.isNotEmpty ? line.spans.first.xLeft : 0;
-    final threshold = p.bodyLeftMargin + 1.5 * p.bodyFontSize;
-    return xLeft > threshold ? 1 : 0;
-  }
+/// Kedalaman maksimum nested list (0..3 = 4 level, umum di markdown).
+static const int maxListDepth = 3;
+
+/// Hitung kedalaman nested list dari xLeft (Fase D — menggantikan
+/// threshold biner Fase C). Depth = floor((xLeft - bodyLeftMargin) / step),
+/// step = 1.5 * bodyFontSize (konsisten dengan threshold Fase C),
+/// di-clamp ke [0, maxListDepth].
+int _listDepth(Line line) {
+  final p = _profile;
+  if (p == null || p.bodyLeftMargin <= 0) return 0;
+  final xLeft = line.spans.isNotEmpty ? line.spans.first.xLeft : 0;
+  final step = 1.5 * p.bodyFontSize;
+  if (step <= 0) return 0;
+  final depth = ((xLeft - p.bodyLeftMargin) / step).floor();
+  return depth.clamp(0, maxListDepth);
+}
 
   /// Klasifikasi satu paragraf non-tabel: heading, list, atau paragraph
   /// (logika Fase A, di-refactor keluar dari [classify]).
