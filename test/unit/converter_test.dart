@@ -112,6 +112,55 @@ void main() {
     expect(result.failedPages, [1]);
     expect(File(outPath).existsSync(), isTrue);
   });
+
+  group('Fase A: multi-level heading + ordered list end-to-end', () {
+    test('ordered list 1. 2. 3. → output "N. item" (bukan "-")', () async {
+      final src = await PdfrxSource.openData(buildTestPdf(pages: orderedListPages()));
+      final output = MemoryOutput();
+      await Converter().convert(source: src, output: output);
+      await src.dispose();
+
+      final md = output.content;
+      expect(md, contains('1. Buy apples'));
+      expect(md, contains('2. Buy bananas'));
+      expect(md, contains('4. Buy grapes'));
+      expect(md, contains('Remember to buy some grapes.'));
+      // Item ordered tidak boleh jadi bullet.
+      expect(md, isNot(contains('- Buy apples')));
+    });
+
+    test('nested headings → # / ## / ### sesuai level band', () async {
+      final src = await PdfrxSource.openData(buildTestPdf(pages: nestedHeadingsPages()));
+      final output = MemoryOutput();
+      await Converter().convert(source: src, output: output);
+      await src.dispose();
+
+      final md = output.content;
+      expect(md, contains('# Paper Overview and Goals'));
+      expect(md, contains('## Background and Related Work'));
+      expect(md, contains('### Motivation and Scope'));
+      expect(md, contains('### Approach and Design'));
+      expect(md, contains('## Implementation Details'));
+      expect(md, contains('# Appendix and References'));
+      // Body tidak boleh jadi heading.
+      expect(md, isNot(contains('## This paper presents')));
+    });
+
+    test('numbered sections → heading dengan numbering, level sesuai band', () async {
+      final src = await PdfrxSource.openData(buildTestPdf(pages: numberedSectionsPages()));
+      final output = MemoryOutput();
+      await Converter().convert(source: src, output: output);
+      await src.dispose();
+
+      final md = output.content;
+      expect(md, contains('# 1. Background and Scope'));
+      expect(md, contains('## 1.1 Related Papers'));
+      expect(md, contains('### 1.1.1 Comparison Approach'));
+      expect(md, contains('# 2. Experimental Setup'));
+      expect(md, contains('## 2.1 Evaluation Approach'));
+      expect(md, contains('### 2.1.2 Heading Scoring'));
+    });
+  });
 }
 
 class _FailingPageSource implements PdfSource {

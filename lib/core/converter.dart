@@ -74,9 +74,9 @@ class Converter {
       throw ConvertException(ConvertError.corrupt, 'PDF tidak punya halaman.');
     }
 
-    final stats = await DocStatsComputer(source).compute();
+    final profile = await DocStatsComputer(source).computeProfile();
 
-    if (stats.likelyScanned) {
+    if (profile.likelyScanned) {
       throw ConvertException(
         ConvertError.noText,
         'Dokumen tampaknya hasil scan — tanpa OCR, hasil akan kosong.',
@@ -88,8 +88,8 @@ class Converter {
     final writer = MarkdownWriter(sink);
     final grouper = LineGrouper(config: config);
     final joiner = ParagraphJoiner(config: config);
-    final classifier = StructureClassifier(
-      bodyFontSize: stats.bodyFontSize,
+    final classifier = StructureClassifier.withProfile(
+      profile: profile,
       config: config,
     );
 
@@ -144,7 +144,12 @@ class Converter {
       outputPath: output is FileOutput ? output.outputPath : null,
       pageCount: source.pageCount,
       failedPages: failedPages,
-      stats: stats,
+      // Deprecated: arahkan ke DocProfile (Fase B akan migrasi penuh).
+      stats: DocStats(
+        bodyFontSize: profile.bodyFontSize,
+        totalPages: profile.totalPages,
+        emptyPages: profile.emptyPages,
+      ),
       elapsed: sw.elapsed,
     );
   }
