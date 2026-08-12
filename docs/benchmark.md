@@ -73,3 +73,12 @@ Catatan:
 - numbered_sections: headingLevelF1 100.0% (threshold 80%) PASS · 11 ms
 - ordered_list: orderedListPrecision 100.0% (threshold 80%) PASS · 11 ms
 - with_tables: paragraphF1 28.6% (threshold 60%) FAIL · 7 ms
+
+## Corpus run 2026-08-12T18:11:18.187914
+- book_single: paragraphF1 100.0% (threshold 90%) PASS · 719 ms
+- header_footer: headerSuppressionRecall 100.0% (threshold 90%) PASS · 11 ms
+- multi_column_paper: readingOrderScore 100.0% (threshold 80%) PASS · 13 ms
+- nested_headings: headingLevelF1 100.0% (threshold 85%) PASS · 17 ms
+- numbered_sections: headingLevelF1 100.0% (threshold 80%) PASS · 20 ms
+- ordered_list: orderedListPrecision 100.0% (threshold 80%) PASS · 15 ms
+- with_tables: paragraphF1 28.6% (threshold 60%) FAIL · 11 ms
