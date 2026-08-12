@@ -10,6 +10,7 @@ import '../test/helpers/pdf_factory.dart';
 ///   corpus/pdfs/book_single.pdf     — buku satu kolom, heading jelas (best case)
 ///   corpus/pdfs/simple_table.pdf    — tabel sederhana 3 kolom (Fase C)
 ///   corpus/pdfs/nested_list.pdf     — nested list flat + 1 level (Fase C)
+///   corpus/pdfs/multi_page_table.pdf — tabel terpotong 2 halaman (Fase D)
 ///   corpus/golden/{name}.md         — golden reference manual
 void main() {
   Directory('corpus/pdfs').createSync(recursive: true);
@@ -26,6 +27,8 @@ void main() {
   // Fase B fixtures
   _write('multi_column_paper.pdf', buildTestPdf(pages: twoColumnPages()));
   _write('header_footer.pdf', buildTestPdf(pages: headerFooterPages()));
+  // Fase D fixtures
+  _write('multi_page_table.pdf', buildTestPdf(pages: multiPageTablePages()));
 
   stdout.writeln('corpus sintetis dibuat di corpus/pdfs/ + corpus/golden/');
 }

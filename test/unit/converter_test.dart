@@ -162,6 +162,25 @@ void main() {
     });
   });
 
+  group('Fase D: tabel lintas halaman', () {
+    test('header berulang di halaman 2 → baris data, satu tabel utuh', () async {
+      final src = await PdfrxSource.openData(buildTestPdf(pages: multiPageTablePages()));
+      final output = MemoryOutput();
+      await Converter().convert(source: src, output: output);
+      await src.dispose();
+
+      final md = output.content;
+      // Satu header saja
+      expect('| Name | Qty | Price |'.allMatches(md), hasLength(1));
+      expect('| --- | --- | --- |'.allMatches(md), hasLength(1));
+      // Semua baris data ada
+      expect(md, contains('| Peaches | 10 | 2.50 |'));
+      expect(md, contains('| Grapes | 20 | 1.75 |'));
+      expect(md, contains('| Apricots | 5 | 8.00 |'));
+      expect(md, contains('| Mangoes | 12 | 3.25 |'));
+    });
+  });
+
   group('Fase B: column + header/footer end-to-end', () {
     test('header/footer spans tidak muncul di output (Fase B)', () async {
       final src = await PdfrxSource.openData(buildTestPdf(pages: headerFooterPages()));

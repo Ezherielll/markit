@@ -304,6 +304,43 @@ List<PdfPageSpec> simpleTablePages() {
   return [PdfPageSpec(items)];
 }
 
+/// Fixture Fase D: tabel 4 baris data terpotong 2 halaman.
+/// Halaman 2 mengulang header (pola umum di dokumen cetak) — converter
+/// harus membuang header ulang tersebut (bukan dijadikan baris data).
+/// Kolom di x=72, x=200, x=260 (pola simple_table Fase C).
+///
+/// PENTING (deviasi empiris dari sketsa brief): judul 'Multi Page Inventory'
+/// DIULANG di halaman 2. Tanpa judul, halaman 2 tidak pernah jadi tabel:
+/// (1) ColumnSplitter memecahnya jadi 2 kolom — judul 20pt di halaman 1
+/// memperlebar running maxXRight cluster (xRight ≈ 294) sehingga x=200/260
+/// tergabung satu kolom; (2) threshold paragraf naik (base = median gap
+/// ≈ 10.8 vs 1.9 dengan judul) sehingga semua baris tergabung satu paragraf.
+/// Dengan judul, geometri halaman 2 identik dengan halaman 1 yang sudah
+/// tervalidasi empiris (pola sama seperti simple_table).
+List<PdfPageSpec> multiPageTablePages() {
+  const cols = [72.0, 200.0, 260.0];
+  List<PdfTextItem> row(double y, (String, String, String) cells) => [
+        PdfTextItem(cells.$1, x: cols[0], y: y),
+        PdfTextItem(cells.$2, x: cols[1], y: y),
+        PdfTextItem(cells.$3, x: cols[2], y: y),
+      ];
+  return [
+    PdfPageSpec([
+      PdfTextItem('Multi Page Inventory', fontSize: 20, x: 72, y: 715, bold: true),
+      ...row(700, ('Name', 'Qty', 'Price')),
+      ...row(678, ('Peaches', '10', '2.50')),
+      ...row(656, ('Grapes', '20', '1.75')),
+    ]),
+    PdfPageSpec([
+      // Judul berulang (lihat komentar deviasi empiris di atas)
+      PdfTextItem('Multi Page Inventory', fontSize: 20, x: 72, y: 715, bold: true),
+      ...row(700, ('Name', 'Qty', 'Price')), // header berulang
+      ...row(678, ('Apricots', '5', '8.00')),
+      ...row(656, ('Mangoes', '12', '3.25')),
+    ]),
+  ];
+}
+
 /// Fixture Fase C: nested list (flat + satu level nested).
 /// bodyLeftMargin=72, fontSize=12 → nested threshold ≈ 90pt.
 /// Flat items di x=72 (4 item), nested items di x=96 (3 item) — jumlah flat

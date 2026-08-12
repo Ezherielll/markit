@@ -59,17 +59,6 @@ class Converter {
 
   final PipelineConfig config;
 
-  /// State cross-page untuk hiphenasi (Fase C).
-  ///
-  /// Nantinya (Fase D) menyimpan teks baris terakhir halaman yang baru
-  /// selesai diproses, untuk di-cek di awal halaman berikutnya apakah kata
-  /// terpenggal ("word-" + "rest") harus disambung.
-  /// LIMITASI: koreksi cross-page membutuhkan output buffering (tidak bisa
-  /// undo write yang sudah terjadi) — defer ke Fase D. Di Fase C state ini
-  /// hanya dideklarasikan, belum diisi/dibaca (deteksi lanjutan di Fase D).
-  // ignore: unused_field — placeholder cross-page state (Fase D)
-  String? _lastPageLastLineText;
-
   /// Jalankan konversi.
   ///
   /// [source] dibuka oleh caller; [onProgress] dipanggil per halaman;
@@ -99,6 +88,9 @@ class Converter {
     final failedPages = <int>[];
     final sink = await output.openSink();
     final writer = MarkdownWriter(sink);
+    // Fase D: state lintas halaman (O(1)) — satu blok tertahan + flag
+    // tabel terbuka (dipakai drop header berulang lintas halaman).
+    final crossPage = _CrossPageState();
     final pipeline = (
       writer: writer,
       columnSplitter: const ColumnSplitter(), // Fase B
@@ -130,7 +122,7 @@ class Converter {
           continue;
         }
 
-        await _convertPage(rawSpans, pipeline);
+        await _convertPage(rawSpans, pipeline, crossPage);
 
         onProgress?.call(ConversionProgress(
           page: i + 1,
@@ -140,6 +132,11 @@ class Converter {
       }
       if (!cancelled && isCancelled != null && isCancelled()) {
         cancelled = true;
+      }
+      // Fase D: flush blok terakhir yang ditahan (pending block) — satu
+      // blok terakhir per halaman baru ditulis di akhir konversi.
+      if (crossPage.pendingBlock != null) {
+        writer.writeBlock(crossPage.pendingBlock!);
       }
     } finally {
       await writer.close();
@@ -163,7 +160,11 @@ class Converter {
 
   /// Proses spans satu halaman: filter header/footer → split kolom →
   /// line grouping → paragraph join → klasifikasi → write (streaming).
-  Future<void> _convertPage(List<TextSpan> rawSpans, _PagePipeline pipeline) async {
+  Future<void> _convertPage(
+    List<TextSpan> rawSpans,
+    _PagePipeline pipeline,
+    _CrossPageState crossPage,
+  ) async {
     final profile = pipeline.profile;
     // Fase B: filter header/footer spans sebelum processing
     // Header: yTop > headerBottom; Footer: yTop < footerTop
@@ -183,11 +184,68 @@ class Converter {
         isHeading: pipeline.classifier.isHeading,
       );
       final blocks = pipeline.classifier.classify(paragraphs);
-      for (final block in blocks) {
-        pipeline.writer.writeBlock(block);
-      }
+      _postClassifyBlocks(blocks, pipeline.writer, crossPage);
     }
     await pipeline.writer.flush();
+  }
+
+  /// Fase D: proses blok hasil klasifikasi satu kolom — tabel lintas halaman
+  /// (drop header berulang) + penahanan blok terakhir (pending block, O(1)).
+  ///
+  /// Urutan: (0) flush blok yang ditahan halaman/kolom sebelumnya (penahanan
+  /// hanya menunda SATU blok — output akhir identik) → (a) drop header
+  /// BERULANG di halaman lanjutan → (b) tulis semua blok kecuali terakhir,
+  /// tahan yang terakhir → (c) perbarui flag tabel dari blok yang ditahan.
+  /// Task 6 menyisipkan merge hiphenasi lintas halaman antara (0) dan (a)
+  /// di helper ini (convert() tetap di bawah gate cognitive complexity).
+  void _postClassifyBlocks(
+    List<Block> blocks,
+    MarkdownWriter writer,
+    _CrossPageState state,
+  ) {
+    // (0) Tulis blok yang ditahan dari halaman/kolom sebelumnya. Tanpa ini
+    //     pending block dari halaman antara hilang (hanya blok terakhir
+    //     konversi yang terflush) — output tidak identik dengan sebelum
+    //     Fase D.
+    if (state.pendingBlock != null) {
+      writer.writeBlock(state.pendingBlock!);
+      state.pendingBlock = null;
+    }
+
+    // (a) Tabel lintas halaman: header BERULANG di halaman lanjutan DIBUANG
+    //     (pola cetak umum: tiap halaman mengulang header). Demote ke baris
+    //     data SALAH — string '| Name | Qty | Price |' akan muncul 2x dan
+    //     baris duplikat mencemari isi tabel.
+    //     Pencarian menoleransi elemen sebelum header (mis. judul berulang
+    //     yang menjadi heading) — syaratnya header muncul sebelum baris data
+    //     mana pun di halaman ini (header "baru" untuk tabel baru yang sah
+    //     tetap dipertahankan).
+    if (state.tableOpen && blocks.isNotEmpty) {
+      final headerIdx = blocks.indexWhere((b) => b.type == BlockType.tableHeader);
+      if (headerIdx != -1) {
+        final rowIdx = blocks.indexWhere((b) => b.type == BlockType.tableRow);
+        if (rowIdx == -1 || headerIdx < rowIdx) {
+          blocks = [...blocks]..removeAt(headerIdx);
+        }
+      }
+    }
+
+    // (b) Tulis semua blok kecuali yang terakhir; blok terakhir ditahan
+    //     (dipakai koreksi hiphenasi lintas halaman di Task 6).
+    if (blocks.isNotEmpty) {
+      for (final b in blocks.take(blocks.length - 1)) {
+        writer.writeBlock(b);
+      }
+      state.pendingBlock = blocks.last;
+    }
+
+    // (c) Flag tabel untuk halaman berikutnya — blok terakhir yang ditahan
+    //     menentukan; halaman tanpa blok mempertahankan state lama.
+    if (blocks.isNotEmpty) {
+      final held = state.pendingBlock!;
+      state.tableOpen =
+          held.type == BlockType.tableRow || held.type == BlockType.tableHeader;
+    }
   }
 }
 
@@ -203,6 +261,13 @@ typedef _PagePipeline = ({
   double headerBottom,
   double footerTop,
 });
+
+/// State lintas halaman Fase D (O(1)): blok terakhir yang ditahan dari
+/// halaman sebelumnya + flag tabel terbuka (drop header berulang).
+class _CrossPageState {
+  Block? pendingBlock;
+  bool tableOpen = false;
+}
 
 class _CancelledException implements Exception {
   const _CancelledException();

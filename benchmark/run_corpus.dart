@@ -9,11 +9,13 @@ import 'golden_evaluator.dart';
 /// Ambang akurasi per jenis dokumen (PRD §4 + Fase A/B/C).
 /// - single-column book: F1 paragraf ≥ 0.90 (exit criteria M0)
 /// - tabel sederhana: tableCellF1 (FR-23)
+/// - tabel lintas halaman: tableCellF1 (Fase D)
 /// - nested list: nestedListRecall
 /// - Fase A fixtures: headingLevelF1 / orderedListPrecision.
 /// - Fase B fixtures: readingOrderScore / headerSuppressionRecall.
 double _thresholdFor(String name) {
   if (name.startsWith('simple_table')) return 0.70; // tableCellF1
+  if (name.startsWith('multi_page_table')) return 0.70; // tableCellF1
   if (name.startsWith('nested_list')) return 0.80; // nestedListRecall
   if (name.startsWith('nested_headings')) return 0.85;
   if (name.startsWith('numbered_sections')) return 0.80;
@@ -26,6 +28,9 @@ double _thresholdFor(String name) {
 /// Metrik utama per fixture + nilainya. Fallback: paragraphF1.
 (double, String) _primaryMetric(String name, EvalReport r) {
   if (name.startsWith('simple_table')) {
+    return (r.tableCellF1, 'tableCellF1');
+  }
+  if (name.startsWith('multi_page_table')) {
     return (r.tableCellF1, 'tableCellF1');
   }
   if (name.startsWith('nested_list')) {
