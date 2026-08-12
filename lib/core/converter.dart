@@ -216,35 +216,67 @@ class Converter {
     //     (pola cetak umum: tiap halaman mengulang header). Demote ke baris
     //     data SALAH — string '| Name | Qty | Price |' akan muncul 2x dan
     //     baris duplikat mencemari isi tabel.
-    //     Pencarian menoleransi elemen sebelum header (mis. judul berulang
-    //     yang menjadi heading) — syaratnya header muncul sebelum baris data
-    //     mana pun di halaman ini (header "baru" untuk tabel baru yang sah
-    //     tetap dipertahankan).
-    if (state.tableOpen && blocks.isNotEmpty) {
-      final headerIdx = blocks.indexWhere((b) => b.type == BlockType.tableHeader);
-      if (headerIdx != -1) {
-        final rowIdx = blocks.indexWhere((b) => b.type == BlockType.tableRow);
-        if (rowIdx == -1 || headerIdx < rowIdx) {
-          blocks = [...blocks]..removeAt(headerIdx);
-        }
+    //     HANYA header dengan konten SAMA dengan header tabel yang sedang
+    //     terbuka ([state.openTableHeader]) yang dibuang — header tabel BARU
+    //     yang sah (konten berbeda) di halaman berikutnya tetap dipertahankan.
+    if (state.tableOpen && state.openTableHeader != null) {
+      final repeated = _dropRepeatedHeader(blocks, state.openTableHeader!);
+      if (repeated != null) {
+        blocks = [...blocks]..remove(repeated);
+        state.openTableHeader = repeated.text;
       }
     }
 
     // (b) Tulis semua blok kecuali yang terakhir; blok terakhir ditahan
-    //     (dipakai koreksi hiphenasi lintas halaman di Task 6).
+    //     (dipakai koreksi hiphenasi lintas halaman di Task 6). Header yang
+    //     DITULIS dicatat sebagai header tabel terbuka untuk halaman
+    //     berikutnya.
     if (blocks.isNotEmpty) {
       for (final b in blocks.take(blocks.length - 1)) {
         writer.writeBlock(b);
+        if (b.type == BlockType.tableHeader) {
+          state.openTableHeader = b.text;
+        }
       }
       state.pendingBlock = blocks.last;
     }
 
-    // (c) Flag tabel untuk halaman berikutnya — blok terakhir yang ditahan
+    // (c) State tabel untuk halaman berikutnya — blok terakhir yang ditahan
     //     menentukan; halaman tanpa blok mempertahankan state lama.
     if (blocks.isNotEmpty) {
-      final held = state.pendingBlock!;
-      state.tableOpen =
-          held.type == BlockType.tableRow || held.type == BlockType.tableHeader;
+      _updateCrossPageTable(state);
+    }
+  }
+
+  /// Cari header tabel yang DIULANG (konten sama dengan [openHeader]) yang
+  /// muncul sebelum baris data mana pun di halaman ini; null bila tidak ada.
+  /// Pencarian menoleransi elemen sebelum header (mis. judul berulang yang
+  /// menjadi heading) — header tabel baru dengan konten berbeda tidak cocok.
+  Block? _dropRepeatedHeader(List<Block> blocks, String openHeader) {
+    final headerIdx = blocks.indexWhere((b) => b.type == BlockType.tableHeader);
+    if (headerIdx == -1 || blocks[headerIdx].text != openHeader) {
+      return null;
+    }
+    final rowIdx = blocks.indexWhere((b) => b.type == BlockType.tableRow);
+    if (rowIdx != -1 && headerIdx >= rowIdx) {
+      return null;
+    }
+    return blocks[headerIdx];
+  }
+
+  /// Perbarui state lintas halaman dari blok yang ditahan: tableHeader →
+  /// header tabel terbuka di-update; tableRow → tabel berlanjut (header
+  /// dipertahankan); blok lain → tabel berakhir, state dibersihkan.
+  void _updateCrossPageTable(_CrossPageState state) {
+    final held = state.pendingBlock!;
+    if (held.type == BlockType.tableHeader) {
+      state.openTableHeader = held.text;
+      state.tableOpen = true;
+    } else if (held.type == BlockType.tableRow) {
+      state.tableOpen = true;
+    } else {
+      state.tableOpen = false;
+      state.openTableHeader = null;
     }
   }
 }
@@ -263,10 +295,15 @@ typedef _PagePipeline = ({
 });
 
 /// State lintas halaman Fase D (O(1)): blok terakhir yang ditahan dari
-/// halaman sebelumnya + flag tabel terbuka (drop header berulang).
+/// halaman sebelumnya + flag tabel terbuka + teks header tabel yang sedang
+/// terbuka (drop header berulang hanya bila kontennya sama).
 class _CrossPageState {
   Block? pendingBlock;
   bool tableOpen = false;
+
+  /// Teks header tabel yang sedang terbuka; null bila tidak ada tabel
+  /// terbuka. Diisi saat tableHeader DIPROSES (ditulis atau dibuang).
+  String? openTableHeader;
 }
 
 class _CancelledException implements Exception {

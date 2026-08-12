@@ -179,6 +179,54 @@ void main() {
       expect(md, contains('| Apricots | 5 | 8.00 |'));
       expect(md, contains('| Mangoes | 12 | 3.25 |'));
     });
+
+    test('halaman 2 mulai tabel BARU (header berbeda) → header dipertahankan',
+        () async {
+      // Fixture: halaman 1 tabel 'Name | Qty | Price' berakhir tanpa penutup
+      // (baris terakhir masih tertahan → tabel terbuka); halaman 2 memulai
+      // tabel BARU yang sah dengan header berbeda ('SKU | Qty | Price').
+      // Geometri identik dengan multiPageTablePages (judul 20pt mem-bridge
+      // kolom; 3 kolom di x=72/200/260, spacing 22) — lebar sel header/baris
+      // disamakan agar variance gap antar-kolom lolos threshold TableDetector.
+      const cols = [72.0, 200.0, 260.0];
+      List<PdfTextItem> row(double y, (String, String, String) cells) => [
+            PdfTextItem(cells.$1, x: cols[0], y: y),
+            PdfTextItem(cells.$2, x: cols[1], y: y),
+            PdfTextItem(cells.$3, x: cols[2], y: y),
+          ];
+      final pages = [
+        PdfPageSpec([
+          PdfTextItem('Multi Page Inventory', fontSize: 20, x: 72, y: 715, bold: true),
+          ...row(700, ('Name', 'Qty', 'Price')),
+          ...row(678, ('Peaches', '10', '2.50')),
+          ...row(656, ('Grapes', '20', '1.75')),
+        ]),
+        PdfPageSpec([
+          // Tabel BARU yang sah — header-nya TIDAK boleh dibuang hanya karena
+          // tabel sebelumnya masih terbuka.
+          PdfTextItem('Multi Page Inventory', fontSize: 20, x: 72, y: 715, bold: true),
+          ...row(700, ('SKU', 'Qty', 'Price')),
+          ...row(678, ('Apples', '10', '2.50')),
+          ...row(656, ('Lemons', '20', '1.75')),
+        ]),
+      ];
+
+      final src = await PdfrxSource.openData(buildTestPdf(pages: pages));
+      final output = MemoryOutput();
+      await Converter().convert(source: src, output: output);
+      await src.dispose();
+
+      final md = output.content;
+      // Header tabel baru muncul (tidak ikut dibuang sebagai header berulang).
+      expect('| SKU | Qty | Price |'.allMatches(md), hasLength(1));
+      // Header tabel pertama tetap satu (halaman 1).
+      expect('| Name | Qty | Price |'.allMatches(md), hasLength(1));
+      // Baris kedua tabel tetap ada.
+      expect(md, contains('| Peaches | 10 | 2.50 |'));
+      expect(md, contains('| Grapes | 20 | 1.75 |'));
+      expect(md, contains('| Apples | 10 | 2.50 |'));
+      expect(md, contains('| Lemons | 20 | 1.75 |'));
+    });
   });
 
   group('Fase B: column + header/footer end-to-end', () {
