@@ -28,6 +28,11 @@ class MarkdownWriter {
       case BlockType.orderedListItem:
         final idx = block.listIndex ?? 1;
         _sink.write('$idx. ${_escapeLine(block.text)}\n');
+      case BlockType.tableHeader:
+      case BlockType.tableRow:
+        // Rendering tabel diimplementasikan pada Task 4 (MarkdownWriter);
+        // blok tabel belum diproduksi classifier sehingga no-op aman.
+        break;
     }
     _needsBlankLine = true;
   }

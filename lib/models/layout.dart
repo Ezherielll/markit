@@ -77,6 +77,8 @@ enum BlockType {
   listItem, // alias backward-compat
   unorderedListItem, // Fase A: item bullet
   orderedListItem, // Fase A: item bernomor
+  tableHeader, // Fase C: baris pertama tabel → header + separator
+  tableRow, // Fase C: baris isi tabel
 }
 
 /// Blok semantik hasil klasifikasi, siap dirender ke markdown.
@@ -85,6 +87,8 @@ class Block {
     required this.type,
     required this.lines,
     this.headingLevel = 0,
+    this.listDepth = 0, // Fase C: kedalaman nested list (0=flat, 1=nested)
+    this.cells, // Fase C: sel tabel (non-null hanya untuk tableRow/tableHeader)
     this.listIndex, // Fase A: nomor ordered list (1-based); null untuk bullet
   });
 
@@ -93,6 +97,12 @@ class Block {
 
   /// Level heading 1-based; 0 bila bukan heading.
   final int headingLevel;
+
+  /// Kedalaman nested list (0=flat, 1=nested).
+  final int listDepth;
+
+  /// Sel tabel; non-null hanya untuk [BlockType.tableRow]/[BlockType.tableHeader].
+  final List<String>? cells;
 
   /// Nomor ordered list item (1-based); null bila bukan ordered list.
   final int? listIndex;
