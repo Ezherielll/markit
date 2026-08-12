@@ -59,3 +59,17 @@ Catatan:
 ## Corpus run 2026-08-05T11:38:41.957016
 - book_single: F1 100.0% (threshold 90%) PASS · 579 ms
 - with_tables: F1 28.6% (threshold 60%) FAIL · 26 ms
+
+## Corpus run 2026-08-12T17:40:53.701840
+- book_single: paragraphF1 100.0% (threshold 90%) PASS · 449 ms
+- nested_headings: headingLevelF1 100.0% (threshold 85%) PASS · 11 ms
+- numbered_sections: headingLevelF1 100.0% (threshold 80%) PASS · 9 ms
+- ordered_list: orderedListPrecision 100.0% (threshold 80%) PASS · 9 ms
+- with_tables: paragraphF1 28.6% (threshold 60%) FAIL · 7 ms
+
+## Corpus run 2026-08-12T17:41:09.582920
+- book_single: paragraphF1 100.0% (threshold 90%) PASS · 487 ms
+- nested_headings: headingLevelF1 100.0% (threshold 85%) PASS · 16 ms
+- numbered_sections: headingLevelF1 100.0% (threshold 80%) PASS · 11 ms
+- ordered_list: orderedListPrecision 100.0% (threshold 80%) PASS · 11 ms
+- with_tables: paragraphF1 28.6% (threshold 60%) FAIL · 7 ms
