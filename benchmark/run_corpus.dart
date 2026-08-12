@@ -6,12 +6,27 @@ import 'package:markit/core/output.dart';
 import 'engine_source.dart';
 import 'golden_evaluator.dart';
 
-/// Ambang akurasi per jenis dokumen (PRD §4).
+/// Ambang akurasi per jenis dokumen (PRD §4 + Fase A).
 /// - single-column book: F1 paragraf ≥ 0.90 (exit criteria M0)
 /// - tabel sederhana: baseline v2 (FR-23), di sini hanya dicatat.
+/// - Fase A fixtures: headingLevelF1 / orderedListPrecision.
 double _thresholdFor(String name) {
   if (name.startsWith('with_tables')) return 0.60;
+  if (name.startsWith('nested_headings')) return 0.85;
+  if (name.startsWith('numbered_sections')) return 0.80;
+  if (name.startsWith('ordered_list')) return 0.80;
   return 0.90;
+}
+
+/// Metrik utama per fixture + nilainya. Fallback: paragraphF1.
+(double, String) _primaryMetric(String name, EvalReport r) {
+  if (name.startsWith('nested_headings') || name.startsWith('numbered_sections')) {
+    return (r.headingLevelF1, 'headingLevelF1');
+  }
+  if (name.startsWith('ordered_list')) {
+    return (r.orderedListPrecision, 'orderedListPrecision');
+  }
+  return (r.paragraphF1, 'paragraphF1');
 }
 
 /// Runner korpus: convert semua `corpus/pdfs/*.pdf` → markdown via pipeline
@@ -65,12 +80,12 @@ void main(List<String> args) async {
     );
     stdout.writeln(reportEval.toString());
 
-    final f1 = reportEval.paragraphF1;
+    final (value, metric) = _primaryMetric(name, reportEval);
     final threshold = _thresholdFor(name);
-    final pass = f1 >= threshold;
+    final pass = value >= threshold;
     allPass = allPass && pass;
     report.writeln(
-        '- $name: F1 ${(f1 * 100).toStringAsFixed(1)}% (threshold ${(threshold * 100).toStringAsFixed(0)}%) '
+        '- $name: $metric ${(value * 100).toStringAsFixed(1)}% (threshold ${(threshold * 100).toStringAsFixed(0)}%) '
         '${pass ? 'PASS' : 'FAIL'} · ${sw.elapsedMilliseconds} ms');
   }
 

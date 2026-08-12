@@ -129,3 +129,86 @@ List<PdfPageSpec> largeBookPages(int pageCount, {int chapterEvery = 20}) {
   }
   return pages;
 }
+
+/// Fixture Fase A: hierarki heading H1(22pt)/H2(18pt)/H3(15pt) + body 12pt.
+/// Tiap ukuran heading muncul >= 2 kali (syarat heading band).
+///
+/// PENTING (quirk pdfrx): proxy fontSize = tinggi bbox char, yang hanya
+/// proporsional bila baris mengandung huruf berdescender (p/g/y/q/j).
+/// Semua baris fixture sengaja memuat huruf tersebut.
+List<PdfPageSpec> nestedHeadingsPages() {
+  return [
+    PdfPageSpec([
+      PdfTextItem('Paper Overview and Goals', fontSize: 22, y: 750, bold: true),
+      PdfTextItem('Background and Related Work', fontSize: 18, y: 700, bold: true),
+      PdfTextItem('This paper presents the background of the project.', y: 660),
+      PdfTextItem('The related work appears in the next pages.', y: 640),
+      PdfTextItem('Motivation and Scope', fontSize: 15, y: 600, bold: true),
+      PdfTextItem('The motivation is simple: people need better tools.', y: 560),
+      PdfTextItem('The scope covers many types of documents.', y: 540),
+      PdfTextItem('Approach and Design', fontSize: 15, y: 500, bold: true),
+      PdfTextItem('The approach applies layout-aware parsing steps.', y: 460),
+      PdfTextItem('The design keeps memory usage per page constant.', y: 440),
+    ]),
+    PdfPageSpec([
+      PdfTextItem('Implementation Details', fontSize: 18, y: 700, bold: true),
+      PdfTextItem('The implementation groups fragments into lines.', y: 660),
+      PdfTextItem('Paragraph joining happens after line grouping.', y: 640),
+      PdfTextItem('Evaluation Setup', fontSize: 15, y: 600, bold: true),
+      PdfTextItem('The evaluation runs against a synthetic corpus.', y: 560),
+      PdfTextItem('Every fixture is compared with a golden file.', y: 540),
+      PdfTextItem('Appendix and References', fontSize: 22, y: 500, bold: true),
+      PdfTextItem('The appendix contains supplementary material.', y: 460),
+      PdfTextItem('References appear in the final section.', y: 440),
+    ]),
+  ];
+}
+
+/// Fixture Fase A: heading bernomor 1. / 1.1 / 1.1.1 dengan ukuran berbeda
+/// (22pt/18pt/15pt) — menguji numbering pattern pada heading.
+List<PdfPageSpec> numberedSectionsPages() {
+  return [
+    PdfPageSpec([
+      PdfTextItem('1. Background and Scope', fontSize: 22, y: 750, bold: true),
+      PdfTextItem('This section introduces the problem being solved.', y: 710),
+      PdfTextItem('It explains the purpose and scope of the work.', y: 690),
+      PdfTextItem('1.1 Related Papers', fontSize: 18, y: 650, bold: true),
+      PdfTextItem('The related papers describe similar systems.', y: 610),
+      PdfTextItem('They compare speed and output quality.', y: 590),
+      PdfTextItem('1.1.1 Comparison Approach', fontSize: 15, y: 550, bold: true),
+      PdfTextItem('The comparison approach uses the golden files.', y: 510),
+    ]),
+    PdfPageSpec([
+      PdfTextItem('2. Experimental Setup', fontSize: 22, y: 750, bold: true),
+      PdfTextItem('The experiments run on a synthetic corpus.', y: 710),
+      PdfTextItem('The corpus pages are converted to markdown.', y: 690),
+      PdfTextItem('2.1 Evaluation Approach', fontSize: 18, y: 650, bold: true),
+      PdfTextItem('The metrics follow the project requirements.', y: 610),
+      PdfTextItem('2.1.1 Paragraph Scoring', fontSize: 15, y: 550, bold: true),
+      PdfTextItem('The scoring compares output with golden text.', y: 510),
+      PdfTextItem('2.1.2 Heading Scoring', fontSize: 15, y: 470, bold: true),
+      PdfTextItem('The heading scoring checks the level number.', y: 430),
+    ]),
+  ];
+}
+
+/// Fixture Fase A: ordered list 1. 2. 3. diikuti paragraf penutup.
+List<PdfPageSpec> orderedListPages() {
+  return [
+    PdfPageSpec([
+      PdfTextItem('Shopping List', fontSize: 18, y: 750, bold: true),
+      PdfTextItem('1. Buy apples', y: 700),
+      PdfTextItem('2. Buy bananas', y: 680),
+      PdfTextItem('3. Buy oranges', y: 660),
+      PdfTextItem('4. Buy grapes', y: 640),
+      PdfTextItem('Remember to buy some grapes.', y: 600),
+    ]),
+    PdfPageSpec([
+      PdfTextItem('Garden Tasks', fontSize: 18, y: 750, bold: true),
+      PdfTextItem('1. Water the plants', y: 700),
+      PdfTextItem('2. Take out the garbage', y: 680),
+      PdfTextItem('3. Walk the dog', y: 660),
+      PdfTextItem('That completes the weekly tasks.', y: 600),
+    ]),
+  ];
+}

@@ -16,6 +16,10 @@ void main() {
 
   _write('book_single.pdf', buildTestPdf(pages: largeBookPages(60, chapterEvery: 15)));
   _write('with_tables.pdf', buildTestPdf(pages: _tablePdf()));
+  // Fase A fixtures
+  _write('nested_headings.pdf', buildTestPdf(pages: nestedHeadingsPages()));
+  _write('numbered_sections.pdf', buildTestPdf(pages: numberedSectionsPages()));
+  _write('ordered_list.pdf', buildTestPdf(pages: orderedListPages()));
 
   stdout.writeln('corpus sintetis dibuat di corpus/pdfs/ + corpus/golden/');
 }
