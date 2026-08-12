@@ -23,6 +23,8 @@ class EvalReport {
     required this.wordCompleteness,
     required this.readingOrderScore,
     required this.headerSuppressionRecall,
+    required this.tableCellF1,
+    required this.nestedListRecall,
   });
 
   final double paragraphF1;
@@ -47,6 +49,12 @@ class EvalReport {
   /// oleh header/footer filter.
   final double headerSuppressionRecall;
 
+  /// Fase C: F1 sel tabel — set-based precision/recall sel output vs golden.
+  final double tableCellF1;
+
+  /// Fase C: recall item nested list (baris `  - `) golden di output.
+  final double nestedListRecall;
+
   @override
   String toString() {
     final sb = StringBuffer();
@@ -58,6 +66,8 @@ class EvalReport {
     sb.writeln('word completeness: ${(wordCompleteness * 100).toStringAsFixed(1)}%');
     sb.writeln('reading order score: ${(readingOrderScore * 100).toStringAsFixed(1)}%');
     sb.writeln('header suppression recall: ${(headerSuppressionRecall * 100).toStringAsFixed(1)}%');
+    sb.writeln('table cell F1: ${(tableCellF1 * 100).toStringAsFixed(1)}%');
+    sb.writeln('nested list recall: ${(nestedListRecall * 100).toStringAsFixed(1)}%');
     sb.writeln('noise blocks (extra): ${noiseBlocks.length}');
     for (final n in noiseBlocks.take(5)) {
       sb.writeln('  noise: "$n"');
@@ -91,6 +101,8 @@ EvalReport evaluate(String output, String golden) {
     wordCompleteness: _wordCompleteness(output, golden),
     readingOrderScore: _readingOrderScore(outBlocks, goldenBlocks),
     headerSuppressionRecall: _headerSuppressionRecall(outBlocks, goldenBlocks),
+    tableCellF1: _tableCellF1(output, golden),
+    nestedListRecall: _nestedListRecall(output, golden),
   );
 }
 
@@ -282,3 +294,45 @@ double _headerSuppressionRecall(List<_Block> out, List<_Block> golden) {
 String _normalize(String s) {
   return s.replaceAll('\\', '').trim();
 }
+
+/// Fase C: F1 sel tabel — precision/recall set-based atas sel yang
+/// diekstrak dari baris ber-'|' (baris separator dilewati).
+double _tableCellF1(String output, String golden) {
+  final outCells = _extractTableCells(output);
+  final goldenCells = _extractTableCells(golden);
+  if (goldenCells.isEmpty && outCells.isEmpty) return 1.0;
+  if (goldenCells.isEmpty) return 0.0;
+  final outSet = outCells.toSet();
+  final goldSet = goldenCells.toSet();
+  final tp = outSet.intersection(goldSet).length;
+  if (tp == 0) return 0.0;
+  final precision = tp / outSet.length;
+  final recall = tp / goldSet.length;
+  return 2 * precision * recall / (precision + recall);
+}
+
+List<String> _extractTableCells(String text) {
+  final cells = <String>[];
+  for (final line in text.split('\n')) {
+    if (!line.contains('|')) continue;
+    if (RegExp(r'^\|[\s-|]+\|$').hasMatch(line.trim())) continue; // separator
+    final parts = line.split('|').map((c) => c.trim()).where((c) => c.isNotEmpty);
+    cells.addAll(parts);
+  }
+  return cells;
+}
+
+/// Fase C: recall item nested list golden (baris `  - `) yang ada di output.
+double _nestedListRecall(String output, String golden) {
+  final goldenNested = _extractNestedItems(golden);
+  if (goldenNested.isEmpty) return 1.0;
+  final outNested = _extractNestedItems(output).toSet();
+  var hit = 0;
+  for (final item in goldenNested) {
+    if (outNested.contains(item)) hit++;
+  }
+  return hit / goldenNested.length;
+}
+
+List<String> _extractNestedItems(String text) =>
+    text.split('\n').where((l) => l.startsWith('  - ')).map((l) => l.trim()).toList();

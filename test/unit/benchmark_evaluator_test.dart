@@ -115,4 +115,35 @@ void main() {
       expect(report.headerSuppressionRecall, lessThan(0.5));
     });
   });
+
+  group('Fase C metrics', () {
+    test('tableCellF1: tabel sempurna → 1.0', () {
+      const output = '| Name | Qty |\n| --- | --- |\n| Apples | 10 |\n';
+      const golden = '| Name | Qty |\n| --- | --- |\n| Apples | 10 |\n';
+      final report = evaluate(output, golden);
+      expect(report.tableCellF1, closeTo(1.0, 0.01));
+    });
+
+    test('tableCellF1: sel hilang → kurang dari 1.0', () {
+      const output = '| Apples | 10 |\n';
+      const golden = '| Apples | 10 |\n| Bananas | 20 |\n';
+      final report = evaluate(output, golden);
+      expect(report.tableCellF1, lessThan(1.0));
+      expect(report.tableCellF1, greaterThan(0.0));
+    });
+
+    test('nestedListRecall: semua nested items ada → 1.0', () {
+      const output = '- Parent\n  - Child\n';
+      const golden = '- Parent\n  - Child\n';
+      final report = evaluate(output, golden);
+      expect(report.nestedListRecall, closeTo(1.0, 0.01));
+    });
+
+    test('nestedListRecall: nested item hilang → 0.0', () {
+      const output = '- Parent\n';
+      const golden = '- Parent\n  - Child\n';
+      final report = evaluate(output, golden);
+      expect(report.nestedListRecall, closeTo(0.0, 0.01));
+    });
+  });
 }
