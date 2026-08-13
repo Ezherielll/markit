@@ -1,10 +1,11 @@
-/// Pesan antar-isolate untuk pipeline konversi (FR-08, FR-11).
-///
-/// Semua kelas harus transferable via [SendPort] (plain data, tanpa closure).
-/// [jobId] memetakan pesan ke file di batch queue (multi-file).
 library;
 
 import 'dart:isolate';
+
+/// Inter-isolate messages for conversion pipeline.
+///
+/// All classes must be transferable via [SendPort] (plain data, no closures).
+/// [jobId] maps message to file in batch queue.
 
 class StartConvert {
   StartConvert({
@@ -18,7 +19,7 @@ class StartConvert {
   final String pdfPath;
   final String outputPath;
 
-  /// Nama [InputFormat] (transferable String).
+  /// [InputFormat] name (transferable String).
   final String formatName;
 }
 
@@ -55,7 +56,7 @@ class ConvertDone {
   final String outputPath;
   final int pageCount;
 
-  /// Halaman gagal (1-based) — FR-10c.
+  /// Failed pages (1-based).
   final List<int> failedPages;
   final int elapsedMs;
   final double bodyFontSize;
@@ -71,23 +72,23 @@ class ConvertFailed {
 
   final String jobId;
 
-  /// Nama enum [ConvertError] agar transferable.
+  /// [ConvertError] enum name for transferable data.
   final String errorType;
   final String message;
 }
 
-/// Dikirim main → worker untuk membatalkan konversi (FR-11).
+/// Sent main → worker to cancel conversion.
 class CancelRequest {
   const CancelRequest();
 }
 
-/// Dikirim main → worker di awal batch baru: reset flag cancel dari batch
-/// sebelumnya (worker bersifat persist antar batch).
+/// Sent main → worker at start of new batch: resets cancel flag from
+/// previous batch (worker is persistent across batches).
 class ResetCancel {
   const ResetCancel();
 }
 
-/// Dikirim main → worker setelah batch selesai — worker menutup port & exit.
+/// Sent main → worker after batch completion — worker closes port & exits.
 class Shutdown {
   const Shutdown();
 }

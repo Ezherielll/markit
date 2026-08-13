@@ -6,25 +6,65 @@ import 'package:markit/core/output.dart';
 import 'engine_source.dart';
 import 'golden_evaluator.dart';
 
-/// Ambang akurasi per jenis dokumen (PRD §4).
-/// - single-column book: F1 paragraf ≥ 0.90 (exit criteria M0)
-/// - tabel sederhana: baseline v2 (FR-23), di sini hanya dicatat.
+/// Accuracy threshold per document type (PRD §4 + Phase A/B/C).
+/// - single-column book: paragraph F1 >= 0.90 (M0 exit criteria)
+/// - simple table: tableCellF1
+/// - multi-page table: tableCellF1 (Phase D)
+/// - nested list: nestedListRecall
+/// - Phase A fixtures: headingLevelF1 / orderedListPrecision.
+/// - Phase B fixtures: readingOrderScore / headerSuppressionRecall.
 double _thresholdFor(String name) {
-  if (name.startsWith('with_tables')) return 0.60;
+  if (name.startsWith('simple_table')) return 0.70; // tableCellF1
+  if (name.startsWith('multi_page_table')) return 0.70; // tableCellF1
+  if (name.startsWith('mixed_table')) return 0.70; // tableCellF1
+  if (name.startsWith('nested_list')) return 0.80; // nestedListRecall
+  if (name.startsWith('nested_headings')) return 0.85;
+  if (name.startsWith('numbered_sections')) return 0.80;
+  if (name.startsWith('ordered_list')) return 0.80;
+  if (name.startsWith('multi_column_paper')) return 0.80; // readingOrderScore
+  if (name.startsWith('header_footer')) return 0.90; // headerSuppressionRecall
   return 0.90;
 }
 
-/// Runner korpus: convert semua `corpus/pdfs/*.pdf` → markdown via pipeline
-/// penuh (Converter), lalu evaluasi terhadap `corpus/golden/{name}.md`.
+/// Primary metric per fixture + its value. Fallback: paragraphF1.
+(double, String) _primaryMetric(String name, EvalReport r) {
+  if (name.startsWith('simple_table')) {
+    return (r.tableCellF1, 'tableCellF1');
+  }
+  if (name.startsWith('multi_page_table')) {
+    return (r.tableCellF1, 'tableCellF1');
+  }
+  if (name.startsWith('mixed_table')) {
+    return (r.tableCellF1, 'tableCellF1');
+  }
+  if (name.startsWith('nested_list')) {
+    return (r.nestedListRecall, 'nestedListRecall');
+  }
+  if (name.startsWith('nested_headings') || name.startsWith('numbered_sections')) {
+    return (r.headingLevelF1, 'headingLevelF1');
+  }
+  if (name.startsWith('ordered_list')) {
+    return (r.orderedListPrecision, 'orderedListPrecision');
+  }
+  if (name.startsWith('multi_column_paper')) {
+    return (r.readingOrderScore, 'readingOrderScore');
+  }
+  if (name.startsWith('header_footer')) {
+    return (r.headerSuppressionRecall, 'headerSuppressionRecall');
+  }
+  return (r.paragraphF1, 'paragraphF1');
+}
+
+/// Corpus runner: converts all `corpus/pdfs/*.pdf` -> markdown via full
+/// pipeline (Converter), then evaluates against `corpus/golden/{name}.md`.
 ///
 /// Usage: `dart run benchmark/run_corpus.dart [name.pdf]`
 ///
-/// Menulis ringkasan ke docs/benchmark.md. Exit 1 bila ada file di bawah
-/// ambang PRD §4.
+/// Writes summary to docs/benchmark.md. Exits 1 if any file falls below PRD §4 threshold.
 void main(List<String> args) async {
   final pdfDir = Directory('corpus/pdfs');
   if (!pdfDir.existsSync()) {
-    stderr.writeln('corpus/pdfs tidak ada. Jalankan dulu: dart run benchmark/make_corpus.dart');
+    stderr.writeln('corpus/pdfs does not exist. Run first: dart run benchmark/make_corpus.dart');
     exitCode = 1;
     return;
   }
@@ -54,7 +94,7 @@ void main(List<String> args) async {
     stdout.writeln('  convert: ${sw.elapsedMilliseconds} ms');
 
     if (!File(golden).existsSync()) {
-      stdout.writeln('  SKIP evaluasi (belum ada golden)');
+      stdout.writeln('  SKIP evaluation (golden reference missing)');
       report.writeln('- $name: (no golden)');
       continue;
     }
@@ -65,12 +105,12 @@ void main(List<String> args) async {
     );
     stdout.writeln(reportEval.toString());
 
-    final f1 = reportEval.paragraphF1;
+    final (value, metric) = _primaryMetric(name, reportEval);
     final threshold = _thresholdFor(name);
-    final pass = f1 >= threshold;
+    final pass = value >= threshold;
     allPass = allPass && pass;
     report.writeln(
-        '- $name: F1 ${(f1 * 100).toStringAsFixed(1)}% (threshold ${(threshold * 100).toStringAsFixed(0)}%) '
+        '- $name: $metric ${(value * 100).toStringAsFixed(1)}% (threshold ${(threshold * 100).toStringAsFixed(0)}%) '
         '${pass ? 'PASS' : 'FAIL'} · ${sw.elapsedMilliseconds} ms');
   }
 

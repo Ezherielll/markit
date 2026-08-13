@@ -1,17 +1,23 @@
 import '../models/layout.dart';
 import 'doc_stats.dart';
 
-/// Stage 2: grouping fragment → baris (FR-03).
+/// Stage 2: grouping fragments → lines.
 ///
-/// Strategi: sortir span top-to-bottom (y PDF ke atas), lalu cluster greedy
-/// berdasarkan jarak yCenter relatif terhadap tinggi baris yang sedang dibangun.
-/// Dalam satu baris, span diurutkan left-to-right.
+/// Strategy: sort spans top-to-bottom (higher PDF Y = top), then greedy cluster
+/// based on yCenter distance relative to line height being built.
+/// Within a line, spans are sorted left-to-right.
 class LineGrouper {
-  LineGrouper({this.config = const PipelineConfig()});
+  LineGrouper({
+    this.config = const PipelineConfig(),
+    this.profile,
+  });
 
   final PipelineConfig config;
 
-  /// Koordinat PDF: y semakin besar = semakin atas halaman.
+  /// Pass 1 profile (optional, backward compatibility).
+  final DocProfile? profile;
+
+  /// PDF coordinates: larger Y = higher on page.
   List<Line> group(List<TextSpan> spans) {
     if (spans.isEmpty) return [];
 

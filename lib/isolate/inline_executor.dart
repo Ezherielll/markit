@@ -9,11 +9,11 @@ import '../core/output.dart';
 import '../core/pdfrx_source.dart';
 import 'conversion_executor.dart';
 
-/// Eksekusi inline di main isolate (WEB — `Isolate.spawn` tidak didukung).
+/// Inline execution on main isolate (WEB — `Isolate.spawn` not supported).
 ///
-/// Pipeline sudah async per halaman, jadi UI tetap bisa pump antar-await
-/// (progress diterima via callback). Keterbatasan: halaman sangat berat bisa
-/// menyebabkan jank singkat — acceptable untuk MVP web.
+/// Pipeline is already async per page, so UI can pump between awaits
+/// (progress received via callback). Limitation: heavy pages may cause
+/// minor jank — acceptable for web.
 class InlineExecutor implements ConversionExecutor {
   bool _cancelled = false;
 
@@ -46,7 +46,7 @@ class InlineExecutor implements ConversionExecutor {
           : await PdfrxSource.open(pdfPath);
       try {
         final output = MemoryOutput();
-        // Phase 1 (reading): histogram — page 0 sebagai penanda.
+        // Phase 1 (reading): histogram — page 0 marker.
         onProgress?.call(0, source.pageCount, 0, 0);
         final result = await Converter().convert(
           source: source,
@@ -65,7 +65,7 @@ class InlineExecutor implements ConversionExecutor {
           success: true,
           pageCount: result.pageCount,
           failedPages: result.failedPages.map((p) => p + 1).toList(),
-          bodyFontSize: result.stats.bodyFontSize,
+          bodyFontSize: result.profile.bodyFontSize,
           outputPath: outputPath,
           content: output.content,
         );
@@ -77,16 +77,16 @@ class InlineExecutor implements ConversionExecutor {
     } catch (e) {
       return JobExecutionResult.failure(
         ConvertError.corrupt.name,
-        'Kesalahan tak terduga: $e',
+        'Unexpected error: $e',
       );
     }
   }
 
-  /// Jalur semantic (web): extractor pure Dart → MemoryOutput.
+  /// Semantic path (web): pure Dart extractor → MemoryOutput.
   ///
-  /// Web TIDAK punya filesystem — extractor hanya bisa membaca [bytes].
-  /// Bila [bytes] null (mis. drag & drop yang hanya memberi path palsu),
-  /// langsung gagal dengan pesan jelas (bukan UnsupportedError → corrupt).
+  /// Web DOES NOT have a filesystem — extractor can only read [bytes].
+  /// If [bytes] is null (e.g. drag & drop giving dummy path),
+  /// fails immediately with a clear error message.
   Future<JobExecutionResult> _runSemantic({
     required String jobId,
     required Uint8List? bytes,
@@ -99,14 +99,14 @@ class InlineExecutor implements ConversionExecutor {
     if (extractor == null) {
       return JobExecutionResult.failure(
         'unsupported',
-        'Format ${format.label} belum didukung (roadmap Fase 2–3).',
+        'Format ${format.label} is not yet supported for conversion.',
       );
     }
     if (bytes == null) {
       return JobExecutionResult.failure(
         'unsupported',
-        'File tidak tersedia di memori (web) — gunakan tombol "Choose files" '
-        'atau drag & drop dari folder.',
+        'File data not available in memory (web) — use "Choose Files" '
+        'or drag & drop files directly.',
       );
     }
 

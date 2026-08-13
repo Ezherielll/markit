@@ -63,6 +63,9 @@ class FakeController extends ConversionController {
 
   @override
   Future<void> shutdown() async {}
+
+  @override
+  Future<void> cleanupTempOutputs() async {}
 }
 
 Future<void> pumpHome(WidgetTester tester, FakeController controller) async {
@@ -75,7 +78,7 @@ Future<void> pumpHome(WidgetTester tester, FakeController controller) async {
 }
 
 void main() {
-  testWidgets('header: tap brand lockup → reset ke halaman utama', (tester) async {
+  testWidgets('header: tap brand lockup -> reset to home screen', (tester) async {
     final controller = FakeController();
     controller.addFiles([PdfInput(name: 'a.pdf', path: 'a.pdf')]);
     await pumpHome(tester, controller);
@@ -91,7 +94,7 @@ void main() {
     expect(find.byType(HomeScreen), findsOneWidget);
   });
 
-  testWidgets('header: tap icon about → AboutScreen tampil, back kembali',
+  testWidgets('header: tap about icon -> AboutScreen displayed, back returns',
       (tester) async {
     final controller = FakeController();
     await pumpHome(tester, controller);
@@ -109,7 +112,7 @@ void main() {
     expect(find.byType(HomeScreen), findsOneWidget);
   });
 
-  testWidgets('about: render tanpa exception, konten utama tampil', (tester) async {
+  testWidgets('about: renders without exception, main content displayed', (tester) async {
     await tester.pumpWidget(const MaterialApp(home: AboutScreen()));
     await tester.pumpAndSettle();
 

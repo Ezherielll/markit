@@ -4,7 +4,7 @@ import 'dart:io';
 import 'package:file_selector/file_selector.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
-import 'package:markit/core/input_format.dart';
+import 'package:markit/core/format_catalog.dart';
 import 'package:markit/i18n/strings.dart';
 import 'package:markit/models/pdf_input.dart';
 import 'package:markit/ui/theme/palette.dart';
@@ -12,16 +12,16 @@ import 'package:markit/ui/theme/spacing.dart';
 import 'package:markit/ui/theme/typography.dart';
 import 'package:super_drag_and_drop/super_drag_and_drop.dart';
 
-/// Buka dialog picker file (multi-select, semua format didukung MarkIt).
-/// Desktop: PdfInput berisi path; Web: berisi bytes (tanpa filesystem).
+/// Open file picker dialog (multi-select, all formats recognized by MarkIt —
+/// including DOCX/XLSX/etc not yet supported for conversion; user receives
+/// clear "not supported yet" message, not silent failure).
+/// Desktop: PdfInput contains path; Web: contains bytes (no filesystem).
 Future<List<PdfInput>> pickPdfFiles() async {
-  const typeGroup = XTypeGroup(
+  final typeGroup = XTypeGroup(
     label: Strings.pickFileFilterName,
-    extensions: [
-      'pdf', 'txt', 'md', 'markdown', 'csv', 'json', 'xml', 'html', 'htm',
-    ],
+    extensions: kDetectableExtensions,
   );
-  final files = await openFiles(acceptedTypeGroups: const [typeGroup]);
+  final files = await openFiles(acceptedTypeGroups: [typeGroup]);
   final inputs = <PdfInput>[];
   for (final f in files) {
     if (kIsWeb) {
@@ -45,8 +45,8 @@ Future<List<PdfInput>> pickPdfFiles() async {
   return inputs;
 }
 
-/// Baca header file (64 KB pertama) — cukup untuk magic bytes + nama entry
-/// ZIP (plan §4.2) tanpa memuat seluruh file.
+/// Read file header (first 64 KB) — sufficient for magic bytes + ZIP entry
+/// names without loading entire file.
 Future<Uint8List> _readHeader(String path) async {
   try {
     final file = File(path);
@@ -62,10 +62,10 @@ Future<Uint8List> _readHeader(String path) async {
   }
 }
 
-/// Drop zone — menerima banyak file PDF via drag & drop (desktop) atau
-/// tombol "Choose PDF files".
+/// Drop zone — accepts multiple PDF/document files via drag & drop (desktop) or
+/// "Choose files" button.
 ///
-/// [compact]: versi ringkas untuk sidebar (tanpa sheet stack/hero besar).
+/// [compact]: compact version for sidebar (no large sheet stack/hero).
 class DropZone extends StatefulWidget {
   const DropZone({
     super.key,
@@ -73,7 +73,7 @@ class DropZone extends StatefulWidget {
     this.compact = false,
   });
 
-  /// Dipanggil dengan daftar [PdfInput] file PDF yang dipilih/di-drop.
+  /// Called with list of selected/dropped [PdfInput] files.
   final ValueChanged<List<PdfInput>> onFilesPicked;
 
   final bool compact;
@@ -96,57 +96,10 @@ class _DropZoneState extends State<DropZone> {
     var sawUrl = false;
     var sawUnreadable = false;
     for (final item in event.session.items) {
-      final reader = item.dataReader;
-      if (reader == null) continue;
-
-      if (reader.canProvide(Formats.fileUri)) {
-        final completer = Completer<Uri?>();
-        reader.getValue<Uri>(Formats.fileUri, (uri) {
-          completer.complete(uri);
-        }, onError: (_) {
-          if (!completer.isCompleted) completer.complete(null);
-        });
-        final uri = await completer.future;
-        final path = uri?.toFilePath();
-        if (path == null) continue;
-        if (kIsWeb) {
-          // Web: fileUri tidak bisa dibaca (tidak ada filesystem) — path yang
-          // diberikan browser adalah placeholder. Arahkan ke picker.
-          sawUnreadable = true;
-          continue;
-        }
-        final name = path.split(RegExp(r'[\\/]')).last;
-        final header = await _readHeader(path);
-        inputs.add(
-          PdfInput(
-            name: name,
-            path: path,
-            format: detectFormat(name, header),
-          ),
-        );
-      } else if (kIsWeb && reader.canProvide(Formats.plainText)) {
-        // Web: browser memberi File object — coba lewat uri-list text.
-        final completer = Completer<String?>();
-        reader.getValue<String>(Formats.plainText, (text) {
-          completer.complete(text);
-        }, onError: (_) {
-          if (!completer.isCompleted) completer.complete(null);
-        });
-        final text = await completer.future;
-        for (final line in (text ?? '').split('\n')) {
-          final trimmed = line.trim();
-          if (trimmed.isEmpty) continue;
-          if (isUrlName(trimmed)) {
-            // URL butuh jaringan — melanggar NG3 (100% lokal).
-            sawUrl = true;
-            continue;
-          }
-          // Path uri-list browser adalah placeholder yang tak bisa dibaca di
-          // web — jangan buat PdfInput palsu (itu menyebabkan error corrupt
-          // saat konversi). Arahkan ke picker.
-          sawUnreadable = true;
-        }
-      }
+      final result = await _handleDropItem(item);
+      if (result.input != null) inputs.add(result.input!);
+      sawUrl = sawUrl || result.sawUrl;
+      sawUnreadable = sawUnreadable || result.sawUnreadable;
     }
     if (sawUrl && mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -158,8 +111,8 @@ class _DropZoneState extends State<DropZone> {
     if (inputs.isNotEmpty && mounted) {
       widget.onFilesPicked(inputs);
     } else if (mounted) {
-      // Web: file yang di-drop tidak menyediakan bytes yang bisa dibaca —
-      // arahkan user ke tombol picker.
+      // Web: dropped file does not provide readable bytes —
+      // direct user to picker button.
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
@@ -172,12 +125,84 @@ class _DropZoneState extends State<DropZone> {
     }
   }
 
+  /// Read single drop item: file (desktop) or constraint flags (web).
+  ///
+  /// - fileUri (desktop): real path → [PdfInput] ready for conversion.
+  /// - fileUri (web): browser placeholder (no filesystem) → unreadable.
+  /// - plainText (web): uri-list → classified per line (URL/unreadable).
+  Future<({PdfInput? input, bool sawUrl, bool sawUnreadable})>
+      _handleDropItem(DropItem item) async {
+    final reader = item.dataReader;
+    if (reader == null) return (input: null, sawUrl: false, sawUnreadable: false);
+
+    if (reader.canProvide(Formats.fileUri)) {
+      final completer = Completer<Uri?>();
+      reader.getValue<Uri>(Formats.fileUri, (uri) {
+        completer.complete(uri);
+      }, onError: (_) {
+        if (!completer.isCompleted) completer.complete(null);
+      });
+      final uri = await completer.future;
+      if (uri == null) return (input: null, sawUrl: false, sawUnreadable: false);
+      if (kIsWeb) {
+        // Web: fileUri cannot be read (no filesystem) — path provided
+        // by browser is a placeholder. Direct to picker.
+        return (input: null, sawUrl: false, sawUnreadable: true);
+      }
+      final path = uri.toFilePath();
+      final name = path.split(RegExp(r'[\\/]')).last;
+      final header = await _readHeader(path);
+      return (
+        input: PdfInput(
+          name: name,
+          path: path,
+          format: detectFormat(name, header),
+        ),
+        sawUrl: false,
+        sawUnreadable: false,
+      );
+    }
+
+    if (kIsWeb && reader.canProvide(Formats.plainText)) {
+      // Web: browser provides File object — try via uri-list text.
+      final completer = Completer<String?>();
+      reader.getValue<String>(Formats.plainText, (text) {
+        completer.complete(text);
+      }, onError: (_) {
+        if (!completer.isCompleted) completer.complete(null);
+      });
+      final text = await completer.future;
+      final (:sawUrl, :sawUnreadable) =
+          _classifyDropLines((text ?? '').split('\n'));
+      return (input: null, sawUrl: sawUrl, sawUnreadable: sawUnreadable);
+    }
+
+    return (input: null, sawUrl: false, sawUnreadable: false);
+  }
+
+  /// Classify web drop uri-list lines: URL (requires network —
+  /// violates offline policy) vs unreadable placeholder (direct to picker).
+  static ({bool sawUrl, bool sawUnreadable}) _classifyDropLines(List<String> lines) {
+    var sawUrl = false;
+    var sawUnreadable = false;
+    for (final line in lines) {
+      final trimmed = line.trim();
+      if (trimmed.isEmpty) continue;
+      if (isUrlName(trimmed)) {
+        sawUrl = true;
+      } else {
+        sawUnreadable = true;
+      }
+    }
+    return (sawUrl: sawUrl, sawUnreadable: sawUnreadable);
+  }
+
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final hairline = isDark ? PdflowColors.hairlineDark : PdflowColors.hairlineLight;
-    final surface = isDark ? PdflowColors.surfaceDark : PdflowColors.surfaceLight;
-    final inkMuted = isDark ? PdflowColors.inkMutedDark : PdflowColors.inkMutedLight;
+    final hairline = isDark ? MarkitColors.hairlineDark : MarkitColors.hairlineLight;
+    final surface = isDark ? MarkitColors.surfaceDark : MarkitColors.surfaceLight;
+    final inkMuted = isDark ? MarkitColors.inkMutedDark : MarkitColors.inkMutedLight;
 
     return DropRegion(
       formats: Formats.standardFormats,
@@ -190,7 +215,7 @@ class _DropZoneState extends State<DropZone> {
         duration: const Duration(milliseconds: 180),
         decoration: BoxDecoration(
           color: surface,
-          borderRadius: BorderRadius.circular(PdflowSpacing.radiusDropzone),
+          borderRadius: BorderRadius.circular(MarkitSpacing.radiusDropzone),
           border: Border.all(
             color: _dragActive
                 ? Theme.of(context).colorScheme.primary
@@ -208,8 +233,8 @@ class _DropZoneState extends State<DropZone> {
               : null,
         ),
         padding: EdgeInsets.symmetric(
-          horizontal: widget.compact ? PdflowSpacing.lg : PdflowSpacing.xxxl,
-          vertical: widget.compact ? PdflowSpacing.xl : PdflowSpacing.xxxl * 1.4,
+          horizontal: widget.compact ? MarkitSpacing.lg : MarkitSpacing.xxxl,
+          vertical: widget.compact ? MarkitSpacing.xl : MarkitSpacing.xxxl * 1.4,
         ),
         child: widget.compact
             ? _compactContent(inkMuted)
@@ -218,7 +243,7 @@ class _DropZoneState extends State<DropZone> {
     );
   }
 
-  /// Versi ringkas (sidebar): ikon + instruksi singkat + tombol.
+  /// Compact version (sidebar): icon + short instructions + button.
   Widget _compactContent(Color inkMuted) {
     return Column(
       mainAxisSize: MainAxisSize.min,
@@ -228,12 +253,12 @@ class _DropZoneState extends State<DropZone> {
           size: 30,
           color: Theme.of(context).colorScheme.primary,
         ),
-        const SizedBox(height: PdflowSpacing.md),
+        const SizedBox(height: MarkitSpacing.md),
         Text(
           _dragActive ? Strings.dropHere : Strings.dropCompact,
           textAlign: TextAlign.center,
           style: const TextStyle(
-            fontFamily: PdflowTypography.ui,
+            fontFamily: MarkitTypography.ui,
             fontSize: 14,
             height: 1.35,
             fontWeight: FontWeight.w600,
@@ -245,7 +270,7 @@ class _DropZoneState extends State<DropZone> {
           textAlign: TextAlign.center,
           style: TextStyle(fontSize: 11.5, color: inkMuted),
         ),
-        const SizedBox(height: PdflowSpacing.lg),
+        const SizedBox(height: MarkitSpacing.lg),
         FilledButton.icon(
           onPressed: _pick,
           icon: const Icon(Icons.folder_open, size: 17),
@@ -255,44 +280,44 @@ class _DropZoneState extends State<DropZone> {
     );
   }
 
-  /// Versi penuh (hero empty state): sheet stack + headline + fitur.
+  /// Full version (hero empty state): sheet stack + headline + features.
   Widget _fullContent(Color inkMuted, bool isDark) {
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
         const _SheetStack(),
-        const SizedBox(height: PdflowSpacing.xl),
+        const SizedBox(height: MarkitSpacing.xl),
         Icon(
           Icons.picture_as_pdf_outlined,
           size: 40,
           color: Theme.of(context).colorScheme.primary,
         ),
-        const SizedBox(height: PdflowSpacing.lg),
+        const SizedBox(height: MarkitSpacing.lg),
         Text(
           _dragActive ? Strings.dropHere : Strings.heroHeadline,
           textAlign: TextAlign.center,
           style: TextStyle(
-            fontFamily: PdflowTypography.display,
+            fontFamily: MarkitTypography.display,
             fontSize: 30,
             height: 1.15,
             fontWeight: FontWeight.w600,
             fontVariations: const [FontVariation('opsz', 36)],
-            color: isDark ? PdflowColors.inkDark : PdflowColors.inkLight,
+            color: isDark ? MarkitColors.inkDark : MarkitColors.inkLight,
           ),
         ),
-        const SizedBox(height: PdflowSpacing.md),
+        const SizedBox(height: MarkitSpacing.md),
         Text(
           Strings.heroSub,
           textAlign: TextAlign.center,
           style: TextStyle(color: inkMuted),
         ),
-        const SizedBox(height: PdflowSpacing.xl),
+        const SizedBox(height: MarkitSpacing.xl),
         FilledButton.icon(
           onPressed: _pick,
           icon: const Icon(Icons.folder_open, size: 18),
           label: const Text(Strings.pickFile),
         ),
-        const SizedBox(height: PdflowSpacing.md),
+        const SizedBox(height: MarkitSpacing.md),
         Text(
           Strings.dropSub,
           style: TextStyle(
@@ -306,15 +331,15 @@ class _DropZoneState extends State<DropZone> {
   }
 }
 
-/// Motif tumpukan lembaran (sheet stack) — signature empty state.
+/// Sheet stack motif — signature empty state.
 class _SheetStack extends StatelessWidget {
   const _SheetStack();
 
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final edge = isDark ? PdflowColors.sheetEdgeDark : PdflowColors.sheetEdgeLight;
-    final surface = isDark ? PdflowColors.surfaceDark : PdflowColors.surfaceLight;
+    final edge = isDark ? MarkitColors.sheetEdgeDark : MarkitColors.sheetEdgeLight;
+    final surface = isDark ? MarkitColors.surfaceDark : MarkitColors.surfaceLight;
 
     return SizedBox(
       width: 120,

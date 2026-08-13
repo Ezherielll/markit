@@ -1,9 +1,11 @@
 import 'dart:async';
 import 'dart:io';
 
+import 'package:file_selector/file_selector.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:markit/i18n/strings.dart';
+import 'package:markit/ui/frame_coalescer.dart';
 import 'package:markit/ui/screens/about_screen.dart';
 import 'package:markit/ui/theme/palette.dart';
 import 'package:markit/ui/theme/spacing.dart';
@@ -14,12 +16,13 @@ import 'package:markit/ui/widgets/left_panel.dart';
 import 'package:markit/ui/widgets/drop_zone.dart';
 import 'package:markit/ui/download_text.dart';
 
+import '../../core/output_mover.dart';
 import '../../isolate/conversion_controller.dart';
 import '../../theme/theme_controller.dart';
 
-/// Layar utama — layout desktop dua panel:
-/// kiri = workspace (upload/queue/status/aksi), kanan = document viewer.
-/// Responsive: < 900px panel menumpuk.
+/// Main screen — two-panel desktop layout:
+/// left = workspace (upload/queue/status/actions), right = document viewer.
+/// Responsive: < 900px panels stack.
 class HomeScreen extends StatefulWidget {
   const HomeScreen({
     super.key,
@@ -37,20 +40,24 @@ class HomeScreen extends StatefulWidget {
 class _HomeScreenState extends State<HomeScreen> {
   DateTime? _startTime;
   Timer? _ticker;
-  bool _overwriteConfirmed = false;
   String? _selectedJobId;
   late final ThemeController _theme =
       widget.themeController ?? ThemeController();
+  // Coalesced rebuilds: high-frequency controller notifications
+  // trigger at most one setState per frame.
+  late final FrameCoalescer _rebuilds =
+      FrameCoalescer(onFrame: _flushControllerChanged);
 
   @override
   void initState() {
     super.initState();
-    widget.controller.addListener(_onControllerChanged);
+    widget.controller.addListener(_rebuilds.schedule);
   }
 
   @override
   void dispose() {
-    widget.controller.removeListener(_onControllerChanged);
+    widget.controller.removeListener(_rebuilds.schedule);
+    _rebuilds.dispose();
     _ticker?.cancel();
     super.dispose();
   }
@@ -59,50 +66,137 @@ class _HomeScreenState extends State<HomeScreen> {
     final controller = widget.controller;
     if (controller.queue.isEmpty) return;
 
-    // Konfirmasi overwrite sekali per batch (FR-12) — hanya desktop;
-    // di web output selalu di memory (tidak ada filesystem).
-    if (!kIsWeb && !_overwriteConfirmed) {
-      final conflicts = <String>[];
-      for (final job in controller.queue) {
-        if (await File(job.outputPath).exists()) {
-          conflicts.add(job.outputPath);
-        }
+    _startConversion();
+    var convertFailed = false;
+    try {
+      await controller.convertAll();
+    } catch (_) {
+      // convertAll should not throw (per-job failure handled by controller),
+      // but if it occurs: proceed to save.
+      convertFailed = true;
+    } finally {
+      // If convertAll throws, save is STILL offered — successful jobs
+      // can be saved independently even if batch ends abnormally.
+      if (!kIsWeb && mounted && convertFailed) {
+        await _offerMoveOutputs(controller);
+        // Discard unselected temp files.
+        await controller.cleanupTempOutputs();
       }
-      if (conflicts.isNotEmpty && mounted) {
-        final proceed = await showDialog<bool>(
-          context: context,
-          builder: (ctx) => AlertDialog(
-            title: const Text(Strings.overwriteTitle),
-            content: Text(Strings.overwriteBody
-                .replaceFirst('%d', '${conflicts.length}')),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.pop(ctx, false),
-                child: const Text(Strings.cancel),
-              ),
-              FilledButton(
-                onPressed: () => Navigator.pop(ctx, true),
-                child: const Text(Strings.overwriteConfirm),
-              ),
-            ],
-          ),
-        );
-        if (proceed != true || !mounted) return;
-      }
-      _overwriteConfirmed = true;
+    }
+  }
+
+  /// Save button in sidebar → choose destination folder for .md outputs (desktop).
+  Future<void> _onSaveOutput() async {
+    if (!mounted) return;
+    final controller = widget.controller;
+    await _offerMoveOutputs(controller);
+    // Completed (saved or cancelled): unselected temp files discarded.
+    await controller.cleanupTempOutputs();
+  }
+
+  /// Offer moving successful .md outputs to user-selected folder.
+  /// Cancel dialog → temp files discarded (not saved automatically).
+  Future<void> _offerMoveOutputs(ConversionController controller) async {
+    final done = await _doneJobsWithOutput(controller);
+    if (done.isEmpty || !mounted) return;
+
+    final directory = await _pickOutputDirectory();
+    if (directory == null || !mounted) {
+      if (mounted) _showMoveSnack(0, null);
+      return;
     }
 
+    final plan = planOutputMoves([
+      for (final job in done) (job.outputPath, job.input.outputName),
+    ], directory);
+
+    final overwrite = await _resolveMoveOverwrite(plan);
+    if (!mounted) return;
+
+    final applied = await applyOutputMoves(plan, overwrite: overwrite);
+    final movedByFrom = {for (final (from, to) in applied) from: to};
+    for (final job in done) {
+      final target = movedByFrom[job.outputPath];
+      if (target != null) job.outputPath = target;
+    }
+    if (!mounted) return;
+    _showMoveSnack(applied.length, directory);
+  }
+
+  /// Open folder picker dialog. If plugin fails (e.g. test environment),
+  /// treat same as cancel.
+  Future<String?> _pickOutputDirectory() async {
+    try {
+      return await getDirectoryPath(
+          confirmButtonText: Strings.chooseOutputFolder);
+    } catch (_) {
+      return null;
+    }
+  }
+
+  /// Decide overwrite when target conflict exists in destination folder.
+  Future<bool> _resolveMoveOverwrite(OutputMovePlan plan) async {
+    if (!plan.hasConflicts || !mounted) return false;
+    return _confirmMoveOverwrite(plan.conflicts.length);
+  }
+
+  /// SnackBar showing move results (or "not saved" info).
+  void _showMoveSnack(int movedCount, String? directory) {
+    final message = movedCount == 0 || directory == null
+        ? Strings.outputNotSaved
+        : Strings.outputSavedTo
+            .replaceFirst('%d', '$movedCount')
+            .replaceFirst('%s', directory);
+    ScaffoldMessenger.of(context)
+        .showSnackBar(SnackBar(content: Text(message)));
+  }
+
+  /// Completed jobs whose output file exists (temp batch) — failed jobs
+  /// or cleaned up files excluded.
+  Future<List<QueuedFile>> _doneJobsWithOutput(
+    ConversionController controller,
+  ) async {
+    final done = <QueuedFile>[];
+    for (final job in controller.queue) {
+      if (job.status != JobStatus.done) continue;
+      if (await File(job.outputPath).exists()) done.add(job);
+    }
+    return done;
+  }
+
+  /// Overwrite confirmation dialog for destination targets.
+  Future<bool> _confirmMoveOverwrite(int count) async {
+    final proceed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text(Strings.overwriteTitle),
+        content: Text(Strings.moveConflictsBody.replaceFirst('%d', '$count')),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text(Strings.cancel),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text(Strings.overwriteConfirm),
+          ),
+        ],
+      ),
+    );
+    return proceed == true;
+  }
+
+  /// Start UI refresh ticker + record conversion start time.
+  void _startConversion() {
     _startTime = DateTime.now();
     _ticker?.cancel();
     _ticker = Timer.periodic(const Duration(milliseconds: 250), (_) {
-      if (mounted) setState(() {});
+      if (mounted) _rebuilds.schedule();
     });
-    await controller.convertAll();
   }
 
   void _reset() {
     _ticker?.cancel();
-    _overwriteConfirmed = false;
     _selectedJobId = null;
     widget.controller.reset();
   }
@@ -119,13 +213,14 @@ class _HomeScreenState extends State<HomeScreen> {
     widget.controller.addFiles(inputs);
   }
 
-  void _onControllerChanged() {
+  /// Flush coalesced controller changes: at most once per frame.
+  void _flushControllerChanged() {
     if (!mounted) return;
     setState(() {
       if (!widget.controller.isRunning) {
         _ticker?.cancel();
       }
-      // Auto-select dokumen done pertama bila belum ada pilihan.
+      // Auto-select first done document if none selected.
       final queue = widget.controller.queue;
       if (_selectedJobId == null) {
         final firstDone = queue.where((f) => f.status == JobStatus.done);
@@ -152,7 +247,7 @@ class _HomeScreenState extends State<HomeScreen> {
     final c = widget.controller;
     final running = c.queue.where((f) => f.status == JobStatus.running);
     if (running.isEmpty) return null;
-    // Agregat: rata-rata progress job running (per-job progress di kartu).
+    // Aggregate: average progress of running jobs.
     final fractions = running
         .map((j) => j.progressFraction)
         .whereType<double>()
@@ -214,6 +309,7 @@ class _HomeScreenState extends State<HomeScreen> {
                       controller: c,
                       onAddMore: _addMoreFiles,
                       onConvertAll: _convertAll,
+                      onSaveOutput: _onSaveOutput,
                       onClear: _reset,
                       onRemove: c.removeFile,
                       onSelect: (job) =>
@@ -230,8 +326,7 @@ class _HomeScreenState extends State<HomeScreen> {
                     );
 
                     if (wide) {
-                      // Workspace kiri (dominant, ~75%) + sidebar kanan
-                      // (panel utilitas ~25%) — reading flow kiri→kanan.
+                      // Wide layout: left viewer + right sidebar
                       return Row(
                         crossAxisAlignment: CrossAxisAlignment.stretch,
                         children: [
@@ -240,8 +335,7 @@ class _HomeScreenState extends State<HomeScreen> {
                         ],
                       );
                     }
-                    // Layar sempit: workspace atas (dominant), sidebar bawah
-                    // sebagai drawer utilitas yang tetap mengalir.
+                    // Narrow screen: top viewer + bottom sidebar
                     return Column(
                       crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: [
@@ -257,10 +351,10 @@ class _HomeScreenState extends State<HomeScreen> {
               ),
             ],
           ),
-          // Status pill floating di sudut kiri bawah.
+          // Floating status pill in bottom-left corner.
           Positioned(
-            left: PdflowSpacing.lg,
-            bottom: PdflowSpacing.lg,
+            left: MarkitSpacing.lg,
+            bottom: MarkitSpacing.lg,
             child: StatusPill(controller: c),
           ),
         ],
@@ -268,17 +362,16 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  /// Sidebar sebagai panel utilitas: border kiri halus + shadow lembut,
-  /// bukan divider keras — terasa attached, bukan halaman terpisah.
+  /// Sidebar utility panel: subtle left border + soft shadow.
   Widget sidebarPanel(Widget child) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final hairline = isDark ? PdflowColors.hairlineDark : PdflowColors.hairlineLight;
+    final hairline = isDark ? MarkitColors.hairlineDark : MarkitColors.hairlineLight;
     return DecoratedBox(
       decoration: BoxDecoration(
         border: Border(left: BorderSide(color: hairline)),
         boxShadow: [
           BoxShadow(
-            color: (isDark ? PdflowColors.inkDark : PdflowColors.inkLight)
+            color: (isDark ? MarkitColors.inkDark : MarkitColors.inkLight)
                 .withValues(alpha: isDark ? 0.10 : 0.04),
             blurRadius: 10,
             offset: const Offset(-2, 0),

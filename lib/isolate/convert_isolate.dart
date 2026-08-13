@@ -9,19 +9,19 @@ import '../core/output.dart';
 import '../core/pdfrx_source.dart';
 import 'messages.dart';
 
-/// Entry point worker isolate (PERSISTEN — melayani banyak job dalam batch).
+/// Entry point for persistent worker isolate (serves multiple jobs in a batch).
 ///
-/// Protokol:
-/// 1. main spawn isolate, kirim `SendPort` worker sebagai argumen spawn.
-/// 2. worker balas dengan SendPort command-nya.
-/// 3. main kirim [StartConvert] per file; worker balas dengan SendPort cancel
-///    (sekali saja, sebelum job pertama) lalu [ConvertProgress]/[ConvertDone]/
+/// Protocol:
+/// 1. main spawns isolate, sends worker `SendPort` as spawn argument.
+/// 2. worker replies with its command SendPort.
+/// 3. main sends [StartConvert] per file; worker replies with cancel SendPort
+///    (once, before first job) then [ConvertProgress]/[ConvertDone]/
 ///    [ConvertFailed] per job.
-/// 4. batal lewat [CancelRequest] pada cancel port; selesai batch via [Shutdown].
+/// 4. cancellation via [CancelRequest] on cancel port; completion via [Shutdown].
 ///
-/// Satu worker dipakai untuk SEMUA job — pdfrx membuat internal
-/// PdfrxEngineWorker per isolate; spawn/teardown berulang-ulang terbukti
-/// crash ("Cannot invoke native callback from a different isolate").
+/// A single worker is reused for ALL jobs — pdfrx creates an internal
+/// PdfrxEngineWorker per isolate; repeatedly spawning/teardown causes
+/// crashes ("Cannot invoke native callback from a different isolate").
 void convertIsolateMain(SendPort mainPort) {
   final commandPort = ReceivePort();
   mainPort.send(commandPort.sendPort);
@@ -63,8 +63,8 @@ Future<void> _runJob(
   }
 }
 
-/// Jalur PDF: pipeline heuristic existing (PdfrxSource → grouper → classifier),
-/// streaming via path (hemat memori).
+/// PDF path: existing heuristic pipeline (PdfrxSource → grouper → classifier),
+/// streaming via path (memory efficient).
 Future<void> _runPdf(
   SendPort mainPort,
   StartConvert start,
@@ -74,7 +74,7 @@ Future<void> _runPdf(
   try {
     final source = await PdfrxSource.open(start.pdfPath);
     try {
-      // Phase 1 (reading): histogram — page 0 sebagai penanda.
+      // Phase 1 (reading): histogram — page 0 marker.
       mainPort.send(ConvertProgress(
         jobId: start.jobId,
         page: 0,
@@ -102,12 +102,12 @@ Future<void> _runPdf(
         pageCount: result.pageCount,
         failedPages: result.failedPages.map((p) => p + 1).toList(),
         elapsedMs: result.elapsed.inMilliseconds,
-        bodyFontSize: result.stats.bodyFontSize,
-        emptyPages: result.stats.emptyPages,
+        bodyFontSize: result.profile.bodyFontSize,
+        emptyPages: result.profile.emptyPages,
       ));
     } finally {
-      // WAJIB: tutup document sebelum job berikutnya — handle native PDFium
-      // per-job harus dibebaskan.
+      // REQUIRED: close document before next job — per-job native PDFium handle
+      // must be freed.
       await source.dispose();
     }
   } on ConvertException catch (e) {
@@ -120,12 +120,12 @@ Future<void> _runPdf(
     mainPort.send(ConvertFailed(
       jobId: start.jobId,
       errorType: ConvertError.corrupt.name,
-      message: 'Kesalahan tak terduga: $e',
+      message: 'Unexpected error: $e',
     ));
   }
 }
 
-/// Jalur semantic (non-PDF): extractor pure Dart → markdown streaming.
+/// Semantic path (non-PDF): pure Dart extractor → markdown streaming.
 Future<void> _runSemantic(
   SendPort mainPort,
   StartConvert start,
@@ -139,7 +139,7 @@ Future<void> _runSemantic(
       mainPort.send(ConvertFailed(
         jobId: start.jobId,
         errorType: 'unsupported',
-        message: 'Format ${format.label} belum didukung (roadmap Fase 2–3).',
+        message: 'Format ${format.label} is not yet supported for conversion.',
       ));
       return;
     }
@@ -187,7 +187,7 @@ Future<void> _runSemantic(
     mainPort.send(ConvertFailed(
       jobId: start.jobId,
       errorType: ConvertError.corrupt.name,
-      message: 'Kesalahan tak terduga: $e',
+      message: 'Unexpected error: $e',
     ));
   }
 }

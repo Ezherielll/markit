@@ -4,16 +4,18 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:irondash_message_channel/irondash_message_channel.dart';
+import 'package:markit/core/input_format.dart';
 import 'package:markit/i18n/strings.dart';
 import 'package:markit/isolate/conversion_controller.dart';
 import 'package:markit/models/pdf_input.dart';
 import 'package:markit/ui/screens/about_screen.dart';
 import 'package:markit/ui/screens/home_screen.dart';
 import 'package:markit/ui/theme/markit_theme.dart';
+import 'package:markit/ui/widgets/document_viewer.dart';
 // ignore: implementation_imports
 import 'package:super_native_extensions/src/native/context.dart' as sne;
 
-/// Fake controller selesai-siap: file langsung done + content md.
+/// Ready-done fake controller: files are immediately done + md content.
 class ShotController extends ConversionController {
   final List<QueuedFile> _queue = [];
 
@@ -76,6 +78,9 @@ class ShotController extends ConversionController {
 
   @override
   Future<void> shutdown() async {}
+
+  @override
+  Future<void> cleanupTempOutputs() async {}
 }
 
 Future<void> _loadFonts() async {
@@ -100,15 +105,15 @@ Future<void> _pumpApp(
   tester.view.devicePixelRatio = 2.0;
   addTearDown(tester.view.reset);
   await tester.pumpWidget(MaterialApp(
-    theme: PdflowTheme.light(),
+    theme: MarkitTheme.light(),
     home: home,
   ));
   await tester.pumpAndSettle();
 }
 
 void main() {
-  // super_drag_and_drop (DropRegion) butuh plugin native via irondash
-  // engine context — di widget test tidak ada; stub channel-nya.
+  // super_drag_and_drop (DropRegion) requires native plugin via irondash
+  // engine context — not present in widget tests; stub channel.
   TestWidgetsFlutterBinding.ensureInitialized();
   setUp(() {
     TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
@@ -138,7 +143,7 @@ void main() {
     );
   });
 
-  testWidgets('golden: hasil konversi (done)', (tester) async {
+  testWidgets('golden: conversion result (done)', (tester) async {
     await _loadFonts();
     final controller = ShotController();
     final tmp = Directory.systemTemp.createTempSync('markit_shot_golden');
@@ -172,13 +177,62 @@ void main() {
     );
   });
 
-  testWidgets('golden: halaman about', (tester) async {
+  testWidgets('golden: about screen', (tester) async {
     await _loadFonts();
     await _pumpApp(tester, const AboutScreen());
     expect(find.text(Strings.aboutTitle), findsOneWidget);
     await expectLater(
       find.byType(AboutScreen),
       matchesGoldenFile('goldens/about.png'),
+    );
+  });
+
+  testWidgets('golden: source mode (queued CSV)', (tester) async {
+    await _loadFonts();
+    final tmp = Directory.systemTemp.createTempSync('markit_shot_source');
+    addTearDown(() {
+      for (var i = 0; i < 5; i++) {
+        try {
+          tmp.deleteSync(recursive: true);
+          break;
+        } on FileSystemException {
+          sleep(const Duration(milliseconds: 200));
+        }
+      }
+    });
+    final txt = '${tmp.path}/notes.csv';
+    File(txt).writeAsStringSync(
+      '# Catatan rapat\n\n'
+      '- Agenda & target\n'
+      '- Anggaran kuartal\n\n'
+      'Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do '
+      'eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim '
+      'ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut '
+      'aliquip ex ea commodo consequat.\n',
+    );
+    final job = QueuedFile(
+      id: 'src1',
+      input: PdfInput(
+        name: 'notes.csv',
+        path: txt,
+        format: InputFormat.csv,
+      ),
+      status: JobStatus.queued,
+    );
+    tester.view.physicalSize = const Size(1440, 900) * 2;
+    tester.view.devicePixelRatio = 2.0;
+    addTearDown(tester.view.reset);
+    await tester.pumpWidget(MaterialApp(
+      theme: MarkitTheme.light(),
+      home: Scaffold(body: DocumentViewer(job: job)),
+    ));
+    await tester.runAsync(() async {
+      await Future<void>.delayed(const Duration(milliseconds: 300));
+      await tester.pump();
+    });
+    await expectLater(
+      find.byType(DocumentViewer),
+      matchesGoldenFile('goldens/source_view.png'),
     );
   });
 }

@@ -5,34 +5,17 @@ import 'package:flutter_markdown_plus/flutter_markdown_plus.dart';
 import 'package:markit/ui/theme/palette.dart';
 import 'package:markit/ui/theme/typography.dart';
 
-/// Potong konten untuk preview — memotong di batas baris agar markdown tetap
-/// valid. Return (preview, apakah terpotong).
-({String preview, bool truncated}) truncateMarkdownPreview(
-  String content, {
-  required int maxChars,
-}) {
-  if (content.length <= maxChars) {
-    return (preview: content, truncated: false);
-  }
-  var cut = content.lastIndexOf('\n', maxChars);
-  if (cut <= 0) cut = maxChars;
-  // Potong di akhir baris (termasuk newline) agar baris terakhir utuh.
-  if (cut < content.length && content[cut] == '\n') cut++;
-  return (
-    preview: content.substring(0, cut),
-    truncated: true,
-  );
-}
+export 'package:markit/core/text_truncate.dart' show truncateMarkdownPreview;
 
-/// Penghitung struktur markdown sederhana (heading/paragraf/list/tabel).
-/// Baris di dalam fenced code block (` ``` `) TIDAK dihitung — itu konten
-/// data (JSON/XML), bukan paragraf dokumen.
+/// Simple markdown structure counter (headings/paragraphs/list items/table rows).
+/// Lines inside fenced code blocks (` ``` `) are NOT counted — that's data
+/// content (JSON/XML), not document paragraphs.
 class MdStats {
   int headings = 0;
   int paragraphs = 0;
   int listItems = 0;
 
-  /// Baris tabel markdown (`| … |`) — ditampilkan sebagai "rows".
+  /// Markdown table rows (`| … |`) — displayed as "rows".
   int tableRows = 0;
   bool _inParagraph = false;
   bool _inCodeBlock = false;
@@ -71,18 +54,18 @@ MdStats computeMdStats(String content) {
   return stats;
 }
 
-/// Style sheet markdown "document reader" — tipografi editorial yang nyaman
-/// dibaca (Notion/Obsidian-like): serif display untuk heading, body legible.
+/// "Document reader" markdown style sheet — editorial typography for comfortable
+/// reading (Notion/Obsidian-like): serif display headings, legible body.
 MarkdownStyleSheet documentMarkdownStyle(BuildContext context) {
   final isDark = Theme.of(context).brightness == Brightness.dark;
-  final ink = isDark ? PdflowColors.inkDark : PdflowColors.inkLight;
-  final inkMuted = isDark ? PdflowColors.inkMutedDark : PdflowColors.inkMutedLight;
+  final ink = isDark ? MarkitColors.inkDark : MarkitColors.inkLight;
+  final inkMuted = isDark ? MarkitColors.inkMutedDark : MarkitColors.inkMutedLight;
   final primary = Theme.of(context).colorScheme.primary;
   final base = MarkdownStyleSheet.fromTheme(Theme.of(context));
 
   return base.copyWith(
     h1: TextStyle(
-      fontFamily: PdflowTypography.display,
+      fontFamily: MarkitTypography.display,
       fontSize: 26,
       height: 1.2,
       fontWeight: FontWeight.w600,
@@ -90,7 +73,7 @@ MarkdownStyleSheet documentMarkdownStyle(BuildContext context) {
       color: ink,
     ),
     h2: TextStyle(
-      fontFamily: PdflowTypography.display,
+      fontFamily: MarkitTypography.display,
       fontSize: 21,
       height: 1.25,
       fontWeight: FontWeight.w600,
@@ -98,28 +81,28 @@ MarkdownStyleSheet documentMarkdownStyle(BuildContext context) {
       color: ink,
     ),
     h3: TextStyle(
-      fontFamily: PdflowTypography.display,
+      fontFamily: MarkitTypography.display,
       fontSize: 17,
       height: 1.3,
       fontWeight: FontWeight.w600,
       color: ink,
     ),
     h4: TextStyle(
-      fontFamily: PdflowTypography.ui,
+      fontFamily: MarkitTypography.ui,
       fontSize: 15,
       height: 1.35,
       fontWeight: FontWeight.w600,
       color: ink,
     ),
     p: const TextStyle(
-      fontFamily: PdflowTypography.ui,
+      fontFamily: MarkitTypography.ui,
       fontSize: 14.5,
       height: 1.7,
       letterSpacing: 0.1,
     ),
     listBullet: TextStyle(fontSize: 14.5, height: 1.7, color: inkMuted),
     blockquote: TextStyle(
-      fontFamily: PdflowTypography.ui,
+      fontFamily: MarkitTypography.ui,
       fontSize: 14.5,
       height: 1.7,
       fontStyle: FontStyle.italic,
@@ -130,7 +113,7 @@ MarkdownStyleSheet documentMarkdownStyle(BuildContext context) {
       color: primary.withValues(alpha: 0.05),
     ),
     code: TextStyle(
-      fontFamily: PdflowTypography.mono,
+      fontFamily: MarkitTypography.mono,
       fontSize: 12.5,
       height: 1.5,
       color: primary,
@@ -141,21 +124,21 @@ MarkdownStyleSheet documentMarkdownStyle(BuildContext context) {
       borderRadius: BorderRadius.circular(8),
     ),
     tableHead: TextStyle(
-      fontFamily: PdflowTypography.ui,
+      fontFamily: MarkitTypography.ui,
       fontSize: 13,
       fontWeight: FontWeight.w600,
       color: ink,
     ),
     tableHeadAlign: TextAlign.left,
-    // Max(Intrinsic, Flex): tabel sempit tetap mengisi lebar (flex), tabel
-    // lebar (CSV banyak kolom) → Intrinsic → horizontal scroll muncul,
-    // bukan cell dipaksa rapat/terpotong (plan M1).
+    // Max(Intrinsic, Flex): narrow tables fill width (flex), wide
+    // tables (many-column CSV) → Intrinsic → horizontal scrollbar appears,
+    // cells not forced tight/clipped.
     tableColumnWidth: MaxColumnWidth(
       IntrinsicColumnWidth(),
       FlexColumnWidth(),
     ),
     tableBody: TextStyle(
-      fontFamily: PdflowTypography.ui,
+      fontFamily: MarkitTypography.ui,
       fontSize: 13,
       height: 1.5,
       color: ink,
@@ -165,7 +148,7 @@ MarkdownStyleSheet documentMarkdownStyle(BuildContext context) {
     horizontalRuleDecoration: BoxDecoration(
       border: Border(
         top: BorderSide(
-          color: isDark ? PdflowColors.hairlineDark : PdflowColors.hairlineLight,
+          color: isDark ? MarkitColors.hairlineDark : MarkitColors.hairlineLight,
         ),
       ),
     ),

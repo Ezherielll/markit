@@ -4,8 +4,8 @@ import 'palette.dart';
 import 'spacing.dart';
 import 'typography.dart';
 
-/// Tema "Document Studio" — light & dark, dibangun di atas Material 3.
-abstract final class PdflowTheme {
+/// "Document Studio" theme — light & dark, built on Material 3.
+abstract final class MarkitTheme {
   static ThemeData light() => _build(Brightness.light);
   static ThemeData dark() => _build(Brightness.dark);
 
@@ -13,49 +13,49 @@ abstract final class PdflowTheme {
     final isLight = brightness == Brightness.light;
     final scheme = isLight
         ? const ColorScheme.light(
-            primary: PdflowColors.penBlueLight,
+            primary: MarkitColors.penBlueLight,
             onPrimary: Colors.white,
-            surface: PdflowColors.surfaceLight,
-            onSurface: PdflowColors.inkLight,
-            surfaceContainerHighest: PdflowColors.paperLight,
-            onSurfaceVariant: PdflowColors.inkMutedLight,
-            error: PdflowColors.stampRedLight,
-            outline: PdflowColors.hairlineLight,
+            surface: MarkitColors.surfaceLight,
+            onSurface: MarkitColors.inkLight,
+            surfaceContainerHighest: MarkitColors.paperLight,
+            onSurfaceVariant: MarkitColors.inkMutedLight,
+            error: MarkitColors.stampRedLight,
+            outline: MarkitColors.hairlineLight,
           )
         : const ColorScheme.dark(
-            primary: PdflowColors.penBlueDark,
-            onPrimary: PdflowColors.inkDark,
-            surface: PdflowColors.surfaceDark,
-            onSurface: PdflowColors.inkDark,
-            surfaceContainerHighest: PdflowColors.surfaceRaisedDark,
-            onSurfaceVariant: PdflowColors.inkMutedDark,
-            error: PdflowColors.stampRedDark,
-            outline: PdflowColors.hairlineDark,
+            primary: MarkitColors.penBlueDark,
+            onPrimary: MarkitColors.inkDark,
+            surface: MarkitColors.surfaceDark,
+            onSurface: MarkitColors.inkDark,
+            surfaceContainerHighest: MarkitColors.surfaceRaisedDark,
+            onSurfaceVariant: MarkitColors.inkMutedDark,
+            error: MarkitColors.stampRedDark,
+            outline: MarkitColors.hairlineDark,
           );
 
-    final ink = isLight ? PdflowColors.inkLight : PdflowColors.inkDark;
-    final inkMuted = isLight ? PdflowColors.inkMutedLight : PdflowColors.inkMutedDark;
-    final paper = isLight ? PdflowColors.paperLight : PdflowColors.paperDark;
-    final hairline = isLight ? PdflowColors.hairlineLight : PdflowColors.hairlineDark;
+    final ink = isLight ? MarkitColors.inkLight : MarkitColors.inkDark;
+    final inkMuted = isLight ? MarkitColors.inkMutedLight : MarkitColors.inkMutedDark;
+    final paper = isLight ? MarkitColors.paperLight : MarkitColors.paperDark;
+    final hairline = isLight ? MarkitColors.hairlineLight : MarkitColors.hairlineDark;
 
     return ThemeData(
       useMaterial3: true,
       brightness: brightness,
       colorScheme: scheme,
       scaffoldBackgroundColor: paper,
-      fontFamily: PdflowTypography.ui,
-      textTheme: PdflowTypography.textTheme(ink, inkMuted),
+      fontFamily: MarkitTypography.ui,
+      textTheme: MarkitTypography.textTheme(ink, inkMuted),
       dividerColor: hairline,
       splashFactory: InkRipple.splashFactory,
       filledButtonTheme: FilledButtonThemeData(
         style: FilledButton.styleFrom(
           minimumSize: const Size(0, 44),
-          padding: const EdgeInsets.symmetric(horizontal: PdflowSpacing.xl),
+          padding: const EdgeInsets.symmetric(horizontal: MarkitSpacing.xl),
           shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(PdflowSpacing.radiusCard),
+            borderRadius: BorderRadius.circular(MarkitSpacing.radiusCard),
           ),
           textStyle: const TextStyle(
-            fontFamily: PdflowTypography.ui,
+            fontFamily: MarkitTypography.ui,
             fontSize: 14,
             fontWeight: FontWeight.w600,
           ),
@@ -64,13 +64,13 @@ abstract final class PdflowTheme {
       outlinedButtonTheme: OutlinedButtonThemeData(
         style: OutlinedButton.styleFrom(
           minimumSize: const Size(0, 44),
-          padding: const EdgeInsets.symmetric(horizontal: PdflowSpacing.xl),
+          padding: const EdgeInsets.symmetric(horizontal: MarkitSpacing.xl),
           side: BorderSide(color: hairline),
           shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(PdflowSpacing.radiusCard),
+            borderRadius: BorderRadius.circular(MarkitSpacing.radiusCard),
           ),
           textStyle: const TextStyle(
-            fontFamily: PdflowTypography.ui,
+            fontFamily: MarkitTypography.ui,
             fontSize: 14,
             fontWeight: FontWeight.w600,
           ),
@@ -79,41 +79,41 @@ abstract final class PdflowTheme {
       textButtonTheme: TextButtonThemeData(
         style: TextButton.styleFrom(
           shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(PdflowSpacing.radiusChip),
+            borderRadius: BorderRadius.circular(MarkitSpacing.radiusChip),
           ),
         ),
       ),
       inputDecorationTheme: InputDecorationTheme(
         border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(PdflowSpacing.radiusCard),
+          borderRadius: BorderRadius.circular(MarkitSpacing.radiusCard),
           borderSide: BorderSide(color: hairline),
         ),
       ),
       dialogTheme: DialogThemeData(
         backgroundColor: isLight
-            ? PdflowColors.surfaceRaisedLight
-            : PdflowColors.surfaceRaisedDark,
+            ? MarkitColors.surfaceRaisedLight
+            : MarkitColors.surfaceRaisedDark,
         surfaceTintColor: Colors.transparent,
         shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(PdflowSpacing.radiusDropzone),
+          borderRadius: BorderRadius.circular(MarkitSpacing.radiusDropzone),
         ),
       ),
       cardTheme: const CardThemeData(
         elevation: 0,
         margin: EdgeInsets.zero,
         shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.all(Radius.circular(PdflowSpacing.radiusCard)),
+          borderRadius: BorderRadius.all(Radius.circular(MarkitSpacing.radiusCard)),
         ),
       ),
       snackBarTheme: SnackBarThemeData(
         behavior: SnackBarBehavior.floating,
-        backgroundColor: isLight ? PdflowColors.inkLight : PdflowColors.surfaceRaisedDark,
+        backgroundColor: isLight ? MarkitColors.inkLight : MarkitColors.surfaceRaisedDark,
         contentTextStyle: TextStyle(
-          color: isLight ? PdflowColors.paperLight : PdflowColors.inkDark,
-          fontFamily: PdflowTypography.ui,
+          color: isLight ? MarkitColors.paperLight : MarkitColors.inkDark,
+          fontFamily: MarkitTypography.ui,
         ),
         shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(PdflowSpacing.radiusCard),
+          borderRadius: BorderRadius.circular(MarkitSpacing.radiusCard),
         ),
       ),
       progressIndicatorTheme: ProgressIndicatorThemeData(

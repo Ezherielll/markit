@@ -41,7 +41,7 @@ void main() {
     // ignore: avoid_print
     print('--- generated markdown ---\n$md\n---');
     // ignore: avoid_print
-    print('--- stats: bodyFontSize=${result.stats.bodyFontSize}, empty=${result.stats.emptyPages} ---');
+    print('--- stats: bodyFontSize=${result.profile.bodyFontSize}, empty=${result.profile.emptyPages} ---');
 
     expect(md, contains('# The Quick Brown Fox'));
     expect(md, contains('This is the first paragraph of the sample document.'));
@@ -111,6 +111,217 @@ void main() {
 
     expect(result.failedPages, [1]);
     expect(File(outPath).existsSync(), isTrue);
+  });
+
+  group('Fase A: multi-level heading + ordered list end-to-end', () {
+    test('ordered list 1. 2. 3. → output "N. item" (bukan "-")', () async {
+      final src = await PdfrxSource.openData(buildTestPdf(pages: orderedListPages()));
+      final output = MemoryOutput();
+      await Converter().convert(source: src, output: output);
+      await src.dispose();
+
+      final md = output.content;
+      expect(md, contains('1. Buy apples'));
+      expect(md, contains('2. Buy bananas'));
+      expect(md, contains('4. Buy grapes'));
+      expect(md, contains('Remember to buy some grapes.'));
+      // Item ordered tidak boleh jadi bullet.
+      expect(md, isNot(contains('- Buy apples')));
+    });
+
+    test('nested headings → # / ## / ### sesuai level band', () async {
+      final src = await PdfrxSource.openData(buildTestPdf(pages: nestedHeadingsPages()));
+      final output = MemoryOutput();
+      await Converter().convert(source: src, output: output);
+      await src.dispose();
+
+      final md = output.content;
+      expect(md, contains('# Paper Overview and Goals'));
+      expect(md, contains('## Background and Related Work'));
+      expect(md, contains('### Motivation and Scope'));
+      expect(md, contains('### Approach and Design'));
+      expect(md, contains('## Implementation Details'));
+      expect(md, contains('# Appendix and References'));
+      // Body tidak boleh jadi heading.
+      expect(md, isNot(contains('## This paper presents')));
+    });
+
+    test('numbered sections → heading dengan numbering, level sesuai band', () async {
+      final src = await PdfrxSource.openData(buildTestPdf(pages: numberedSectionsPages()));
+      final output = MemoryOutput();
+      await Converter().convert(source: src, output: output);
+      await src.dispose();
+
+    final md = output.content;
+    expect(md, contains('# 1. Background and Scope'));
+    expect(md, contains('## 1.1 Related Papers'));
+    expect(md, contains('### 1.1.1 Comparison Approach'));
+    expect(md, contains('# 2. Experimental Setup'));
+    expect(md, contains('## 2.1 Evaluation Approach'));
+    expect(md, contains('### 2.1.2 Heading Scoring'));
+    });
+  });
+
+  group('Fase D: tabel campur paragraf (mixed table)', () {
+    test('mixed table: dua tabel dengan paragraf penyela di antara (Fase D)', () async {
+      final src = await PdfrxSource.openData(buildTestPdf(pages: mixedTablePages()));
+      final output = MemoryOutput();
+      await Converter().convert(source: src, output: output);
+      await src.dispose();
+
+      final md = output.content;
+      expect('| Name | Qty |'.allMatches(md), hasLength(1));
+      expect(md, contains('| Peaches | 10 |'));
+      expect(md, contains('A note about the table.'));
+      expect(md, contains('| Grapes | 20 |'));
+      expect(md, contains('| Apricots | 5 |'));
+      expect('| --- | --- |'.allMatches(md), hasLength(2));
+    });
+  });
+
+  group('Fase D: tabel lintas halaman', () {
+    test('header berulang di halaman 2 → baris data, satu tabel utuh', () async {
+      final src = await PdfrxSource.openData(buildTestPdf(pages: multiPageTablePages()));
+      final output = MemoryOutput();
+      await Converter().convert(source: src, output: output);
+      await src.dispose();
+
+      final md = output.content;
+      // Satu header saja
+      expect('| Name | Qty | Price |'.allMatches(md), hasLength(1));
+      expect('| --- | --- | --- |'.allMatches(md), hasLength(1));
+      // Semua baris data ada
+      expect(md, contains('| Peaches | 10 | 2.50 |'));
+      expect(md, contains('| Grapes | 20 | 1.75 |'));
+      expect(md, contains('| Apricots | 5 | 8.00 |'));
+      expect(md, contains('| Mangoes | 12 | 3.25 |'));
+    });
+
+    test('halaman 2 mulai tabel BARU (header berbeda) → header dipertahankan',
+        () async {
+      // Fixture: halaman 1 tabel 'Name | Qty | Price' berakhir tanpa penutup
+      // (baris terakhir masih tertahan → tabel terbuka); halaman 2 memulai
+      // tabel BARU yang sah dengan header berbeda ('SKU | Qty | Price').
+      // Geometri identik dengan multiPageTablePages (judul 20pt mem-bridge
+      // kolom; 3 kolom di x=72/200/260, spacing 22) — lebar sel header/baris
+      // disamakan agar variance gap antar-kolom lolos threshold TableDetector.
+      const cols = [72.0, 200.0, 260.0];
+      List<PdfTextItem> row(double y, (String, String, String) cells) => [
+            PdfTextItem(cells.$1, x: cols[0], y: y),
+            PdfTextItem(cells.$2, x: cols[1], y: y),
+            PdfTextItem(cells.$3, x: cols[2], y: y),
+          ];
+      final pages = [
+        PdfPageSpec([
+          PdfTextItem('Multi Page Inventory', fontSize: 20, x: 72, y: 715, bold: true),
+          ...row(700, ('Name', 'Qty', 'Price')),
+          ...row(678, ('Peaches', '10', '2.50')),
+          ...row(656, ('Grapes', '20', '1.75')),
+        ]),
+        PdfPageSpec([
+          // Tabel BARU yang sah — header-nya TIDAK boleh dibuang hanya karena
+          // tabel sebelumnya masih terbuka.
+          PdfTextItem('Multi Page Inventory', fontSize: 20, x: 72, y: 715, bold: true),
+          ...row(700, ('SKU', 'Qty', 'Price')),
+          ...row(678, ('Apples', '10', '2.50')),
+          ...row(656, ('Lemons', '20', '1.75')),
+        ]),
+      ];
+
+      final src = await PdfrxSource.openData(buildTestPdf(pages: pages));
+      final output = MemoryOutput();
+      await Converter().convert(source: src, output: output);
+      await src.dispose();
+
+      final md = output.content;
+      // Header tabel baru muncul (tidak ikut dibuang sebagai header berulang).
+      expect('| SKU | Qty | Price |'.allMatches(md), hasLength(1));
+      // Header tabel pertama tetap satu (halaman 1).
+      expect('| Name | Qty | Price |'.allMatches(md), hasLength(1));
+      // Baris kedua tabel tetap ada.
+      expect(md, contains('| Peaches | 10 | 2.50 |'));
+      expect(md, contains('| Grapes | 20 | 1.75 |'));
+      expect(md, contains('| Apples | 10 | 2.50 |'));
+      expect(md, contains('| Lemons | 20 | 1.75 |'));
+    });
+  });
+
+  group('Fase D: hiphenasi lintas halaman', () {
+    test("kata terpotong '-' di akhir halaman 1 digabung dengan halaman 2",
+        () async {
+      final src = await PdfrxSource.openData(buildTestPdf(pages: hyphenatedPages()));
+      final output = MemoryOutput();
+      await Converter().convert(source: src, output: output);
+      await src.dispose();
+
+      final md = output.content;
+      expect(md, contains('document continues here.'));
+      expect(md, isNot(contains('docu-')));
+      expect(md, isNot(contains('docu ment')));
+    });
+
+    test("pending paragraf tanpa '-' ditulis apa adanya di awal halaman berikutnya",
+        () async {
+      final src = await PdfrxSource.openData(buildTestPdf(pages: [
+        PdfPageSpec([
+          PdfTextItem('Plain ending paragraph.', y: 600),
+        ]),
+        PdfPageSpec([
+          PdfTextItem('Next page paragraph.', y: 600),
+        ]),
+      ]));
+      final output = MemoryOutput();
+      await Converter().convert(source: src, output: output);
+      await src.dispose();
+
+      final md = output.content;
+      expect(md, contains('Plain ending paragraph.'));
+      expect(md, contains('Next page paragraph.'));
+    });
+  });
+
+  group('Fase B: column + header/footer end-to-end', () {
+    test('header/footer spans tidak muncul di output (Fase B)', () async {
+      final src = await PdfrxSource.openData(buildTestPdf(pages: headerFooterPages()));
+      final output = MemoryOutput();
+      await Converter().convert(source: src, output: output);
+      await src.dispose();
+
+      final md = output.content;
+      // Header text tidak boleh muncul
+      expect(md.contains('Page 1 of 10'), isFalse); // nomor halaman di header
+      expect(md.contains('Chapter Title Header'), isFalse); // judul di header
+      expect(md.contains('University of Example'), isFalse); // footer
+      expect(md.contains('2024'), isFalse); // tahun di footer
+      // Body text harus muncul
+      expect(md.contains('Main content paragraph continues here.'), isTrue);
+      expect(md.contains('Second paragraph of content.'), isTrue);
+      expect(md.contains('Third paragraph here.'), isTrue);
+    });
+
+    test('2-column PDF: reading order kiri sebelum kanan (Fase B)', () async {
+      final src = await PdfrxSource.openData(buildTestPdf(pages: twoColumnPages()));
+      final output = MemoryOutput();
+      await Converter().convert(source: src, output: output);
+      await src.dispose();
+
+      final md = output.content;
+      final leftIdx = md.indexOf('Left column first paragraph');
+      final rightIdx = md.indexOf('Right column first paragraph');
+      // Kolom kiri harus muncul sebelum kolom kanan
+      expect(leftIdx, lessThan(rightIdx));
+      expect(leftIdx, isNot(-1));
+      expect(rightIdx, isNot(-1));
+      // Judul di atas segalanya
+      expect(md.indexOf('Two Column Paper'), lessThan(leftIdx));
+      // Baris tidak boleh tercampur antar kolom
+      expect(
+        md.contains(
+          'Left column first paragraph Right column first paragraph',
+        ),
+        isFalse,
+      );
+    });
   });
 }
 

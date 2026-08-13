@@ -7,16 +7,16 @@ import 'conversion_executor.dart';
 import 'convert_isolate.dart';
 import 'messages.dart';
 
-/// Eksekusi via worker isolate PERSIST (desktop).
+/// Execution via PERSISTENT worker isolate (desktop).
 ///
-/// pdfrx/PDFium tidak aman di-spawn/teardown berulang dalam satu proses
-/// ("Cannot invoke native callback from a different isolate") — satu worker
-/// dipakai untuk seluruh umur aplikasi; batch berikutnya reuse + ResetCancel.
+/// pdfrx/PDFium is not safe to repeatedly spawn/teardown in a single process
+/// ("Cannot invoke native callback from a different isolate") — one worker
+/// is used for the entire lifetime of the app; subsequent batches reuse + ResetCancel.
 class IsolateExecutor implements ConversionExecutor {
   IsolatePorts? _ports;
 
-  /// Job aktif (jobId → completer+progress). Routing concurrent: satu
-  /// handler persist mendistribusikan pesan worker per jobId (M2).
+  /// Active jobs (jobId → completer+progress). Concurrent routing: single
+  /// persistent handler distributes worker messages per jobId.
   final Map<String, _PendingJob> _pending = {};
 
   @override
@@ -50,7 +50,7 @@ class IsolateExecutor implements ConversionExecutor {
         _pending.remove(jobId);
         return JobExecutionResult.failure(
           'corrupt',
-          'Konversi melebihi batas waktu 30 menit.',
+          'Conversion exceeded 30-minute timeout.',
         );
       },
     );
@@ -76,7 +76,7 @@ class IsolateExecutor implements ConversionExecutor {
     }
   }
 
-  /// Spawn satu worker persist + wire ports.
+  /// Spawn a single persistent worker + wire ports.
   Future<IsolatePorts> _spawnWorker() async {
     final receivePort = ReceivePort();
     final isolate = await Isolate.spawn(
@@ -93,8 +93,8 @@ class IsolateExecutor implements ConversionExecutor {
       exitPort: exitPort,
     );
 
-    // Handler persist (langsung aktif): tangkap command/cancel port yang
-    // dikirim worker saat spawn, lalu routing pesan job per jobId (M2).
+    // Persistent handler (active immediately): capture command/cancel ports
+    // sent by worker on spawn, then route job messages per jobId.
     ports.subscription = receivePort.listen((message) {
       if (message is SendPort && ports.commandPort == null) {
         ports.commandPort = message;
@@ -107,7 +107,7 @@ class IsolateExecutor implements ConversionExecutor {
       _routeMessage(message);
     });
 
-    // Pastikan port worker sudah terdaftar sebelum job pertama dikirim.
+    // Ensure worker ports are registered before first job is sent.
     final deadline = DateTime.now().add(const Duration(seconds: 10));
     while ((ports.commandPort == null || ports.cancelSender == null) &&
         DateTime.now().isBefore(deadline)) {
@@ -116,7 +116,7 @@ class IsolateExecutor implements ConversionExecutor {
     return ports;
   }
 
-  /// Distribusikan pesan worker ke job yang sesuai (via jobId).
+  /// Route worker messages to corresponding job (via jobId).
   void _routeMessage(dynamic message) {
     if (message is ConvertProgress) {
       final job = _pending[message.jobId];
@@ -153,7 +153,7 @@ class IsolateExecutor implements ConversionExecutor {
   }
 }
 
-/// Job aktif di executor — completer + callback progress (routing jobId).
+/// Active job in executor — completer + progress callback (jobId routing).
 class _PendingJob {
   _PendingJob(this.completer, this.onProgress);
 
@@ -173,17 +173,17 @@ class IsolatePorts {
   late StreamSubscription<dynamic> subscription;
   final ReceivePort exitPort;
 
-  /// Command port worker (diterima saat spawn).
+  /// Worker command port (received during spawn).
   SendPort? commandPort;
 
-  /// Cancel port worker (diterima saat spawn).
+  /// Worker cancel port (received during spawn).
   SendPort? cancelSender;
 
   Future<void> dispose() async {
     await subscription.cancel();
     receivePort.close();
-    // Tunggu worker exit (setelah Shutdown) — worker yang menutup command
-    // port & PDFium; TIDAK boleh di-kill paksa (native callback PDFium crash).
+    // Wait for worker exit (after Shutdown) — worker closes command
+    // port & PDFium; MUST NOT be forcibly killed (native PDFium callback crash).
     await exitPort.first.timeout(
       const Duration(seconds: 5),
       onTimeout: () => null,

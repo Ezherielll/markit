@@ -1,5 +1,5 @@
-/// Skala spacing & radius — 4px base, konsisten di seluruh UI.
-abstract final class PdflowSpacing {
+/// Spacing & radius scale — 4px base, consistent across the UI.
+abstract final class MarkitSpacing {
   static const double xs = 4;
   static const double sm = 8;
   static const double md = 12;

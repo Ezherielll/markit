@@ -1,4 +1,4 @@
-/// Stub untuk platform non-web — desktop menulis langsung ke disk.
+/// Stub for non-web platforms — desktop writes directly to disk.
 void platformDownloadTextFile(String fileName, String content) {
-  // No-op: output sudah ada di filesystem (FileOutput).
+  // No-op: output already exists in filesystem (FileOutput).
 }

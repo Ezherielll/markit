@@ -91,4 +91,215 @@ void main() {
     await w.close();
     expect(buffer.toString(), 'web output\n');
   });
+
+  group('Fase A: ordered/unordered list rendering', () {
+    test('orderedListItem → "N. text" sesuai listIndex', () async {
+      final buffer = StringBuffer();
+      final w = MarkdownWriter(MemoryMdSink(buffer));
+      w.writeBlock(Block(
+        type: BlockType.orderedListItem,
+        lines: const ['Buy apples'],
+        listIndex: 1,
+      ));
+      w.writeBlock(Block(
+        type: BlockType.orderedListItem,
+        lines: const ['Buy bananas'],
+        listIndex: 2,
+      ));
+      await w.close();
+      expect(buffer.toString(), '1. Buy apples\n\n2. Buy bananas\n');
+    });
+
+    test('orderedListItem tanpa listIndex → fallback 1', () async {
+      final buffer = StringBuffer();
+      final w = MarkdownWriter(MemoryMdSink(buffer));
+      w.writeBlock(Block(
+        type: BlockType.orderedListItem,
+        lines: const ['Alpha'],
+      ));
+      await w.close();
+      expect(buffer.toString(), '1. Alpha\n');
+    });
+
+    test('unorderedListItem → "- text"', () async {
+      final buffer = StringBuffer();
+      final w = MarkdownWriter(MemoryMdSink(buffer));
+      w.writeBlock(Block(
+        type: BlockType.unorderedListItem,
+        lines: const ['Item one'],
+      ));
+      await w.close();
+      expect(buffer.toString(), '- Item one\n');
+    });
+  });
+
+  group('MarkdownWriter Fase C', () {
+    test('tableHeader → baris header + separator', () async {
+      final buffer = StringBuffer();
+      final w = MarkdownWriter(MemoryMdSink(buffer));
+      w.writeBlock(Block(
+        type: BlockType.tableHeader,
+        lines: const ['Name | Qty | Price'],
+        cells: const ['Name', 'Qty', 'Price'],
+      ));
+      await w.close();
+      expect(buffer.toString(), '| Name | Qty | Price |\n| --- | --- | --- |\n');
+    });
+
+    test('tableRow → baris tabel tanpa separator', () async {
+      final buffer = StringBuffer();
+      final w = MarkdownWriter(MemoryMdSink(buffer));
+      w.writeBlock(Block(
+        type: BlockType.tableRow,
+        lines: const ['Apples | 10 | 2.50'],
+        cells: const ['Apples', '10', '2.50'],
+      ));
+      await w.close();
+      expect(buffer.toString(), '| Apples | 10 | 2.50 |\n');
+      expect(buffer.toString(), isNot(contains('---')));
+    });
+
+    test('tableHeader + tableRow berurutan → tidak ada blank line di antara',
+        () async {
+      final buffer = StringBuffer();
+      final w = MarkdownWriter(MemoryMdSink(buffer));
+      w.writeBlock(Block(
+        type: BlockType.tableHeader,
+        lines: const ['Name | Qty'],
+        cells: const ['Name', 'Qty'],
+      ));
+      w.writeBlock(Block(
+        type: BlockType.tableRow,
+        lines: const ['Apples | 10'],
+        cells: const ['Apples', '10'],
+      ));
+      await w.close();
+      expect(buffer.toString(), '| Name | Qty |\n| --- | --- |\n| Apples | 10 |\n');
+    });
+
+    test('setelah tabel selesai → blank line sebelum blok berikutnya',
+        () async {
+      final buffer = StringBuffer();
+      final w = MarkdownWriter(MemoryMdSink(buffer));
+      w.writeBlock(Block(
+        type: BlockType.tableHeader,
+        lines: const ['Name'],
+        cells: const ['Name'],
+      ));
+      w.writeBlock(Block(
+        type: BlockType.tableRow,
+        lines: const ['Apples'],
+        cells: const ['Apples'],
+      ));
+      w.writeBlock(Block(
+        type: BlockType.paragraph,
+        lines: const ['Setelah tabel.'],
+      ));
+      await w.close();
+      expect(
+        buffer.toString(),
+        '| Name |\n| --- |\n| Apples |\n\nSetelah tabel.\n',
+      );
+    });
+
+    test(
+        'tableHeader setelah tabel sebelumnya → blank line di antara dua tabel',
+        () async {
+      // Simulasi dua tabel berurutan: header+row tabel pertama, lalu
+      // header+row tabel kedua — header baru TIDAK boleh menempel sebagai
+      // baris data tabel pertama.
+      final buffer = StringBuffer();
+      final w = MarkdownWriter(MemoryMdSink(buffer));
+      w.writeBlock(Block(
+        type: BlockType.tableHeader,
+        lines: const ['Old | Qty'],
+        cells: const ['Old', 'Qty'],
+      ));
+      w.writeBlock(Block(
+        type: BlockType.tableRow,
+        lines: const ['Apples | 10'],
+        cells: const ['Apples', '10'],
+      ));
+      w.writeBlock(Block(
+        type: BlockType.tableHeader,
+        lines: const ['New | Val'],
+        cells: const ['New', 'Val'],
+      ));
+      w.writeBlock(Block(
+        type: BlockType.tableRow,
+        lines: const ['Bananas | 20'],
+        cells: const ['Bananas', '20'],
+      ));
+      await w.close();
+      final out = buffer.toString();
+      expect(out, contains('\n\n| New |'));
+      expect(
+        out,
+        '| Old | Qty |\n| --- | --- |\n| Apples | 10 |\n\n'
+        '| New | Val |\n| --- | --- |\n| Bananas | 20 |\n',
+      );
+    });
+
+    test('listItem depth=0 → "- item"', () async {
+      final buffer = StringBuffer();
+      final w = MarkdownWriter(MemoryMdSink(buffer));
+      w.writeBlock(Block(type: BlockType.listItem, lines: const ['flat item']));
+      await w.close();
+      expect(buffer.toString(), contains('- flat item'));
+      expect(buffer.toString(), isNot(contains('  -')));
+    });
+
+    test('listItem depth=1 → "  - nested item"', () async {
+      final buffer = StringBuffer();
+      final w = MarkdownWriter(MemoryMdSink(buffer));
+      w.writeBlock(Block(
+        type: BlockType.listItem,
+        lines: const ['nested item'],
+        listDepth: 1,
+      ));
+      await w.close();
+      expect(buffer.toString(), contains('  - nested item'));
+    });
+
+    test('orderedListItem depth=1 → indent 2 spasi + nomor', () async {
+      final buffer = StringBuffer();
+      final w = MarkdownWriter(MemoryMdSink(buffer));
+      w.writeBlock(Block(
+        type: BlockType.orderedListItem,
+        lines: const ['sub step'],
+        listDepth: 1,
+        listIndex: 2,
+      ));
+      await w.close();
+      expect(buffer.toString(), '  2. sub step\n');
+    });
+  });
+
+  group('MarkdownWriter Fase D (alignment separator)', () {
+    test('tableHeader dengan alignments center/right → separator :---: dan ---:',
+        () async {
+      final buffer = StringBuffer();
+      final w = MarkdownWriter(MemoryMdSink(buffer));
+      w.writeBlock(Block(
+        type: BlockType.tableHeader,
+        lines: const ['Name | Qty'],
+        cells: const ['Name', 'Qty'],
+        alignments: const ['center', 'right'],
+      ));
+      await w.close();
+      expect(buffer.toString(), '| Name | Qty |\n| :---: | ---: |\n');
+    });
+
+    test('tableHeader tanpa alignments → separator default ---', () async {
+      final buffer = StringBuffer();
+      final w = MarkdownWriter(MemoryMdSink(buffer));
+      w.writeBlock(Block(
+        type: BlockType.tableHeader,
+        lines: const ['Name | Qty'],
+        cells: const ['Name', 'Qty'],
+      ));
+      await w.close();
+      expect(buffer.toString(), '| Name | Qty |\n| --- | --- |\n');
+    });
+  });
 }

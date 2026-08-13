@@ -2,10 +2,10 @@ import 'dart:typed_data';
 
 import '../core/input_format.dart';
 
-/// Satu file input konversi — platform-agnostic.
+/// Single conversion input file — platform-agnostic.
 ///
-/// Desktop: [path] mengarah ke file di disk.
-/// Web: [bytes] memuat konten file di memory (tidak ada filesystem).
+/// Desktop: [path] points to a file on disk.
+/// Web: [bytes] holds file content in memory (no filesystem).
 class PdfInput {
   const PdfInput({
     required this.name,
@@ -18,21 +18,21 @@ class PdfInput {
   final String name;
   final int? sizeBytes;
 
-  /// Path file (desktop); null di web.
+  /// File path (desktop); null on web.
   final String? path;
 
-  /// Konten file (web); null di desktop.
+  /// File content (web); null on desktop.
   final Uint8List? bytes;
 
-  /// Format terdeteksi saat addFiles (magic bytes + ekstensi).
+  /// Detected format during addFiles (magic bytes + extension).
   final InputFormat format;
 
   bool get isBytes => bytes != null;
 
-  /// Kunci dedupe: path (desktop) atau nama+ukuran (web).
+  /// Deduplication key: path (desktop) or name+size (web).
   String get dedupeKey => path ?? '$name:$sizeBytes';
 
-  /// Nama output: ekstensi apa pun → .md.
+  /// Output name: any extension → .md.
   String get outputName => name.replaceFirst(
         RegExp(r'\.\w+$'),
         '.md',

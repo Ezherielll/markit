@@ -5,20 +5,20 @@ import 'theme/theme_controller.dart';
 import 'ui/screens/home_screen.dart';
 import 'ui/theme/markit_theme.dart';
 
-class PdflowApp extends StatefulWidget {
-  const PdflowApp({super.key, this.controller, this.themeController});
+class MarkitApp extends StatefulWidget {
+  const MarkitApp({super.key, this.controller, this.themeController});
 
-  /// Dapat di-inject untuk widget test.
+  /// Can be injected for widget tests.
   final ConversionController? controller;
 
-  /// Controller tema (M7). Null → dibuat internal (system default).
+  /// Theme controller. Null → created internally (system default).
   final ThemeController? themeController;
 
   @override
-  State<PdflowApp> createState() => _PdflowAppState();
+  State<MarkitApp> createState() => _MarkitAppState();
 }
 
-class _PdflowAppState extends State<PdflowApp> {
+class _MarkitAppState extends State<MarkitApp> {
   late final ThemeController _theme = widget.themeController ?? ThemeController();
   late final ConversionController _controller =
       widget.controller ?? BatchConversionController();
@@ -36,8 +36,8 @@ class _PdflowAppState extends State<PdflowApp> {
       builder: (context, _) => MaterialApp(
         title: 'MarkIt',
         debugShowCheckedModeBanner: false,
-        theme: PdflowTheme.light(),
-        darkTheme: PdflowTheme.dark(),
+        theme: MarkitTheme.light(),
+        darkTheme: MarkitTheme.dark(),
         themeMode: _theme.mode,
         home: HomeScreen(controller: _controller, themeController: _theme),
       ),

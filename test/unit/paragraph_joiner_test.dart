@@ -67,4 +67,70 @@ void main() {
       expect(paras, hasLength(1));
     });
   });
+
+  group('Hyphenation de-joining (Fase C)', () {
+    // Helper: baris satu span dengan posisi X eksplisit — kedua fragmen
+    // terhifen sengaja diberi gap X nyata (mis. xRight=100 vs xLeft=200)
+    // supaya test benar-benar memverifikasi tidak ada spasi yang disisipkan.
+    Line gapLine(String text, double xLeft, double xRight,
+        {double yTop = 100}) {
+      return Line(spans: [
+        TextSpan(
+          text: text,
+          xLeft: xLeft,
+          xRight: xRight,
+          yBottom: yTop - 12,
+          yTop: yTop,
+          fontSize: 12,
+        ),
+      ]);
+    }
+
+    test('baris berakhir "-" + huruf kecil berikutnya → gabung tanpa "-"', () {
+      // "docu-" (xRight 100) + "ment continues" (xLeft 200) → satu baris
+      // 'document continues' — tanpa spasi di antara kedua fragmen.
+      final paras = joiner.join(
+        [gapLine('docu-', 40, 100), gapLine('ment continues', 200, 320, yTop: 85)],
+        isHeading: notHeading,
+      );
+      final allText = paras.expand((p) => p).map((l) => l.text).join('');
+      expect(paras.single.single.text, 'document continues');
+      expect(allText.contains('document'), isTrue);
+      expect(allText.contains('-m'), isFalse);
+      expect(allText.contains('docu ment'), isFalse);
+    });
+
+    test('baris berakhir "-" + KAPITAL → tidak digabung', () {
+      // "Smith-" + "Jones" → tetap terpisah (tidak ada merge hiphenasi):
+      // dua paragraf, masing-masing satu baris utuh.
+      final paras = joiner.join(
+        [gapLine('Smith-', 40, 100), gapLine('Jones', 200, 300, yTop: 85)],
+        isHeading: notHeading,
+      );
+      expect(paras, hasLength(2));
+      expect(paras[0].single.text, 'Smith-');
+      expect(paras[1].single.text, 'Jones');
+      expect(paras[0].single.text, isNot(contains('Smith-Jones')));
+    });
+
+    test('baris berakhir "-" + angka → tidak digabung ("5-" + "10")', () {
+      final paras = joiner.join(
+        [gapLine('5-', 40, 60), gapLine('10', 200, 240, yTop: 85)],
+        isHeading: notHeading,
+      );
+      expect(paras, hasLength(2));
+      expect(paras[0].single.text, '5-');
+      expect(paras[1].single.text, '10');
+      expect(paras[0].single.text, isNot(contains('5-10')));
+    });
+
+    test('baris lanjutan lebih kiri (list wrap) → merge aman, tanpa spasi', () {
+      final joiner = ParagraphJoiner();
+      final paras = joiner.join(
+        [gapLine('1. docu-', 30, 90), gapLine('ment', 20, 80, yTop: 85)],
+        isHeading: notHeading,
+      );
+      expect(paras.single.single.text, '1. document');
+    });
+  });
 }

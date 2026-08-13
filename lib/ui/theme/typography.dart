@@ -1,19 +1,19 @@
 import 'package:flutter/material.dart';
 
-/// Tipografi "Document Studio": Fraunces (display serif), Inter (UI),
-/// JetBrains Mono (data/preview). Font di-bundle sebagai asset — offline-safe.
-abstract final class PdflowTypography {
+/// "Document Studio" typography: Fraunces (display serif), Inter (UI),
+/// JetBrains Mono (data/preview). Fonts are bundled as assets — 100% offline-safe.
+abstract final class MarkitTypography {
   static const display = 'Fraunces';
   static const ui = 'Inter';
   static const mono = 'JetBrainsMono';
 
-  /// Angka tabular (monospace figures) untuk data-heavy UI — angka tidak
-  /// "menari" saat nilai berubah (elapsed time, pages, percent).
+  /// Tabular numbers (monospace figures) for data-heavy UI — numbers do not
+  /// shift horizontally when values change (elapsed time, pages, percent).
   static const List<FontFeature> tabularFigures = [
     FontFeature.tabularFigures(),
   ];
 
-  /// TextTheme berdasarkan palet (light/dark).
+  /// TextTheme based on color palette (light/dark).
   static TextTheme textTheme(Color ink, Color inkMuted) {
     const base = TextTheme();
     return base
@@ -112,7 +112,7 @@ abstract final class PdflowTypography {
         .apply(bodyColor: ink, displayColor: ink);
   }
 
-  /// Gaya monospace untuk data/preview (fontFamily mono, ukuran diset pemakai).
+  /// Monospace style for data/preview (fontFamily mono, size set by caller).
   static const TextStyle monoStyle = TextStyle(
     fontFamily: mono,
     fontVariations: [FontVariation('wght', 400)],

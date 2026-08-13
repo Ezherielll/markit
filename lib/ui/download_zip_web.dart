@@ -4,7 +4,7 @@ import 'dart:typed_data';
 import 'package:archive/archive.dart';
 import 'package:web/web.dart' as web;
 
-/// Web: bangun ZIP (package:archive) dari [files] lalu download via Blob.
+/// Web: build ZIP (package:archive) from [files] and download via Blob.
 void platformDownloadZipFile(String archiveName, Map<String, String> files) {
   final archive = Archive();
   for (final entry in files.entries) {

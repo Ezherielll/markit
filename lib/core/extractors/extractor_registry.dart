@@ -1,28 +1,23 @@
 import '../extractor.dart';
 import '../input_format.dart';
 import 'csv_extractor.dart';
-import 'html_extractor.dart';
-import 'json_extractor.dart';
-import 'text_extractor.dart';
-import 'xml_extractor.dart';
+import 'docx_extractor.dart';
 
-/// Registry extractor per format.
+/// Extractor registry per format family.
 ///
-/// PDF tidak masuk di sini — pipeline PDF adalah jalur existing
-/// (PdfrxSource → grouper → classifier). Non-PDF yang didukung punya
-/// semantic extractor pure-Dart.
+/// PDF is not included here — PDF path uses existing pipeline
+/// (PdfrxSource → grouper → classifier) routed in executor
+/// (unification into same seam is on roadmap). Families without extractor
+/// (powerpoint/excel/opendocument/rtf/epub) → null: detected & selectable,
+/// failing with clear "not supported yet" error.
 class ExtractorRegistry {
   const ExtractorRegistry._();
 
   static final Map<InputFormat, FormatExtractor> _extractors = {
-    InputFormat.text: const TextExtractor(),
-    InputFormat.markdown: const TextExtractor(),
+    InputFormat.word: const DocxExtractor(),
     InputFormat.csv: const CsvExtractor(),
-    InputFormat.json: const JsonExtractor(),
-    InputFormat.xml: const XmlExtractor(),
-    InputFormat.html: const HtmlExtractor(),
   };
 
-  /// Extractors non-PDF; null → format belum didukung (Fase 2–3 roadmap).
+  /// Non-PDF extractors; null → format conversion not supported yet.
   static FormatExtractor? forFormat(InputFormat format) => _extractors[format];
 }

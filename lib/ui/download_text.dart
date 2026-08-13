@@ -1,9 +1,9 @@
 import 'download_text_stub.dart'
     if (dart.library.js_interop) 'download_text_web.dart';
 
-/// Unduh teks sebagai file .md.
+/// Download text as a .md file.
 ///
-/// Web: trigger browser download via Blob + anchor.
-/// Desktop/IO: no-op — output sudah ditulis ke disk oleh FileOutput.
+/// Web: triggers browser download via Blob + anchor.
+/// Desktop/IO: no-op — output is written directly to disk by FileOutput.
 void downloadTextFile(String fileName, String content) =>
     platformDownloadTextFile(fileName, content);

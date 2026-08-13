@@ -4,8 +4,8 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:markit/ui/widgets/markdown_helpers.dart';
 
 void main() {
-  group('computeMdStats — akurat untuk konten non-PDF (M3)', () {
-    test('fenced code block tidak dihitung sebagai paragraphs', () {
+  group('computeMdStats — accurate for non-PDF content (M3)', () {
+    test('fenced code block is not counted as paragraphs', () {
       final stats = computeMdStats(
         '# Title\n\nSome text.\n\n```json\n{"a": 1,\n"b": [2, 3]}\n```\n\n'
         'Trailing.\n',
@@ -16,7 +16,7 @@ void main() {
       expect(stats.tableRows, 0);
     });
 
-    test('baris tabel dihitung sebagai rows, bukan paragraphs', () {
+    test('table rows counted as rows, not paragraphs', () {
       final stats = computeMdStats(
         '| Name | Age |\n| --- | --- |\n| Alice | 30 |\n| Bob | 25 |\n',
       );
@@ -24,14 +24,14 @@ void main() {
       expect(stats.paragraphs, 0);
     });
 
-    test('fenced block multi-lapisan (tidak valid md) tetap skip', () {
+    test('multi-layer fenced block stays skipped', () {
       final stats = computeMdStats('```\nline1\n```\n# H\n```\nline2\n```\n');
       expect(stats.headings, 1);
       expect(stats.paragraphs, 0);
     });
   });
 
-  group('render preview multi-format tanpa overflow (M1/M2)', () {
+  group('render multi-format preview without overflow (M1/M2)', () {
     Widget wrap(String data, {Map<String, MarkdownElementBuilder>? builders}) {
       return Builder(
         builder: (context) => MaterialApp(
@@ -51,7 +51,7 @@ void main() {
       );
     }
 
-    testWidgets('tabel CSV lebar (20 kolom) render tanpa exception',
+    testWidgets('wide CSV table (20 columns) renders without exception',
         (tester) async {
       final cols = List.generate(20, (i) => 'Col$i').join(' | ');
       final rows = List.generate(50, (i) =>
@@ -65,7 +65,7 @@ void main() {
       expect(tester.takeException(), isNull);
     });
 
-    testWidgets('code block default: baris panjang no-wrap + scroll horizontal',
+    testWidgets('default code block: long line no-wrap + horizontal scroll',
         (tester) async {
       final long = 'x' * 400;
       final data = '```json\n{"long": "$long",\n"a": 1}\n```\n';
@@ -74,14 +74,14 @@ void main() {
       await tester.pump();
 
       expect(tester.takeException(), isNull);
-      // Default flutter_markdown membungkus baris code block dalam
-      // SingleChildScrollView horizontal (unbounded width → no-wrap).
+      // Default flutter_markdown wraps code block lines in
+      // horizontal SingleChildScrollView (unbounded width -> no-wrap).
       final hScrolls = tester
           .widgetList<SingleChildScrollView>(find.byType(SingleChildScrollView))
           .where((w) => w.scrollDirection == Axis.horizontal)
           .toList();
       expect(hScrolls, isNotEmpty,
-          reason: 'code block harus punya horizontal scroll');
+          reason: 'code block must have horizontal scroll');
     });
   });
 }

@@ -1,4 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:markit/core/doc_stats.dart';
 import 'package:markit/core/structure_classifier.dart';
 import 'package:markit/models/layout.dart';
 
@@ -19,6 +20,59 @@ List<List<Line>> _paras(List<List<(String, double)>> raw) {
           ]),
       ],
   ];
+}
+
+/// Helper probe xLeft: tiap baris punya xLeft sendiri (Fase D ladder).
+/// (text, fontSize, xLeft) → satu paragraf satu baris.
+List<List<Line>> _parasAtX(List<(String, double, double)> raw) {
+  return [
+    for (final (text, h, x) in raw)
+      [
+        Line(spans: [
+          TextSpan(
+            text: text,
+            xLeft: x,
+            xRight: x + text.length * 6.0,
+            yBottom: 0,
+            yTop: h,
+            fontSize: h,
+          ),
+        ]),
+      ],
+  ];
+}
+
+DocProfile _profileWith(Map<double, int> hist) =>
+    DocProfile.fromHistogram(hist, totalPages: 1);
+
+/// Satu baris tabel sintetik: tiap kolom satu span di posisi [xLeft],
+/// lebar tetap 60pt (gap antar-kolom konsisten untuk deteksi tabel).
+Line _tableLine(List<(String, double)> cols, {required double y}) {
+  return Line(spans: [
+    for (final (text, x) in cols)
+      TextSpan(
+        text: text,
+        xLeft: x,
+        xRight: x + 60,
+        yBottom: y - 12,
+        yTop: y,
+        fontSize: 12,
+      ),
+  ]);
+}
+
+/// Satu baris list sintetik: span tunggal di [xLeft] (probe nested list).
+Line _listLine(String text, {required double xLeft}) {
+  return Line(spans: [
+    TextSpan(
+      text: text,
+      xLeft: xLeft,
+      xRight: xLeft + text.length * 5.0,
+      yBottom: 0,
+      yTop: 12,
+      fontSize: 12,
+    ),
+  ]);
 }
 
 void main() {
@@ -53,10 +107,10 @@ void main() {
         [('* Item three', 12.0)],
         [('Normal paragraph', 12.0)],
       ]));
-      expect(blocks[0].type, BlockType.listItem);
+      expect(blocks[0].type, BlockType.unorderedListItem);
       expect(blocks[0].text, 'Item one');
-      expect(blocks[1].type, BlockType.listItem);
-      expect(blocks[2].type, BlockType.listItem);
+      expect(blocks[1].type, BlockType.unorderedListItem);
+      expect(blocks[2].type, BlockType.unorderedListItem);
       expect(blocks[3].type, BlockType.paragraph);
     });
 
@@ -69,9 +123,9 @@ void main() {
         ],
       ]));
       expect(blocks, hasLength(2));
-      expect(blocks[0].type, BlockType.listItem);
+      expect(blocks[0].type, BlockType.unorderedListItem);
       expect(blocks[0].text, 'Item one');
-      expect(blocks[1].type, BlockType.listItem);
+      expect(blocks[1].type, BlockType.unorderedListItem);
       expect(blocks[1].text, 'Item two');
     });
 
@@ -83,7 +137,7 @@ void main() {
           ('continues here', 12.0),
         ],
       ]));
-      expect(blocks.single.type, BlockType.listItem);
+      expect(blocks.single.type, BlockType.unorderedListItem);
       expect(blocks.single.lines, ['Long item', 'continues here']);
     });
 
@@ -101,6 +155,205 @@ void main() {
         [('Almost heading', 13.0)],
       ]));
       expect(blocks.single.type, BlockType.paragraph);
+    });
+  });
+
+  group('StructureClassifier multi-level heading (Fase A)', () {
+    test('band H1/H2/H3 → heading level sesuai band, body tetap paragraph', () {
+      final profile = _profileWith({12.0: 100, 14.0: 4, 16.0: 3, 20.0: 2});
+      final c = StructureClassifier.withProfile(profile: profile);
+      final blocks = c.classify(_paras([
+        [('Chapter', 20.0)],
+        [('Section', 16.0)],
+        [('Subsection', 14.0)],
+        [('Body text.', 12.0)],
+      ]));
+      expect(blocks[0].type, BlockType.heading);
+      expect(blocks[0].headingLevel, 1);
+      expect(blocks[1].type, BlockType.heading);
+      expect(blocks[1].headingLevel, 2);
+      expect(blocks[2].type, BlockType.heading);
+      expect(blocks[2].headingLevel, 3);
+      expect(blocks[3].type, BlockType.paragraph);
+    });
+
+    test('size di luar band tapi >= 1.2x body → fallback heading level 1', () {
+      final profile = _profileWith({12.0: 100, 20.0: 2});
+      final c = StructureClassifier.withProfile(profile: profile);
+      final blocks = c.classify(_paras([
+        [('In-between size', 18.0)], // 18 >= 12 * 1.2, tidak di band mana pun
+      ]));
+      expect(blocks.single.type, BlockType.heading);
+      expect(blocks.single.headingLevel, 1);
+    });
+
+    test('tanpa profile → faktor legacy, level selalu 1', () {
+      final c = StructureClassifier(bodyFontSize: 12);
+      final blocks = c.classify(_paras([
+        [('Big title', 24.0)],
+      ]));
+      expect(blocks[0].type, BlockType.heading);
+      expect(blocks[0].headingLevel, 1);
+    });
+  });
+
+  group('List detection pattern-based (Fase A)', () {
+    test("karakter 'o' bukan bullet (false positive lama)", () {
+      final c = StructureClassifier(bodyFontSize: 12);
+      final blocks = c.classify(_paras([
+        [('of the system', 12.0)],
+      ]));
+      expect(blocks.single.type, BlockType.paragraph);
+    });
+
+    test("'-' tanpa spasi bukan bullet (mis. '-3°C')", () {
+      final c = StructureClassifier(bodyFontSize: 12);
+      final blocks = c.classify(_paras([
+        [('-3°C temperature', 12.0)],
+        [('- item', 12.0)],
+      ]));
+      expect(blocks[0].type, BlockType.paragraph);
+      expect(blocks[1].type, BlockType.unorderedListItem);
+    });
+
+    test('ordered list 1. 2. 3. → orderedListItem dengan listIndex', () {
+      final c = StructureClassifier(bodyFontSize: 12);
+      final blocks = c.classify(_paras([
+        [
+          ('1. First', 12.0),
+          ('2. Second', 12.0),
+          ('3. Third', 12.0),
+        ],
+      ]));
+      expect(blocks, hasLength(3));
+      expect(blocks[0].type, BlockType.orderedListItem);
+      expect(blocks[0].text, 'First');
+      expect(blocks[0].listIndex, 1);
+      expect(blocks[1].listIndex, 2);
+      expect(blocks[2].listIndex, 3);
+    });
+
+    test('ordered list dengan ")" (mis. "1) item") → orderedListItem', () {
+      final c = StructureClassifier(bodyFontSize: 12);
+      final blocks = c.classify(_paras([
+        [
+          ('1) First', 12.0),
+          ('2) Second', 12.0),
+        ],
+      ]));
+      expect(blocks[0].type, BlockType.orderedListItem);
+      expect(blocks[0].text, 'First');
+      expect(blocks[0].listIndex, 1);
+    });
+
+    test('ordered list huruf (a. b.) → orderedListItem, listIndex null', () {
+      final c = StructureClassifier(bodyFontSize: 12);
+      final blocks = c.classify(_paras([
+        [
+          ('a. Alpha', 12.0),
+          ('b. Beta', 12.0),
+        ],
+      ]));
+      expect(blocks[0].type, BlockType.orderedListItem);
+      expect(blocks[0].text, 'Alpha');
+      expect(blocks[0].listIndex, isNull);
+    });
+
+    test('baris lanjutan ordered item menyambung, bukan item baru', () {
+      final c = StructureClassifier(bodyFontSize: 12);
+      final blocks = c.classify(_paras([
+        [
+          ('1. Long item', 12.0),
+          ('continues here', 12.0),
+        ],
+      ]));
+      expect(blocks.single.type, BlockType.orderedListItem);
+      expect(blocks.single.lines, ['Long item', 'continues here']);
+      expect(blocks.single.listIndex, 1);
+    });
+  });
+
+  group('TableDetector integration (Fase C)', () {
+    test('3 baris tabel → tableHeader + 2 tableRow blocks', () {
+      final profile = DocProfile(
+        bodyFontSize: 12,
+        headingBands: const [],
+        totalPages: 1,
+        emptyPages: 0,
+        pageWidth: 612,
+        pageHeight: 792,
+        bodyLeftMargin: 72,
+        bodyRightMargin: 540,
+      );
+      final classifier = StructureClassifier.withProfile(profile: profile);
+
+      // Paragraf = satu baris masing-masing (baris tabel)
+      // Kolom di x=72, x=200, x=350 (gap > 20pt)
+      final row1 = [_tableLine([('Name', 72.0), ('Qty', 200.0), ('Price', 350.0)], y: 700)];
+      final row2 = [_tableLine([('Apples', 72.0), ('10', 200.0), ('2.50', 350.0)], y: 675)];
+      final row3 = [_tableLine([('Bananas', 72.0), ('20', 200.0), ('1.75', 350.0)], y: 650)];
+
+      final blocks = classifier.classify([row1, row2, row3]);
+
+      expect(blocks.where((b) => b.type == BlockType.tableHeader), hasLength(1));
+      expect(blocks.where((b) => b.type == BlockType.tableRow), hasLength(2));
+      final header = blocks.firstWhere((b) => b.type == BlockType.tableHeader);
+      expect(header.cells, contains('Name'));
+    });
+  });
+
+  group('Nested list detection (Fase C)', () {
+    test('item dengan xLeft > bodyLeftMargin + 1.5*fontSize → depth=1', () {
+      // bodyLeftMargin=72, fontSize=12 → threshold = 72 + 1.5*12 = 90
+      final profile = DocProfile(
+        bodyFontSize: 12,
+        headingBands: const [],
+        totalPages: 1,
+        emptyPages: 0,
+        pageWidth: 612,
+        pageHeight: 792,
+        bodyLeftMargin: 72,
+        bodyRightMargin: 540,
+      );
+      final classifier = StructureClassifier.withProfile(profile: profile);
+
+      final flatItem = [_listLine('- flat item', xLeft: 72)];
+      final nestedItem = [_listLine('- nested item', xLeft: 96)]; // > 90
+
+      final blocks = classifier.classify([flatItem, nestedItem]);
+
+      expect(blocks[0].listDepth, 0);
+      expect(blocks[1].listDepth, 1);
+    });
+  });
+
+  group('Nested list multi-level (Fase D)', () {
+    DocProfile profile() => DocProfile(
+          bodyFontSize: 12,
+          headingBands: const [],
+          totalPages: 1,
+          emptyPages: 0,
+          pageWidth: 612,
+          pageHeight: 792,
+          bodyLeftMargin: 72,
+          bodyRightMargin: 540,
+        );
+
+    // step = 1.5 * bodyFontSize = 18pt
+    test('xLeft ladder: 72→depth 0, 96→1, 114→2, 132→3, 150→clamp 3', () {
+      final classifier = StructureClassifier.withProfile(profile: profile());
+      final blocks = classifier.classify(_parasAtX([
+        ('- flat', 12.0, 72.0), // (72-72)/18 = 0
+        ('- one', 12.0, 96.0), // (96-72)/18 = 1.33 → 1
+        ('- two', 12.0, 114.0), // (114-72)/18 = 2.33 → 2
+        ('- three', 12.0, 132.0), // (132-72)/18 = 3.33 → 3
+        ('- deep', 12.0, 150.0), // 4.33 → clamp 3
+      ]));
+      expect(blocks[0].listDepth, 0);
+      expect(blocks[1].listDepth, 1);
+      expect(blocks[2].listDepth, 2);
+      expect(blocks[3].listDepth, 3);
+      expect(blocks[4].listDepth, 3); // cap
     });
   });
 }

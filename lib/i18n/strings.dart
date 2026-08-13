@@ -1,11 +1,14 @@
-/// String terpusat — D10: Inggris primary, struktur siap i18n.
+import 'package:markit/core/format_catalog.dart';
+
+/// Centralized strings — English primary, i18n ready.
 class Strings {
   const Strings._();
 
   static const appTitle = 'MarkIt';
   static const tagline = 'Documents → Markdown, on your machine';
   static const headerSubtitle = 'Convert documents into structured Markdown';
-  static const statusReady = 'Ready to process files';  static const statusFilesLoaded = '%d files loaded';
+  static const statusReady = 'Ready to process files';
+  static const statusFilesLoaded = '%d files loaded';
   static const statusProcessing = 'Processing %d documents';
   static const statusConverted = '%d converted';
   static const statusBatchComplete = 'Batch conversion complete';
@@ -16,12 +19,12 @@ class Strings {
   static const themeSystem = 'System';
   static const heroHeadline = 'Turn documents into clean markdown';
   static const heroSub = 'Fast, private, and fully offline. Drop your documents '
-      '— PDFs, DOCX, spreadsheets and more — get structured markdown, ready '
-      'for reading or feeding your AI tools.';
+      '— PDFs, Word docs, spreadsheets and more — get structured markdown, '
+      'ready for reading or feeding your AI tools.';
   static const dropHere = 'Drop your files here';
   static const dropSub = 'or';
   static const dropCompact = 'Drop files here or choose files';
-  static const dropCompactSub = 'Multiple files supported · PDF, DOCX, TXT & more';
+  static const dropCompactSub = 'Multiple files supported · PDF, Word, Excel, PPT & more';
   static const pickFile = 'Choose files';
   static const pickFileSingular = 'Choose a file';
   static const addFiles = 'Add files';
@@ -71,6 +74,16 @@ class Strings {
       'Preview truncated for performance — download for the full content.';
   static const showRendered = 'Rendered';
   static const showRaw = 'Raw';
+  static const showSource = 'Source';
+  static const showOutput = 'Output';
+  static const sourceLoadFailed = 'Could not load the source file.';
+  static const sourceTruncated =
+      'Source preview truncated — the full file is still used for conversion.';
+  static const conversionPending =
+      'Conversion pending — the source is shown while waiting.';
+  static const formatNotSupported =
+      'This file type cannot be previewed yet (legacy .doc/.ppt/.xls formats '
+      'are on the roadmap).';
   static const statsHeading = 'Headings';
   static const statsParagraphs = 'Paragraphs';
   static const statsListItems = 'List items';
@@ -93,14 +106,23 @@ class Strings {
       'supported.';
   static const errorNoText = 'No text could be extracted. This looks like a '
       'scanned document (OCR is not supported).';
-  static const errorUnsupported = 'This file type is not supported yet '
-      '(roadmap: DOCX/XLSX/PPTX/EPUB/ZIP/images/audio).';
+  static const errorUnsupported =
+      'This file type is not supported yet '
+      '(legacy .doc/.ppt/.xls formats are on the roadmap).';
   static const errorGeneric = 'Something went wrong: %s';
+  static const showFullError = 'Show full error';
+  static const close = 'Close';
   static const pickFileFilterName = 'All supported files';
   static const overwriteTitle = 'Overwrite existing files?';
   static const overwriteBody = '%d file(s) already have a .md output. '
       'Continue and replace them?';
   static const overwriteConfirm = 'Overwrite all';
+  static const chooseOutputFolder = 'Choose output folder';
+  static const moveConflictsBody =
+      '%d file(s) already exist in the chosen folder.';
+  static const outputSavedTo = 'Saved %d file(s) to %s';
+  static const outputNotSaved = 'Output was not saved.';
+  static const saveOutput = 'Save';
   static const featureFast = 'Fast';
   static const featureFastSub = 'Hundreds of pages in seconds';
   static const featureOffline = 'Private';
@@ -114,10 +136,10 @@ class Strings {
   static const aboutTitle = 'About MarkIt';
   static const aboutHero = 'Your documents, converted to clean, reusable text.';
   static const aboutIntro =
-      'MarkIt turns your documents — PDFs, text files, spreadsheets, web '
-      'pages, and more — into Markdown. Markdown is a clean, simple text '
-      'format that is easy to read, copy, and reuse anywhere: notes, docs, '
-      'or even as input for AI tools.';
+      'MarkIt turns your documents — PDFs, Word documents, spreadsheets, '
+      'presentations, and more — into Markdown. Markdown is a clean, simple '
+      'text format that is easy to read, copy, and reuse anywhere: notes, '
+      'docs, or even as input for AI tools.';
   static const aboutHowTitle = 'How it works';
   static const aboutHowSub = 'Three simple steps — no account, no setup.';
   static const aboutStep1Title = 'Add your files';
@@ -133,10 +155,13 @@ class Strings {
       'Check the result as a clean document, then download the Markdown '
       'file. Batch output can be downloaded as a ZIP.';
   static const aboutFormatsTitle = 'Supported formats';
-  static const aboutFormatsSub =
-      'PDF · TXT · Markdown · CSV · JSON · XML · HTML';
+
+  /// Supported formats list — derived from format catalog (single source of truth).
+  static String get aboutFormatsList =>
+      kFormatCatalog.map((f) => f.format.label).join(' · ');
+
   static const aboutFormatsMore =
-      'More formats are on the way — DOCX, XLSX, PPTX, EPUB, and more.';
+      'Legacy formats (.doc, .ppt, .xls) are on the roadmap.';
   static const aboutPrivacyTitle = '100% private & offline';
   static const aboutPrivacySub =
       'Your files never leave your device. There are no uploads, no cloud, '

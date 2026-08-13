@@ -1,36 +1,39 @@
 import 'dart:async';
+import 'dart:io';
 
 import 'package:flutter/foundation.dart';
 
+import '../core/format_catalog.dart';
 import '../core/input_format.dart';
 import '../core/pdfrx_source.dart';
 import '../models/pdf_input.dart';
 import 'conversion_executor.dart';
 import 'conversion_executor_factory.dart';
 
-/// Status satu file dalam batch queue.
+/// Status of a single file in the batch queue.
 enum JobStatus { queued, running, done, failed, cancelled }
 
-/// Satu file PDF dalam antrean konversi.
+/// Single PDF/document file in conversion queue.
 class QueuedFile {
   QueuedFile({
     required this.id,
     required this.input,
     this.status = JobStatus.queued,
-  });
+    String? outputPath,
+  }) : outputPath = outputPath ?? _defaultOutputPath(input);
 
   final String id;
   final PdfInput input;
   JobStatus status;
 
-  /// Hasil probe page count (nullable sampai probe selesai).
+  /// Probe page count result (nullable until probe finishes).
   int? pageCount;
   double? bodyFontSize;
 
-  /// Halaman gagal (1-based) — FR-10c.
+  /// Failed pages (1-based).
   List<int> failedPages = const [];
 
-  /// Progress per-job (running): halaman aktif & total halaman.
+  /// Per-job running progress: active page & total pages.
   int? currentPage;
   int? totalPages;
 
@@ -41,22 +44,22 @@ class QueuedFile {
     return (page / total).clamp(0.0, 1.0);
   }
 
-  /// Nama error ('corrupt'/'encrypted'/'noText'/dsb) bila gagal.
+  /// Error type ('corrupt'/'encrypted'/'noText'/etc) on failure.
   String? errorType;
   String? errorMessage;
 
-  /// Isi markdown hasil konversi (web/MemoryOutput); null di desktop.
+  /// Markdown content result (web/MemoryOutput); null on desktop.
   String? content;
 
-  /// Path output (desktop: path dengan ekstensi apa pun → .md) atau nama
-  /// file output (web).
-  String get outputPath {
+  /// Output path (desktop: source path with any extension → .md; web:
+  /// output filename). Mutable — updated after user selects target folder
+  /// ("location picker" phase), so UI ("Open folder") remains consistent.
+  String outputPath;
+
+  static String _defaultOutputPath(PdfInput input) {
     final path = input.path;
     if (path != null) {
-      return path.replaceFirst(
-        RegExp(r'\.\w+$'),
-        '.md',
-      );
+      return path.replaceFirst(RegExp(r'\.\w+$'), '.md');
     }
     return input.outputName;
   }
@@ -64,55 +67,59 @@ class QueuedFile {
   String get fileName => input.name;
 }
 
-/// Controller konversi batch (multi-file) yang bisa di-fake untuk widget test.
+/// Batch conversion controller (multi-file) fakeable for widget tests.
 ///
-/// Semantik:
-/// - [addFiles] menambah file ke queue (dedupe path), langsung probe page count.
-/// - [convertAll] memproses file berurutan (sequential) via [ConversionExecutor]
-///   (desktop: worker isolate persist; web: inline).
-/// - [cancel] membatalkan job aktif + semua job queued (FR-11).
-/// - [reset] mengosongkan queue + state.
+/// Semantics:
+/// - [addFiles] adds files to queue (path deduplication), probes page count immediately.
+/// - [convertAll] processes files sequentially/concurrently via [ConversionExecutor]
+///   (desktop: persistent worker isolate; web: inline).
+/// - [cancel] cancels active job + all queued jobs.
+/// - [reset] clears queue + state.
 abstract class ConversionController extends ChangeNotifier {
   bool get isRunning;
 
-  /// Progress job aktif (0-based page).
+  /// Active job progress (0-based page).
   int? get currentPage;
   int? get totalPages;
 
   /// 0 = pass 1 (reading), 1 = pass 2 (converting).
   int get phase;
 
-  /// Daftar file antrean (unmodifiable view).
+  /// Queue file list (unmodifiable view).
   List<QueuedFile> get queue;
 
-  /// Job yang sedang diproses (null bila idle).
+  /// Currently active job (null if idle).
   QueuedFile? get activeJob;
 
-  /// Jumlah job selesai (done + failed + cancelled).
+  /// Count of completed jobs (done + failed + cancelled).
   int get completedCount;
 
-  /// Jumlah job sukses.
+  /// Count of successful jobs.
   int get doneCount;
 
   void addFiles(List<PdfInput> inputs);
 
-  /// Hapus file dari queue. Ditolak saat batch berjalan.
+  /// Remove file from queue. Rejected while batch is running.
   void removeFile(String id);
 
   Future<void> convertAll();
 
-  /// Batalkan batch: job aktif dibatalkan, sisanya → cancelled.
+  /// Cancel batch: active job cancelled, remaining → cancelled.
   void cancel();
 
-  /// Kosongkan queue + state. Tidak berpengaruh saat batch berjalan.
+  /// Clear queue + state. No-op while batch is running.
   void reset();
 
-  /// Hentikan executor (dipanggil saat app dispose). Aman dipanggil ulang.
+  /// Shut down executor (called on app dispose). Safe to call multiple times.
   Future<void> shutdown();
+
+  /// Delete batch output temp directory (desktop). Called after Save flow
+  /// completes (unsaved files discarded), on reset, and on shutdown.
+  Future<void> cleanupTempOutputs();
 }
 
-/// Implementasi nyata: pipeline via [ConversionExecutor] (FR-08),
-/// UI tetap responsif.
+/// Concrete implementation: pipeline via [ConversionExecutor],
+/// keeping UI responsive.
 class BatchConversionController extends ConversionController {
   BatchConversionController({ConversionExecutor? executor})
       : _executor = executor ?? createConversionExecutor();
@@ -126,11 +133,16 @@ class BatchConversionController extends ConversionController {
   bool _cancelRequested = false;
   int _idCounter = 0;
 
+  /// Per-batch temp directory for .md results (desktop). Conversion DOES NOT
+  /// write to source folder — new files are "saved" when user presses
+  /// Save button and selects destination directory (temp → destination move flow).
+  Directory? _tempOutputDir;
+
   @override
   bool get isRunning => _isRunning;
 
-  /// Progress agregat = job running pertama (kompatibilitas UI lama);
-  /// UI baru memakai progress per-job (QueuedFile.progressFraction).
+  /// Aggregate progress = first running job (legacy UI compatibility);
+  /// new UI uses per-job progress (QueuedFile.progressFraction).
   @override
   int? get currentPage {
     final running = _queue.where((f) => f.status == JobStatus.running);
@@ -183,10 +195,10 @@ class BatchConversionController extends ConversionController {
   }
 
   Future<void> _probe(QueuedFile job) async {
-    // Probe memuat PDFium di main isolate. Di desktop, worker isolate memuat
-    // PDFium sendiri — dua init bersamaan menyebabkan deadlock. Karena itu
-    // probe hanya dijalankan SEBELUM worker pertama; setelahnya pageCount
-    // diisi dari hasil konversi.
+    // Probe loads PDFium on main isolate. On desktop, worker isolate loads
+    // PDFium itself — two simultaneous inits cause deadlocks. Thus probe
+    // is run only BEFORE first worker; afterwards pageCount is filled from
+    // conversion result.
     if (_executorReady) return;
     final future = _doProbe(job);
     _pendingProbes.add(future);
@@ -195,8 +207,8 @@ class BatchConversionController extends ConversionController {
   Future<void> _doProbe(QueuedFile job) async {
     try {
       final input = job.input;
-      // Probe hanya untuk PDF — semantic extractor tidak butuh pageCount
-      // (progress per item diisi saat konversi).
+      // Probe only for PDF — semantic extractors do not need pageCount
+      // (per-item progress filled during conversion).
       if (input.format != InputFormat.pdf) return;
       final count = input.isBytes
           ? await PdfrxSource.probePageCountData(input.bytes!)
@@ -204,7 +216,7 @@ class BatchConversionController extends ConversionController {
       job.pageCount = count;
       notifyListeners();
     } catch (_) {
-      // Divalidasi saat convert; probe gagal tidak fatal.
+      // Validated during convert; failed probe is non-fatal.
     }
   }
 
@@ -220,15 +232,15 @@ class BatchConversionController extends ConversionController {
     if (_isRunning) return;
     _cancelRequested = false;
 
-    // Tunggu semua probe selesai sebelum worker di-spawn (deadlock PDFium).
+    // Wait for all probes to finish before spawning worker (PDFium deadlock).
     final probes = [..._pendingProbes];
     _pendingProbes.clear();
     if (probes.isNotEmpty) {
       await Future.wait(probes);
     }
 
-    // Executor persist untuk seluruh umur aplikasi (worker isolate di desktop;
-    // inline di web).
+    // Persistent executor for entire application lifetime (worker isolate on desktop;
+    // inline on web).
     if (!_executorReady) {
       await _executor.initialize();
       _executorReady = true;
@@ -239,19 +251,29 @@ class BatchConversionController extends ConversionController {
     notifyListeners();
 
     try {
-      // Semua job queued dijalankan BERSAMAAN (concurrent interleaved) —
-      // PDFium aman multi-dokumen dalam satu worker (tervalidasi M1).
+      // All queued jobs run CONCURRENTLY (interleaved) —
+      // PDFium is multi-document safe within a single worker.
       final jobs = _queue
           .where((j) =>
               j.status == JobStatus.queued ||
               j.status == JobStatus.failed)
           .toList();
 
+      // Location picker phase: desktop conversion result written to TEMP dir
+      // (not source folder) — file not automatically saved; moved to destination
+      // directory when user presses Save button.
+      final tempDir = await _ensureTempOutputDir();
+      for (final job in jobs) {
+        if (job.input.path != null) {
+          job.outputPath = '${tempDir.path}/${job.input.outputName}';
+        }
+      }
+
       await Future.wait([
         for (final job in jobs) _runOneConcurrent(job),
       ]);
     } finally {
-      // Sisa queue yang belum diproses saat cancel → cancelled.
+      // Remaining unprocessed queue during cancel → cancelled.
       if (_cancelRequested) {
         for (final job in _queue) {
           if (job.status == JobStatus.queued) {
@@ -265,8 +287,8 @@ class BatchConversionController extends ConversionController {
     notifyListeners();
   }
 
-  /// Jalankan satu job di executor (parallel-friendly: tiap job punya
-  /// callback progress sendiri yang update field job tsb).
+  /// Run a single job on executor (parallel-friendly: each job has
+  /// its own progress callback updating its job fields).
   Future<void> _runOneConcurrent(QueuedFile job) async {
     if (_cancelRequested) {
       job.status = JobStatus.cancelled;
@@ -278,32 +300,53 @@ class BatchConversionController extends ConversionController {
     job.totalPages = null;
     notifyListeners();
 
-    final result = await _executor.runJob(
-      jobId: job.id,
-      pdfPath: job.input.path ?? '',
-      pdfBytes: job.input.bytes,
-      outputPath: job.outputPath,
-      format: job.input.format,
-      onProgress: (page, total, phase, elapsedMs) {
-        job.currentPage = page;
-        job.totalPages = total;
-        _phase = phase;
-        notifyListeners();
-      },
-    );
-
-    if (_cancelRequested) {
-      job.status = JobStatus.cancelled;
-    } else if (result.success) {
-      job.status = JobStatus.done;
-      job.pageCount = result.pageCount;
-      job.failedPages = result.failedPages;
-      job.bodyFontSize = result.bodyFontSize;
-      job.content = result.content;
-    } else {
+    // Legacy formats (OLE2: .doc/.ppt/.pps/.pot/.xls/.xlsb) detected but
+    // lack parsers — fail CLEARLY ("not supported yet"), not "corrupt".
+    // Batch continues to next file.
+    if (isLegacyFormatExtension(job.input.format, job.input.name)) {
+      final ext = job.input.name.toLowerCase().split('.').last;
       job.status = JobStatus.failed;
-      job.errorType = result.errorType;
-      job.errorMessage = result.errorMessage;
+      job.errorType = 'unsupported';
+      job.errorMessage =
+          'Format ${job.input.format.label} (.$ext) is not yet supported for conversion.';
+      notifyListeners();
+      return;
+    }
+
+    try {
+      final result = await _executor.runJob(
+        jobId: job.id,
+        pdfPath: job.input.path ?? '',
+        pdfBytes: job.input.bytes,
+        outputPath: job.outputPath,
+        format: job.input.format,
+        onProgress: (page, total, phase, elapsedMs) {
+          job.currentPage = page;
+          job.totalPages = total;
+          _phase = phase;
+          notifyListeners();
+        },
+      );
+
+      if (_cancelRequested) {
+        job.status = JobStatus.cancelled;
+      } else if (result.success) {
+        job.status = JobStatus.done;
+        job.pageCount = result.pageCount;
+        job.failedPages = result.failedPages;
+        job.bodyFontSize = result.bodyFontSize;
+        job.content = result.content;
+      } else {
+        job.status = JobStatus.failed;
+        job.errorType = result.errorType;
+        job.errorMessage = result.errorMessage;
+      }
+    } catch (e) {
+      // Executor internal bug must not blow up the entire batch —
+      // this job marked failed, batch continues.
+      job.status = JobStatus.failed;
+      job.errorType = 'corrupt';
+      job.errorMessage = 'Unexpected error during conversion: $e';
     }
     notifyListeners();
   }
@@ -321,7 +364,22 @@ class BatchConversionController extends ConversionController {
     _queue.clear();
     _phase = 1;
     _cancelRequested = false;
+    // Discard previous unsaved batch temp output
+    // (synchronous — reset is a non-async operation).
+    _discardTempOutputSync();
     notifyListeners();
+  }
+
+  /// Synchronously delete batch temp directory (reset).
+  void _discardTempOutputSync() {
+    final dir = _tempOutputDir;
+    _tempOutputDir = null;
+    if (dir == null || !dir.existsSync()) return;
+    try {
+      dir.deleteSync(recursive: true);
+    } on FileSystemException {
+      // File temporarily locked (Windows) — cleaned up in next batch.
+    }
   }
 
   @override
@@ -329,5 +387,24 @@ class BatchConversionController extends ConversionController {
     if (_isRunning) return;
     _executorReady = false;
     await _executor.shutdown();
+    await cleanupTempOutputs();
+  }
+
+  /// Create (or reuse) batch temp directory for desktop .md results.
+  Future<Directory> _ensureTempOutputDir() async {
+    final existing = _tempOutputDir;
+    if (existing != null && existing.existsSync()) return existing;
+    final dir = await Directory.systemTemp.createTemp('markit_batch');
+    _tempOutputDir = dir;
+    return dir;
+  }
+
+  @override
+  Future<void> cleanupTempOutputs() async {
+    final dir = _tempOutputDir;
+    _tempOutputDir = null;
+    if (dir != null && dir.existsSync()) {
+      await dir.delete(recursive: true);
+    }
   }
 }

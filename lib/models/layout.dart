@@ -1,12 +1,12 @@
-/// Model layout internal pipeline (pure Dart, tanpa Flutter).
+/// Internal pipeline layout model (pure Dart, no Flutter).
 ///
-/// Koordinat: sistem koordinat PDF murni, origin bottom-left, Y ke atas.
-/// [TextSpan.yBottom] < [TextSpan.yTop] untuk teks normal.
+/// Coordinates: pure PDF coordinate system, origin bottom-left, Y upwards.
+/// [TextSpan.yBottom] < [TextSpan.yTop] for normal text.
 library;
 
 import 'dart:math' as math;
 
-/// Satu run teks (kata/fragment) dengan posisi absolut di halaman.
+/// A single text run (word/fragment) with absolute page position.
 class TextSpan {
   TextSpan({
     required this.text,
@@ -24,8 +24,7 @@ class TextSpan {
   final double yBottom;
   final double yTop;
 
-  /// Proxy ukuran font (tinggi bbox char terbesar di fragment).
-  /// pdfrx 2.x tidak mengekspos fontSize; lihat docs/spike-pdfrx.md.
+  /// Font size proxy (max character bbox height in fragment).
   final double fontSize;
 
   double get width => xRight - xLeft;
@@ -34,7 +33,25 @@ class TextSpan {
   double get yCenter => (yTop + yBottom) / 2;
 }
 
-/// Satu baris teks: kumpulan [TextSpan] yang berada pada baseline yang sama.
+/// Normalize PDFium fragment bounds: certain PDFs (glyph mirror/flipped,
+/// rotated text) return left > right / bottom > top. Swapped to ensure
+/// [TextSpan] invariants (xLeft <= xRight, yBottom <= yTop) are always satisfied —
+/// defensive guard at boundary with external library (pdfrx).
+({double xLeft, double xRight, double yBottom, double yTop})
+    normalizeTextSpanBounds({
+  required double left,
+  required double right,
+  required double bottom,
+  required double top,
+}) =>
+    (
+      xLeft: math.min(left, right),
+      xRight: math.max(left, right),
+      yBottom: math.min(bottom, top),
+      yTop: math.max(bottom, top),
+    );
+
+/// A single text line: collection of [TextSpan]s sharing the same baseline.
 class Line {
   Line({required this.spans}) : assert(spans.isNotEmpty);
 
@@ -45,29 +62,71 @@ class Line {
   double get height => yTop - yBottom;
   double get yCenter => (yTop + yBottom) / 2;
 
-  /// Ukuran font representatif baris (terbesar).
+  /// Representative font size of the line (maximum).
   double get fontSize => spans.map((s) => s.fontSize).reduce(math.max);
 
-  /// Teks baris: gabungan teks span berurutan (span pdfrx sudah mengandung spasi).
-  String get text => spans.map((s) => s.text).join();
+  /// Line text with word spacing normalization:
+  /// if gap between fragments > 0.3 * fontSize, insert space.
+  /// Small gaps or fragments with spaces are not duplicated.
+  String get text {
+    if (spans.length == 1) return spans.first.text;
+    final buf = StringBuffer();
+    for (var i = 0; i < spans.length; i++) {
+      final s = spans[i];
+      buf.write(s.text);
+      if (i < spans.length - 1) {
+        final next = spans[i + 1];
+        final gap = next.xLeft - s.xRight;
+        final threshold = s.fontSize * 0.3;
+        if (gap > threshold && !s.text.endsWith(' ') && !next.text.startsWith(' ')) {
+          buf.write(' ');
+        }
+      }
+    }
+    return buf.toString();
+  }
 }
 
-/// Jenis blok yang diklasifikasikan oleh pipeline.
-enum BlockType { heading, paragraph, listItem }
+/// Block types classified by the pipeline.
+enum BlockType {
+  heading,
+  paragraph,
+  listItem, // backward-compat alias
+  unorderedListItem, // bullet item
+  orderedListItem, // numbered item
+  tableHeader, // first row of table → header + separator
+  tableRow, // body row of table
+}
 
-/// Blok semantik hasil klasifikasi, siap dirender ke markdown.
+/// Semantic block produced by classification, ready for markdown rendering.
 class Block {
   Block({
     required this.type,
     required this.lines,
     this.headingLevel = 0,
+    this.listDepth = 0,
+    this.cells,
+    this.listIndex,
+    this.alignments,
   });
 
   final BlockType type;
   final List<String> lines;
 
-  /// Level heading 1-based; 0 bila bukan heading.
+  /// Heading level 1-based; 0 if not heading.
   final int headingLevel;
+
+  /// Nested list depth (0=flat, 1=nested).
+  final int listDepth;
+
+  /// Table cells; non-null only for [BlockType.tableRow]/[BlockType.tableHeader].
+  final List<String>? cells;
+
+  /// Ordered list item number (1-based); null if not an ordered list.
+  final int? listIndex;
+
+  /// Table column alignments ('left'|'center'|'right'); null = all left.
+  final List<String>? alignments;
 
   String get text => lines.join('\n');
 }

@@ -5,11 +5,17 @@ import 'dart:io';
 /// Golden ditulis dari SPESIFIKASI INPUT (pdf_factory) — bukan dari output
 /// pipeline — sehingga independen dan menjadi ground truth evaluasi.
 ///   dart run benchmark/make_golden.dart
+///
+/// CATATAN (Fase C): konten golden Fase A/B/C kini sumber tunggalnya di
+/// corpus/golden/ (ditulis manual bersama fixture). File ini hanya dipakai
+/// untuk regenerate golden lama (book_single) dan mereproduksi golden
+/// Fase C dari spesifikasi.
 void main() {
   Directory('corpus/golden').createSync(recursive: true);
 
   _writeGolden('book_single.md', _bookSingleGolden(60, chapterEvery: 15));
-  _writeGolden('with_tables.md', _tableGolden());
+  _writeGolden('simple_table.md', _simpleTableGolden());
+  _writeGolden('nested_list.md', _nestedListGolden());
 
   stdout.writeln('golden dibuat di corpus/golden/');
 }
@@ -38,19 +44,32 @@ String _bookSingleGolden(int pageCount, {required int chapterEvery}) {
   return sb.toString();
 }
 
-String _tableGolden() {
-  final rows = [
-    'Name         Qty    Price',
-    'Apples       10     2.50',
-    'Bananas      20     1.75',
-    'Cherries     5      8.00',
-  ];
+String _simpleTableGolden() {
   return [
     '# Inventory Report',
     '',
-    ...rows,
+    '| Name | Qty | Price |',
+    '| --- | --- | --- |',
+    '| Apples | 10 | 2.50 |',
+    '| Bananas | 20 | 1.75 |',
+    '| Cherries | 5 | 8.00 |',
     '',
     'End of table with plain text after.',
+    '',
+  ].join('\n');
+}
+
+String _nestedListGolden() {
+  return [
+    '# Nested List Example',
+    '',
+    '- Pears',
+    '  - Apples',
+    '  - Oranges',
+    '- Vegetables',
+    '  - Carrots',
+    '- Grapes',
+    '- Dairy',
     '',
   ].join('\n');
 }

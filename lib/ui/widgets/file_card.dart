@@ -5,28 +5,23 @@ import 'package:markit/isolate/conversion_controller.dart';
 import 'package:markit/ui/theme/palette.dart';
 import 'package:markit/ui/theme/spacing.dart';
 import 'package:markit/ui/theme/typography.dart';
+import 'package:markit/ui/widgets/job_error_view.dart';
 
-/// Ikon per format input (M5 multi-format).
+/// Icon per input format — one icon per format family.
 IconData iconForFormat(InputFormat format) => switch (format) {
       InputFormat.pdf => Icons.picture_as_pdf_outlined,
-      InputFormat.text => Icons.description_outlined,
-      InputFormat.markdown => Icons.notes,
-      InputFormat.csv => Icons.table_chart_outlined,
-      InputFormat.json => Icons.data_object,
-      InputFormat.xml => Icons.code,
-      InputFormat.html => Icons.language,
-      InputFormat.docx => Icons.description,
-      InputFormat.xlsx => Icons.table_chart,
-      InputFormat.pptx => Icons.slideshow_outlined,
+      InputFormat.word => Icons.description_outlined,
+      InputFormat.powerpoint => Icons.slideshow_outlined,
+      InputFormat.excel => Icons.table_chart_outlined,
+      InputFormat.opendocument => Icons.article_outlined,
+      InputFormat.rtf => Icons.notes,
       InputFormat.epub => Icons.menu_book_outlined,
-      InputFormat.zip => Icons.folder_zip_outlined,
-      InputFormat.image => Icons.image_outlined,
-      InputFormat.audio => Icons.audiotrack_outlined,
+      InputFormat.csv => Icons.table_rows_outlined,
       InputFormat.unknown => Icons.insert_drive_file_outlined,
     };
 
-/// Item daftar file: ikon, nama, ukuran, status chip, progress bar,
-/// download per-file (web, saat selesai) & tombol hapus. Selectable.
+/// File list item card: icon, name, size, status chip, progress bar,
+/// per-file download (web, on completion) & remove button. Selectable.
 class FileCard extends StatefulWidget {
   const FileCard({
     super.key,
@@ -47,10 +42,10 @@ class FileCard extends StatefulWidget {
   final VoidCallback? onTap;
   final bool selected;
 
-  /// Progress 0..1 (job running); null = indeterminate (total belum diketahui).
+  /// Progress 0..1 (running job); null = indeterminate (total unknown yet).
   final double? progress;
 
-  /// 0 = pass 1 (reading), 1 = pass 2 (converting) — untuk label phase.
+  /// 0 = pass 1 (reading), 1 = pass 2 (converting) — for phase label.
   final int phase;
 
   @override
@@ -63,9 +58,9 @@ class _FileCardState extends State<FileCard> {
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final ink = isDark ? PdflowColors.inkDark : PdflowColors.inkLight;
-    final inkMuted = isDark ? PdflowColors.inkMutedDark : PdflowColors.inkMutedLight;
-    final hairline = isDark ? PdflowColors.hairlineDark : PdflowColors.hairlineLight;
+    final ink = isDark ? MarkitColors.inkDark : MarkitColors.inkLight;
+    final inkMuted = isDark ? MarkitColors.inkMutedDark : MarkitColors.inkMutedLight;
+    final hairline = isDark ? MarkitColors.hairlineDark : MarkitColors.hairlineLight;
     final primary = Theme.of(context).colorScheme.primary;
 
     final job = widget.job;
@@ -75,7 +70,7 @@ class _FileCardState extends State<FileCard> {
         : '${(sizeBytes / (1024 * 1024)).toStringAsFixed(1)} MB';
 
     final baseBorder = job.status == JobStatus.failed
-        ? (isDark ? PdflowColors.stampRedDark : PdflowColors.stampRedLight)
+        ? (isDark ? MarkitColors.stampRedDark : MarkitColors.stampRedLight)
         : hairline;
 
     final isInteractive = widget.onTap != null || widget.onRemove != null;
@@ -89,169 +84,31 @@ class _FileCardState extends State<FileCard> {
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 180),
         curve: Curves.easeOut,
-        padding: const EdgeInsets.all(PdflowSpacing.md),
+        padding: const EdgeInsets.all(MarkitSpacing.md),
         decoration: BoxDecoration(
-          color: widget.selected
-              ? primary.withValues(alpha: isDark ? 0.12 : 0.08)
-              : _hovered
-                  ? primary.withValues(alpha: isDark ? 0.06 : 0.04)
-                  : (isDark
-                      ? PdflowColors.surfaceDark
-                      : PdflowColors.surfaceLight),
-          borderRadius: BorderRadius.circular(PdflowSpacing.radiusCard),
+          color: _cardColor(isDark, primary),
+          borderRadius: BorderRadius.circular(MarkitSpacing.radiusCard),
           border: Border.all(
-            color: widget.selected
-                ? primary
-                : _hovered && isInteractive
-                    ? primary
-                    : baseBorder,
+            color: _cardBorder(primary, baseBorder, isInteractive),
           ),
         ),
         child: InkWell(
           onTap: widget.onTap,
-          borderRadius: BorderRadius.circular(PdflowSpacing.radiusCard),
+          borderRadius: BorderRadius.circular(MarkitSpacing.radiusCard),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             mainAxisSize: MainAxisSize.min,
             children: [
               Row(
                 children: [
-                  Container(
-                    width: 36,
-                    height: 44,
-                    decoration: BoxDecoration(
-                      color: primary.withValues(alpha: 0.08),
-                      borderRadius: BorderRadius.circular(6),
-                    ),
-                    child: Icon(
-                      iconForFormat(job.input.format),
-                      size: 22,
-                      color: primary,
-                    ),
-                  ),
-                  const SizedBox(width: PdflowSpacing.md),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(job.fileName,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: TextStyle(
-                              fontFamily: PdflowTypography.mono,
-                              fontSize: 12.5,
-                              fontWeight: FontWeight.w500,
-                              color: ink,
-                            )),
-                        const SizedBox(height: 2),
-                        Text(
-                          [
-                            ?size,
-                            if (job.pageCount != null)
-                              '${job.pageCount} ${Strings.pagesLabel}',
-                          ].join('  ·  '),
-                          style: TextStyle(
-                            fontSize: 11,
-                            fontFeatures: PdflowTypography.tabularFigures,
-                            color: inkMuted,
-                          ),
-                        ),
-                        if (widget.showStatus &&
-                            job.status == JobStatus.failed) ...[
-                          const SizedBox(height: 2),
-                          Text(
-                            _errorText(job),
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: TextStyle(
-                              fontSize: 10.5,
-                              color: isDark
-                                  ? PdflowColors.stampRedDark
-                                  : PdflowColors.stampRedLight,
-                            ),
-                          ),
-                        ],
-                      ],
-                    ),
-                  ),
-                  if (widget.showStatus) ...[
-                    const SizedBox(width: PdflowSpacing.sm),
-                    _StatusChip(status: job.status),
-                  ],
-                  if (widget.onDownload != null) ...[
-                    const SizedBox(width: 2),
-                    IconButton(
-                      onPressed: widget.onDownload,
-                      icon: const Icon(Icons.download_outlined, size: 17),
-                      tooltip: Strings.download,
-                      visualDensity: VisualDensity.compact,
-                    ),
-                  ],
-                  if (widget.onRemove != null) ...[
-                    const SizedBox(width: 2),
-                    IconButton(
-                      onPressed: widget.onRemove,
-                      icon: const Icon(Icons.close, size: 17),
-                      tooltip: Strings.removeFile,
-                      visualDensity: VisualDensity.compact,
-                    ),
-                  ],
+                  _buildIcon(primary),
+                  const SizedBox(width: MarkitSpacing.md),
+                  Expanded(child: _buildInfo(ink, inkMuted, size)),
+                  ..._buildActions(),
                 ],
               ),
-              if (widget.progress != null || job.status == JobStatus.running) ...[
-                const SizedBox(height: PdflowSpacing.sm),
-                // Label phase + metadata progress (page X of Y · %).
-                Row(
-                  children: [
-                    Text(
-                      widget.phase == 0
-                          ? Strings.phaseReadingShort
-                          : Strings.phaseConvertingShort,
-                      style: TextStyle(
-                        fontSize: 10,
-                        fontWeight: FontWeight.w600,
-                        letterSpacing: 0.4,
-                        color: inkMuted,
-                      ),
-                    ),
-                    const Spacer(),
-                    if (widget.progress != null)
-                      Text(
-                        _progressText(job, widget.progress!),
-                        style: TextStyle(
-                          fontFamily: PdflowTypography.mono,
-                          fontSize: 10,
-                          fontFeatures: PdflowTypography.tabularFigures,
-                          color: inkMuted,
-                        ),
-                      ),
-                  ],
-                ),
-                const SizedBox(height: 3),
-                // Bar animasi halus; indeterminate saat total belum diketahui.
-                ClipRRect(
-                  borderRadius: BorderRadius.circular(3),
-                  child: SizedBox(
-                    height: 5,
-                    child: widget.progress == null
-                        ? const LinearProgressIndicator(minHeight: 5)
-                        : TweenAnimationBuilder<double>(
-                            tween: Tween(
-                              begin: 0,
-                              end: widget.progress!.clamp(0.0, 1.0),
-                            ),
-                            duration: const Duration(milliseconds: 300),
-                            curve: Curves.easeOut,
-                            builder: (context, value, _) =>
-                                LinearProgressIndicator(
-                              value: value,
-                              minHeight: 5,
-                              backgroundColor: hairline,
-                            ),
-                          ),
-                  ),
-                ),
-              ],
+              if (widget.progress != null || job.status == JobStatus.running)
+                ..._buildProgress(inkMuted, hairline),
             ],
           ),
         ),
@@ -259,22 +116,165 @@ class _FileCardState extends State<FileCard> {
     );
   }
 
-  static String _errorText(QueuedFile job) {
-    // Pesan asli dari extractor/executor lebih akurat (mis. "Invalid JSON: …",
-    // "Could not read the CSV file."). Mapping statis hanya fallback bila
-    // executor tidak mengirim pesan detail.
-    final message = job.errorMessage;
-    if (message != null && message.isNotEmpty) return message;
-    return switch (job.errorType) {
-      'encrypted' => Strings.errorEncrypted,
-      'noText' => Strings.errorNoText,
-      'corrupt' => Strings.errorCorrupt,
-      'unsupported' => Strings.errorUnsupported,
-      _ => Strings.errorGeneric.replaceFirst('%s', ''),
-    };
+  /// Card background color: selected → hover → surface (priority order).
+  Color _cardColor(bool isDark, Color primary) {
+    if (widget.selected) {
+      return primary.withValues(alpha: isDark ? 0.12 : 0.08);
+    }
+    if (_hovered) {
+      return primary.withValues(alpha: isDark ? 0.06 : 0.04);
+    }
+    return isDark ? MarkitColors.surfaceDark : MarkitColors.surfaceLight;
   }
 
-  /// Metadata progress: "12 of 300 pages · 4%" (tabular figures).
+  /// Card border color: selected/hover-interactive → primary, else base.
+  Color _cardBorder(Color primary, Color baseBorder, bool isInteractive) {
+    if (widget.selected) return primary;
+    if (_hovered && isInteractive) return primary;
+    return baseBorder;
+  }
+
+  /// 36×44 format icon on left of card.
+  Widget _buildIcon(Color primary) {
+    return Container(
+      width: 36,
+      height: 44,
+      decoration: BoxDecoration(
+        color: primary.withValues(alpha: 0.08),
+        borderRadius: BorderRadius.circular(6),
+      ),
+      child: Icon(
+        iconForFormat(widget.job.input.format),
+        size: 22,
+        color: primary,
+      ),
+    );
+  }
+
+  /// Info column: file name, size + pages, error message (if failed).
+  Widget _buildInfo(Color ink, Color inkMuted, String? size) {
+    final job = widget.job;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(job.fileName,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: TextStyle(
+              fontFamily: MarkitTypography.mono,
+              fontSize: 12.5,
+              fontWeight: FontWeight.w500,
+              color: ink,
+            )),
+        const SizedBox(height: 2),
+        Text(
+          [
+            ?size,
+            if (job.pageCount != null)
+              '${job.pageCount} ${Strings.pagesLabel}',
+          ].join('  ·  '),
+          style: TextStyle(
+            fontSize: 11,
+            fontFeatures: MarkitTypography.tabularFigures,
+            color: inkMuted,
+          ),
+        ),
+        if (widget.showStatus && job.status == JobStatus.failed) ...[
+          const SizedBox(height: 4),
+          JobErrorView(job: job),
+        ],
+      ],
+    );
+  }
+
+  /// Right side card actions: status chip + download/remove buttons (conditional).
+  List<Widget> _buildActions() {
+    return [
+      if (widget.showStatus) ...[
+        const SizedBox(width: MarkitSpacing.sm),
+        _StatusChip(status: widget.job.status),
+      ],
+      if (widget.onDownload != null) ...[
+        const SizedBox(width: 2),
+        IconButton(
+          onPressed: widget.onDownload,
+          icon: const Icon(Icons.download_outlined, size: 17),
+          tooltip: Strings.download,
+          visualDensity: VisualDensity.compact,
+        ),
+      ],
+      if (widget.onRemove != null) ...[
+        const SizedBox(width: 2),
+        IconButton(
+          onPressed: widget.onRemove,
+          icon: const Icon(Icons.close, size: 17),
+          tooltip: Strings.removeFile,
+          visualDensity: VisualDensity.compact,
+        ),
+      ],
+    ];
+  }
+
+  /// Progress section (shown when running/indeterminate): phase label,
+  /// page metadata & animation bar.
+  List<Widget> _buildProgress(Color inkMuted, Color hairline) {
+    final job = widget.job;
+    return [
+      const SizedBox(height: MarkitSpacing.sm),
+      // Phase label + progress metadata (page X of Y · %).
+      Row(
+        children: [
+          Text(
+            widget.phase == 0
+                ? Strings.phaseReadingShort
+                : Strings.phaseConvertingShort,
+            style: TextStyle(
+              fontSize: 10,
+              fontWeight: FontWeight.w600,
+              letterSpacing: 0.4,
+              color: inkMuted,
+            ),
+          ),
+          const Spacer(),
+          if (widget.progress != null)
+            Text(
+              _progressText(job, widget.progress!),
+              style: TextStyle(
+                fontFamily: MarkitTypography.mono,
+                fontSize: 10,
+                fontFeatures: MarkitTypography.tabularFigures,
+                color: inkMuted,
+              ),
+            ),
+        ],
+      ),
+      const SizedBox(height: 3),
+      // Smooth animation bar; indeterminate when total unknown.
+      ClipRRect(
+        borderRadius: BorderRadius.circular(3),
+        child: SizedBox(
+          height: 5,
+          child: widget.progress == null
+              ? const LinearProgressIndicator(minHeight: 5)
+              : TweenAnimationBuilder<double>(
+                  tween: Tween(
+                    begin: 0,
+                    end: widget.progress!.clamp(0.0, 1.0),
+                  ),
+                  duration: const Duration(milliseconds: 300),
+                  curve: Curves.easeOut,
+                  builder: (context, value, _) => LinearProgressIndicator(
+                    value: value,
+                    minHeight: 5,
+                    backgroundColor: hairline,
+                  ),
+                ),
+        ),
+      ),
+    ];
+  }
+
+  /// Progress metadata: "12 of 300 pages · 4%" (tabular figures).
   static String _progressText(QueuedFile job, double fraction) {
     final page = job.currentPage ?? 0;
     final total = job.totalPages ?? 0;
@@ -286,7 +286,7 @@ class _FileCardState extends State<FileCard> {
   }
 }
 
-/// Chip status kecil untuk file dalam batch.
+/// Small status chip for file in batch.
 class _StatusChip extends StatelessWidget {
   const _StatusChip({required this.status});
 
@@ -298,7 +298,7 @@ class _StatusChip extends StatelessWidget {
     final (label, color) = switch (status) {
       JobStatus.queued => (
           Strings.fileQueued,
-          isDark ? PdflowColors.inkMutedDark : PdflowColors.inkMutedLight,
+          isDark ? MarkitColors.inkMutedDark : MarkitColors.inkMutedLight,
         ),
       JobStatus.running => (
           Strings.fileRunning,
@@ -306,26 +306,26 @@ class _StatusChip extends StatelessWidget {
         ),
       JobStatus.done => (
           Strings.fileDone,
-          isDark ? PdflowColors.stampGreenDark : PdflowColors.stampGreenLight,
+          isDark ? MarkitColors.stampGreenDark : MarkitColors.stampGreenLight,
         ),
       JobStatus.failed => (
           Strings.fileFailed,
-          isDark ? PdflowColors.stampRedDark : PdflowColors.stampRedLight,
+          isDark ? MarkitColors.stampRedDark : MarkitColors.stampRedLight,
         ),
       JobStatus.cancelled => (
           Strings.fileCancelled,
-          isDark ? PdflowColors.inkMutedDark : PdflowColors.inkMutedLight,
+          isDark ? MarkitColors.inkMutedDark : MarkitColors.inkMutedLight,
         ),
     };
 
     return Container(
       padding: const EdgeInsets.symmetric(
-        horizontal: PdflowSpacing.sm,
-        vertical: PdflowSpacing.xs,
+        horizontal: MarkitSpacing.sm,
+        vertical: MarkitSpacing.xs,
       ),
       decoration: BoxDecoration(
         color: color.withValues(alpha: 0.12),
-        borderRadius: BorderRadius.circular(PdflowSpacing.radiusChip),
+        borderRadius: BorderRadius.circular(MarkitSpacing.radiusChip),
       ),
       child: Text(
         label,

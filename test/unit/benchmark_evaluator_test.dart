@@ -1,0 +1,165 @@
+import 'package:flutter_test/flutter_test.dart';
+import '../../benchmark/golden_evaluator.dart';
+
+void main() {
+  group('Fase A metrics', () {
+    test('headingLevelF1: hierarki sempurna → 1.0', () {
+      const output = '# A\n\n## B\n\n### C\n\nBody text here.\n';
+      const golden = '# A\n\n## B\n\n### C\n\nBody text here.\n';
+      final report = evaluate(output, golden);
+      expect(report.headingLevelF1, closeTo(1.0, 0.01));
+    });
+
+    test('headingLevelF1: level salah semua → 0.0', () {
+      const output = '## A\n\n### B\n\n# C\n';
+      const golden = '# A\n\n## B\n\n### C\n';
+      final report = evaluate(output, golden);
+      expect(report.headingLevelF1, closeTo(0.0, 0.01));
+    });
+
+    test('headingLevelF1: satu dari tiga benar → 1/3', () {
+      const output = '# A\n\n# B\n\n# C\n';
+      const golden = '# A\n\n## B\n\n### C\n';
+      final report = evaluate(output, golden);
+      // 1 dari 3 matched → precision 1/3, recall 1/3 → F1 = 1/3
+      expect(report.headingLevelF1, closeTo(1 / 3, 0.01));
+    });
+
+    test('orderedListPrecision: urutan sempurna → 1.0', () {
+      const output = '1. First\n\n2. Second\n\n3. Third\n';
+      const golden = '1. First\n\n2. Second\n\n3. Third\n';
+      final report = evaluate(output, golden);
+      expect(report.orderedListPrecision, closeTo(1.0, 0.01));
+    });
+
+    test('orderedListPrecision: index salah → dihitung salah', () {
+      const output = '1. First\n\n2. Third\n\n3. Second\n';
+      const golden = '1. First\n\n2. Second\n\n3. Third\n';
+      final report = evaluate(output, golden);
+      // hanya (First,1) yang cocok → 1/3
+      expect(report.orderedListPrecision, closeTo(1 / 3, 0.01));
+    });
+
+    test('orderedListPrecision: tidak ada ordered di output → 0.0', () {
+      const output = '- First\n- Second\n';
+      const golden = '1. First\n2. Second\n';
+      final report = evaluate(output, golden);
+      expect(report.orderedListPrecision, closeTo(0.0, 0.01));
+    });
+
+    test('wordCompleteness: kata hilang → recall < 1.0', () {
+      const output = 'The quick fox jumps.';
+      const golden = 'The quick brown fox jumps.';
+      final report = evaluate(output, golden);
+      // 4 dari 5 kata → 0.8
+      expect(report.wordCompleteness, closeTo(0.8, 0.01));
+    });
+
+    test('wordCompleteness: identik → 1.0', () {
+      const output = 'Hello world.';
+      const golden = 'Hello world.';
+      final report = evaluate(output, golden);
+      expect(report.wordCompleteness, closeTo(1.0, 0.01));
+    });
+
+    test('metrik lama tetap berfungsi (paragraphF1, listRecall)', () {
+      const output = '# Title\n\nSome paragraph.\n\n- item\n';
+      const golden = '# Title\n\nSome paragraph.\n\n- item\n';
+      final report = evaluate(output, golden);
+      expect(report.paragraphF1, closeTo(1.0, 0.01));
+      expect(report.listRecall, closeTo(1.0, 0.01));
+      expect(report.headingAccuracy, closeTo(1.0, 0.01));
+      expect(report.noiseBlocks, isEmpty);
+    });
+  });
+
+  group('Fase B metrics', () {
+    test('readingOrderScore: urutan sempurna → 1.0', () {
+      const output = 'A\n\nB\n\nC\n';
+      const golden = 'A\n\nB\n\nC\n';
+      final report = evaluate(output, golden);
+      expect(report.readingOrderScore, closeTo(1.0, 0.01));
+    });
+
+    test('readingOrderScore: urutan terbalik sempurna → 0.0 (tau=-1 → mapped to 0)',
+        () {
+      const output = 'C\n\nB\n\nA\n';
+      const golden = 'A\n\nB\n\nC\n';
+      final report = evaluate(output, golden);
+      // Kendall tau = -1 → normalized ke 0
+      expect(report.readingOrderScore, lessThan(0.3));
+    });
+
+    test('readingOrderScore: dua block ditukar → sedikit di bawah 1.0', () {
+      const output = 'A\n\nC\n\nB\n'; // B dan C ditukar
+      const golden = 'A\n\nB\n\nC\n';
+      final report = evaluate(output, golden);
+      // 3 pairs: (A,C)=benar, (A,B)=benar, (B,C)=salah → tau = (2-1)/3 = 0.33
+      // normalized: (0.33 + 1) / 2 = 0.67
+      expect(report.readingOrderScore, greaterThan(0.5));
+      expect(report.readingOrderScore, lessThan(0.9));
+    });
+
+    test('headerSuppressionRecall: golden tanpa header di output → 1.0', () {
+      // golden tanpa header markers, output tanpa teks header
+      const output = 'Main content here.';
+      const golden = 'Main content here.';
+      final report = evaluate(output, golden);
+      expect(report.headerSuppressionRecall, closeTo(1.0, 0.01));
+    });
+
+    test('headerSuppressionRecall: konten golden hilang → turun', () {
+      const output = 'Only partial content.';
+      const golden = 'Main content here.';
+      final report = evaluate(output, golden);
+      expect(report.headerSuppressionRecall, lessThan(0.5));
+    });
+  });
+
+  group('Fase C metrics', () {
+    test('tableCellF1: tabel sempurna → 1.0', () {
+      const output = '| Name | Qty |\n| --- | --- |\n| Apples | 10 |\n';
+      const golden = '| Name | Qty |\n| --- | --- |\n| Apples | 10 |\n';
+      final report = evaluate(output, golden);
+      expect(report.tableCellF1, closeTo(1.0, 0.01));
+    });
+
+    test('tableCellF1: sel hilang → kurang dari 1.0', () {
+      const output = '| Apples | 10 |\n';
+      const golden = '| Apples | 10 |\n| Bananas | 20 |\n';
+      final report = evaluate(output, golden);
+      expect(report.tableCellF1, lessThan(1.0));
+      expect(report.tableCellF1, greaterThan(0.0));
+    });
+
+    test('nestedListRecall: semua nested items ada → 1.0', () {
+      const output = '- Parent\n  - Child\n';
+      const golden = '- Parent\n  - Child\n';
+      final report = evaluate(output, golden);
+      expect(report.nestedListRecall, closeTo(1.0, 0.01));
+    });
+
+    test('nestedListRecall: nested item hilang → 0.0', () {
+      const output = '- Parent\n';
+      const golden = '- Parent\n  - Child\n';
+      final report = evaluate(output, golden);
+      expect(report.nestedListRecall, closeTo(0.0, 0.01));
+    });
+
+    test('nestedListRecall: item depth 2 (4 spasi) ikut terhitung', () {
+      const output = '- P\n    - Deep item\n';
+      const golden = '- P\n    - Deep item\n';
+      final report = evaluate(output, golden);
+      expect(report.nestedListRecall, closeTo(1.0, 0.01));
+    });
+  });
+
+  group('Fase D metrics', () {
+    test('tableCellF1: separator dengan alignment (:---:) di-skip', () {
+      const output = '| Name | Qty |\n| :---: | ---: |\n| Apples | 10 |\n';
+      const golden = '| Name | Qty |\n| --- | --- |\n| Apples | 10 |\n';
+      final report = evaluate(output, golden);
+      expect(report.tableCellF1, closeTo(1.0, 0.01));
+    });
+  });
+}

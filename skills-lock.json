@@ -1,0 +1,11 @@
+{
+  "version": 1,
+  "skills": {
+    "dart-cognitive-complexity": {
+      "source": "kevmoo/cognitive_complexity.dart",
+      "sourceType": "github",
+      "skillPath": "skills/dart-cognitive-complexity/SKILL.md",
+      "computedHash": "3143b372b5357f6a3477b06ab7d2da8af31d192deaab9cb3dfe499c15a3b852e"
+    }
+  }
+}

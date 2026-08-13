@@ -2,7 +2,7 @@ import 'dart:js_interop';
 
 import 'package:web/web.dart' as web;
 
-/// Web: download teks via Blob + anchor (tanpa server).
+/// Web: download text via Blob + anchor (serverless).
 void platformDownloadTextFile(String fileName, String content) {
   final blob = web.Blob(
     [content.toJS].toJS,

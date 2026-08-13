@@ -1,0 +1,148 @@
+<svg width="1600" height="840" viewBox="0 0 1600 840" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1600" y2="840" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#FFFFFF"/>
+      <stop offset="1" stop-color="#F3F9FF"/>
+    </linearGradient>
+    <linearGradient id="blue" x1="1110" y1="150" x2="1450" y2="620" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#DDF1FF"/>
+      <stop offset="1" stop-color="#A9DBFF"/>
+    </linearGradient>
+    <linearGradient id="accent" x1="940" y1="330" x2="1320" y2="560" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#2F9BEF"/>
+      <stop offset="1" stop-color="#1677C8"/>
+    </linearGradient>
+    <filter id="shadow" x="-30%" y="-30%" width="160%" height="160%">
+      <feDropShadow dx="0" dy="18" stdDeviation="22" flood-color="#1677C8" flood-opacity="0.14"/>
+    </filter>
+    <filter id="soft" x="-30%" y="-30%" width="160%" height="160%">
+      <feGaussianBlur stdDeviation="34"/>
+    </filter>
+    <pattern id="grid" width="42" height="42" patternUnits="userSpaceOnUse">
+      <path d="M42 0H0V42" stroke="#B9DDF6" stroke-opacity="0.34"/>
+    </pattern>
+  </defs>
+
+  <!-- Background -->
+  <rect width="1600" height="840" rx="36" fill="url(#bg)"/>
+  <circle cx="1400" cy="160" r="210" fill="#DDF1FF" opacity="0.65" filter="url(#soft)"/>
+  <circle cx="1320" cy="690" r="220" fill="#E8F6FF" opacity="0.85" filter="url(#soft)"/>
+  <path d="M0 690C260 590 410 760 700 680C930 617 1080 610 1290 720C1420 790 1500 792 1600 760V840H0V690Z" fill="#F0F8FF"/>
+  <rect x="1030" y="80" width="500" height="650" rx="36" fill="url(#grid)" opacity="0.55"/>
+
+  <!-- Left content -->
+  <g transform="translate(120 132)">
+    <!-- Mark -->
+    <g transform="translate(0 0)">
+      <rect width="74" height="74" rx="18" fill="#1677C8"/>
+      <path d="M22 20H49C54.5228 20 59 24.4772 59 30V54C59 59.5228 54.5228 64 49 64H25C20.0294 64 16 59.9706 16 55V26C16 22.6863 18.6863 20 22 20Z" fill="white" opacity="0.98"/>
+      <path d="M25 32H49M25 42H49M25 52H41" stroke="#1677C8" stroke-width="4.5" stroke-linecap="round"/>
+      <path d="M48 20V29H57" stroke="#A9DBFF" stroke-width="4" stroke-linejoin="round"/>
+    </g>
+
+    <text x="96" y="54" font-family="Inter, Arial, sans-serif" font-size="56" font-weight="750" fill="#102A43" letter-spacing="-2">MarkIt</text>
+
+    <text x="0" y="166" font-family="Inter, Arial, sans-serif" font-size="54" font-weight="750" fill="#102A43" letter-spacing="-1.6">
+      Documents → Markdown
+    </text>
+    <text x="0" y="220" font-family="Inter, Arial, sans-serif" font-size="54" font-weight="750" fill="#1677C8" letter-spacing="-1.6">
+      locally. Simply.
+    </text>
+
+    <text x="0" y="286" font-family="Inter, Arial, sans-serif" font-size="24" font-weight="450" fill="#486581">
+      Fast, private, 100% offline document conversion for
+    </text>
+    <text x="0" y="322" font-family="Inter, Arial, sans-serif" font-size="24" font-weight="450" fill="#486581">
+      desktop and web — built with Flutter.
+    </text>
+
+    <!-- Tags -->
+    <g transform="translate(0 374)">
+      <rect width="148" height="44" rx="22" fill="#E6F4FF" stroke="#B9DDF6"/>
+      <circle cx="23" cy="22" r="6" fill="#1677C8"/>
+      <text x="40" y="29" font-family="Inter, Arial, sans-serif" font-size="17" font-weight="650" fill="#145A91">100% Offline</text>
+
+      <rect x="164" width="146" height="44" rx="22" fill="#E6F4FF" stroke="#B9DDF6"/>
+      <path d="M186 14L181 22L186 30L194 22L186 14Z" fill="#2F9BEF"/>
+      <text x="207" y="29" font-family="Inter, Arial, sans-serif" font-size="17" font-weight="650" fill="#145A91">Flutter</text>
+
+      <rect x="326" width="154" height="44" rx="22" fill="#E6F4FF" stroke="#B9DDF6"/>
+      <path d="M350 15V29M343 22H357" stroke="#1677C8" stroke-width="3" stroke-linecap="round"/>
+      <text x="369" y="29" font-family="Inter, Arial, sans-serif" font-size="17" font-weight="650" fill="#145A91">Open Source</text>
+    </g>
+
+    <text x="0" y="484" font-family="Inter, Arial, sans-serif" font-size="18" font-weight="500" fill="#829AB1">
+      github.com/Ezherielll/markit
+    </text>
+  </g>
+
+  <!-- Right illustration -->
+  <g filter="url(#shadow)">
+    <!-- Source document -->
+    <g transform="translate(880 178) rotate(-7 170 220)">
+      <rect width="330" height="440" rx="24" fill="white" stroke="#C9E6F8" stroke-width="3"/>
+      <path d="M242 0H282C308.51 0 330 21.4903 330 48V88L242 0Z" fill="#E8F6FF"/>
+      <path d="M242 0V64C242 77.2548 252.745 88 266 88H330" stroke="#B9DDF6" stroke-width="3"/>
+      <rect x="42" y="48" width="92" height="13" rx="6.5" fill="#A9DBFF"/>
+      <rect x="42" y="90" width="242" height="9" rx="4.5" fill="#DCEFFB"/>
+      <rect x="42" y="115" width="214" height="9" rx="4.5" fill="#DCEFFB"/>
+      <rect x="42" y="140" width="228" height="9" rx="4.5" fill="#DCEFFB"/>
+      <rect x="42" y="184" width="148" height="13" rx="6.5" fill="#A9DBFF"/>
+      <rect x="42" y="226" width="242" height="9" rx="4.5" fill="#DCEFFB"/>
+      <rect x="42" y="251" width="228" height="9" rx="4.5" fill="#DCEFFB"/>
+      <rect x="42" y="276" width="204" height="9" rx="4.5" fill="#DCEFFB"/>
+      <rect x="42" y="320" width="126" height="13" rx="6.5" fill="#A9DBFF"/>
+      <rect x="42" y="362" width="242" height="9" rx="4.5" fill="#DCEFFB"/>
+      <rect x="42" y="387" width="190" height="9" rx="4.5" fill="#DCEFFB"/>
+    </g>
+
+    <!-- Conversion connector -->
+    <g transform="translate(1040 350)">
+      <circle cx="0" cy="0" r="54" fill="white" stroke="#C9E6F8" stroke-width="3"/>
+      <circle cx="0" cy="0" r="43" fill="#E6F4FF"/>
+      <path d="M-20 -7H20M20 -7L8 -19M20 -7L8 5" stroke="#1677C8" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/>
+      <path d="M20 10H-20M-20 10L-8 22M-20 10L-8 -2" stroke="#58B5F4" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/>
+    </g>
+
+    <!-- Markdown output -->
+    <g transform="translate(1110 245)">
+      <rect width="350" height="450" rx="26" fill="white" stroke="#B9DDF6" stroke-width="3"/>
+      <rect x="0" y="0" width="350" height="72" rx="26" fill="#E6F4FF"/>
+      <rect x="0" y="48" width="350" height="24" fill="#E6F4FF"/>
+      <circle cx="34" cy="36" r="7" fill="#2F9BEF"/>
+      <circle cx="58" cy="36" r="7" fill="#A9DBFF"/>
+      <circle cx="82" cy="36" r="7" fill="#D0EAF9"/>
+      <text x="116" y="44" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="20" font-weight="700" fill="#1677C8">output.md</text>
+
+      <text x="38" y="126" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="29" font-weight="800" fill="#102A43"># Document</text>
+      <rect x="38" y="150" width="238" height="8" rx="4" fill="#CFE8F7"/>
+      <rect x="38" y="174" width="272" height="8" rx="4" fill="#CFE8F7"/>
+
+      <text x="38" y="225" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="23" font-weight="750" fill="#1677C8">## Overview</text>
+      <rect x="38" y="246" width="288" height="8" rx="4" fill="#DDEFF9"/>
+      <rect x="38" y="269" width="260" height="8" rx="4" fill="#DDEFF9"/>
+      <rect x="38" y="292" width="224" height="8" rx="4" fill="#DDEFF9"/>
+
+      <text x="38" y="342" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="22" font-weight="750" fill="#1677C8">- structured text</text>
+      <text x="38" y="376" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="22" font-weight="750" fill="#1677C8">- clean Markdown</text>
+
+      <rect x="38" y="407" width="128" height="8" rx="4" fill="#A9DBFF"/>
+      <rect x="178" y="407" width="82" height="8" rx="4" fill="#DDEFF9"/>
+    </g>
+
+    <!-- Offline badge -->
+    <g transform="translate(1285 120)">
+      <rect width="205" height="52" rx="26" fill="white" stroke="#B9DDF6" stroke-width="2"/>
+      <circle cx="31" cy="26" r="14" fill="#E6F4FF"/>
+      <path d="M23 26H39M26 20C30 24 30 28 26 32M36 20C32 24 32 28 36 32" stroke="#1677C8" stroke-width="2.4" stroke-linecap="round"/>
+      <text x="56" y="33" font-family="Inter, Arial, sans-serif" font-size="17" font-weight="700" fill="#145A91">No cloud. No API.</text>
+    </g>
+  </g>
+
+  <!-- Decorative lines -->
+  <path d="M92 746H420" stroke="#C9E6F8" stroke-width="2"/>
+  <path d="M92 758H270" stroke="#E2F2FC" stroke-width="2"/>
+  <circle cx="1512" cy="750" r="5" fill="#58B5F4"/>
+  <circle cx="1535" cy="750" r="5" fill="#A9DBFF"/>
+  <circle cx="1558" cy="750" r="5" fill="#DCEFFB"/>
+</svg>
