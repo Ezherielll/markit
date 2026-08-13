@@ -151,3 +151,15 @@ Catatan:
 - numbered_sections: headingLevelF1 100.0% (threshold 80%) PASS · 18 ms
 - ordered_list: orderedListPrecision 100.0% (threshold 80%) PASS · 14 ms
 - simple_table: tableCellF1 100.0% (threshold 70%) PASS · 9 ms
+
+## Corpus run 2026-08-13T11:39:20.396761
+- book_single: paragraphF1 100.0% (threshold 90%) PASS · 1387 ms
+- header_footer: headerSuppressionRecall 100.0% (threshold 90%) PASS · 411 ms
+- mixed_table: tableCellF1 100.0% (threshold 70%) PASS · 64 ms
+- multi_column_paper: readingOrderScore 100.0% (threshold 80%) PASS · 62 ms
+- multi_page_table: tableCellF1 100.0% (threshold 70%) PASS · 55 ms
+- nested_headings: headingLevelF1 100.0% (threshold 85%) PASS · 67 ms
+- nested_list: nestedListRecall 100.0% (threshold 80%) PASS · 52 ms
+- numbered_sections: headingLevelF1 100.0% (threshold 80%) PASS · 47 ms
+- ordered_list: orderedListPrecision 100.0% (threshold 80%) PASS · 43 ms
+- simple_table: tableCellF1 100.0% (threshold 70%) PASS · 46 ms
