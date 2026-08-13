@@ -52,6 +52,12 @@ class _DocumentViewerState extends State<DocumentViewer> {
   SourceData? _source;
   String? _sourceError;
 
+  // Cache subtree paper: konten output hanya di-build saat (job, preview,
+  // showRaw) berubah. Parent rebuild (progress konversi) tidak memaksa
+  // MarkdownBody di-parse ulang tiap frame.
+  Widget? _paperCache;
+  String? _paperCacheJobId;
+
   @override
   void initState() {
     super.initState();
@@ -74,6 +80,7 @@ class _DocumentViewerState extends State<DocumentViewer> {
       _viewMode = job?.status == JobStatus.done
           ? _ViewMode.output
           : _ViewMode.source;
+      _paperCache = null;
       _load();
       _loadSource();
     }
@@ -102,6 +109,7 @@ class _DocumentViewerState extends State<DocumentViewer> {
       _preview = truncated.preview;
       _previewTruncated = truncated.truncated;
       _stats = computeMdStats(content);
+      _paperCache = null;
     });
   }
 
@@ -160,6 +168,75 @@ class _DocumentViewerState extends State<DocumentViewer> {
     }
     if (status == JobStatus.failed) return message(Strings.sourceLoadFailed);
     return const _PreviewSkeleton();
+  }
+
+  /// Subtree paper output (rendered/raw) — di-cache agar parent rebuild
+  /// (notifikasi progress) tidak membangun ulang MarkdownBody.
+  Widget _buildOutputPaper(QueuedFile job, Color ink, Color inkMuted) {
+    final cacheKey = '${widget.job?.id}|$_showRaw|$_preview';
+    if (_paperCache != null && _paperCacheJobId == cacheKey) {
+      return _paperCache!;
+    }
+    final paper = SingleChildScrollView(
+      padding: const EdgeInsets.symmetric(
+        horizontal: PdflowSpacing.xxxl,
+        vertical: PdflowSpacing.xxl,
+      ),
+      child: Center(
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 720),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              if (_previewTruncated)
+                Padding(
+                  padding: const EdgeInsets.only(bottom: PdflowSpacing.md),
+                  child: Text(
+                    Strings.previewTruncated,
+                    style: TextStyle(
+                      fontSize: 12,
+                      fontStyle: FontStyle.italic,
+                      color: inkMuted,
+                    ),
+                  ),
+                ),
+              if (_showRaw)
+                // Raw view: baris utuh (no-wrap) + scroll horizontal; seleksi
+                // tetap tersedia (M4).
+                Scrollbar(
+                  controller: _rawScrollController,
+                  thumbVisibility: true,
+                  child: SingleChildScrollView(
+                    controller: _rawScrollController,
+                    scrollDirection: Axis.horizontal,
+                    child: SelectionArea(
+                      child: Text(
+                        _preview!,
+                        softWrap: false,
+                        style: TextStyle(
+                          fontFamily: PdflowTypography.mono,
+                          fontSize: 12.5,
+                          height: 1.6,
+                          color: ink,
+                        ),
+                      ),
+                    ),
+                  ),
+                )
+              else
+                MarkdownBody(
+                  key: ValueKey('md|$_showRaw'),
+                  data: _preview!,
+                  styleSheet: documentMarkdownStyle(context),
+                ),
+            ],
+          ),
+        ),
+      ),
+    );
+    _paperCache = paper;
+    _paperCacheJobId = cacheKey;
+    return paper;
   }
 
   Future<void> _openFolder() async {
@@ -228,66 +305,7 @@ class _DocumentViewerState extends State<DocumentViewer> {
                 _ViewMode.output =>
                   _content == null
                       ? const _PreviewSkeleton()
-                      : SingleChildScrollView(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: PdflowSpacing.xxxl,
-                            vertical: PdflowSpacing.xxl,
-                          ),
-                          child: Center(
-                            child: ConstrainedBox(
-                              constraints: const BoxConstraints(maxWidth: 720),
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  if (_previewTruncated)
-                                    Padding(
-                                      padding: const EdgeInsets.only(
-                                        bottom: PdflowSpacing.md,
-                                      ),
-                                      child: Text(
-                                        Strings.previewTruncated,
-                                        style: TextStyle(
-                                          fontSize: 12,
-                                          fontStyle: FontStyle.italic,
-                                          color: inkMuted,
-                                        ),
-                                      ),
-                                    ),
-                                  if (_showRaw)
-                                    // Raw view: baris utuh (no-wrap) + scroll
-                                    // horizontal; seleksi tetap tersedia (M4).
-                                    Scrollbar(
-                                      controller: _rawScrollController,
-                                      thumbVisibility: true,
-                                      child: SingleChildScrollView(
-                                        controller: _rawScrollController,
-                                        scrollDirection: Axis.horizontal,
-                                        child: SelectionArea(
-                                          child: Text(
-                                            _preview!,
-                                            softWrap: false,
-                                            style: TextStyle(
-                                              fontFamily: PdflowTypography.mono,
-                                              fontSize: 12.5,
-                                              height: 1.6,
-                                              color: ink,
-                                            ),
-                                          ),
-                                        ),
-                                      ),
-                                    )
-                                  else
-                                    MarkdownBody(
-                                      data: _preview!,
-                                      styleSheet: documentMarkdownStyle(
-                                        context,
-                                      ),
-                                    ),
-                                ],
-                              ),
-                            ),
-                          ),
-                        ),
+                      : _buildOutputPaper(job, ink, inkMuted),
               },
             ),
           ),
