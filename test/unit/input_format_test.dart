@@ -94,6 +94,23 @@ void main() {
     });
   });
 
+  group('RIFF classification (Fase picker)', () {
+    // RIFF (52 49 46 46) ambigu: WAV=audio, WEBP/AVI=image/video.
+    Uint8List riff() => Uint8List.fromList([0x52, 0x49, 0x46, 0x46, 0, 0, 0, 0]);
+
+    test('.wav dengan magic RIFF → audio', () {
+      expect(detectFormat('song.wav', riff()), InputFormat.audio);
+    });
+
+    test('.webp dengan magic RIFF → image', () {
+      expect(detectFormat('pic.webp', riff()), InputFormat.image);
+    });
+
+    test('.avi dengan magic RIFF → image (video belum didukung)', () {
+      expect(detectFormat('clip.avi', riff()), InputFormat.image);
+    });
+  });
+
   group('detectFormat — ekstensi fallback', () {
     test('txt', () => expect(detectFormat('a.txt', _bytes('x')), InputFormat.text));
     test('md', () => expect(detectFormat('a.md', _bytes('# t')), InputFormat.markdown));

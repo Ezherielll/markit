@@ -73,12 +73,12 @@ InputFormat? _detectByContent(Uint8List bytes, List<int> trimmed, String lower) 
       _startsWithBytes(bytes, [0x89, 0x50, 0x4E, 0x47]) ||
       _startsWithBytes(bytes, [0x47, 0x49, 0x46, 0x38]) ||
       _startsWithBytes(bytes, [0x52, 0x49, 0x46, 0x46])) {
-    return InputFormat.image;
+    // RIFF ambigu: WAV (audio) vs WEBP/AVI (image/video) — ekstensi memutuskan.
+    return lower.endsWith('.wav') ? InputFormat.audio : InputFormat.image;
   }
   if (_startsWithBytes(bytes, [0x49, 0x44, 0x33]) ||
       _startsWithBytes(bytes, [0x4F, 0x67, 0x67, 0x53]) ||
-      _startsWithBytes(bytes, [0x66, 0x4C, 0x61, 0x43]) ||
-      _startsWithBytes(bytes, [0x52, 0x49, 0x46, 0x46])) {
+      _startsWithBytes(bytes, [0x66, 0x4C, 0x61, 0x43])) {
     return InputFormat.audio;
   }
   if (_startsWithBytes(bytes, [0x50, 0x4B, 0x03, 0x04])) {
