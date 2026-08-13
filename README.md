@@ -109,6 +109,7 @@ instead — same app, runs in the browser, no install.
 ### Prerequisites
 - Flutter SDK (this project targets Dart SDK `^3.12.2`)
 - A desktop toolchain for the platform you target (e.g. Visual Studio on Windows)
+- **Rust toolchain** for local Windows builds (`super_native_extensions` builds a native asset via cargokit — install with `winget install --id Rustlang.Rustup -e`; CI runners already have it)
 
 ### Build & run
 

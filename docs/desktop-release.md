@@ -43,6 +43,23 @@ setiap tag versi di-push. Artefak berupa ZIP portabel (Windows), DMG
 1. **Actions → Release Desktop → Run workflow** (panel can run by sending the
    button "Run workflow" di UI GitHub).
 
+### Build lokal Windows (prasyarat tambahan)
+
+`super_native_extensions` (plugin drag & drop, via cargokit) membutuhkan
+**Rust toolchain** untuk membangun native asset — CI sudah punya (runner
+GitHub meng-install Rust), mesin lokal **belum tentu**.
+
+```sh
+winget install --id Rustlang.Rustup -e          # rustup + stable + target MSVC
+# PATH refresh (shell baru): cargo --version
+flutter clean && flutter pub get
+flutter build windows --release
+```
+
+Tanpa Rust, `flutter build windows` gagal di tahap `dart_build` /
+`super_native_extensions_plugin_cargokit` ("Cargokit BuildTool failed",
+exit -1).
+
 ## Catatan per platform
 
 | | Runner | Artefak | Catatan |
