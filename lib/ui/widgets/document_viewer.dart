@@ -242,10 +242,9 @@ class _DocumentViewerState extends State<DocumentViewer> {
                   ),
                 )
               else
-                MarkdownBody(
+                _RenderedMarkdown(
                   key: ValueKey('md|$_showRaw'),
                   data: _preview!,
-                  styleSheet: documentMarkdownStyle(context),
                 ),
             ],
           ),
@@ -329,6 +328,66 @@ class _DocumentViewerState extends State<DocumentViewer> {
           ),
         ),
       ],
+    );
+  }
+}
+
+/// Ambang konten markdown "berat" — di atas ini render ditunda satu frame
+/// agar spinner sempat tampil.
+const int _heavyMarkdownChars = 16 * 1024;
+
+/// Render markdown dengan loading indicator untuk konten berat (> 16 KiB):
+/// frame pertama spinner, frame berikutnya MarkdownBody (parse terjadi di
+/// frame itu). Konten ringan dirender langsung tanpa spinner.
+class _RenderedMarkdown extends StatefulWidget {
+  const _RenderedMarkdown({super.key, required this.data});
+
+  final String data;
+
+  @override
+  State<_RenderedMarkdown> createState() => _RenderedMarkdownState();
+}
+
+class _RenderedMarkdownState extends State<_RenderedMarkdown> {
+  late bool _loading = widget.data.length > _heavyMarkdownChars;
+
+  @override
+  void initState() {
+    super.initState();
+    _deferIfHeavy();
+  }
+
+  @override
+  void didUpdateWidget(_RenderedMarkdown oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.data != widget.data && widget.data.length > _heavyMarkdownChars) {
+      _loading = true;
+      _deferIfHeavy();
+    }
+  }
+
+  /// Tunda render berat satu frame — spinner terlihat dulu, lalu parse
+  /// markdown di frame berikutnya (UI tetap terasa responsif).
+  void _deferIfHeavy() {
+    if (widget.data.length <= _heavyMarkdownChars) return;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted && _loading) setState(() => _loading = false);
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (_loading) {
+      return const Center(
+        child: Padding(
+          padding: EdgeInsets.all(24),
+          child: CircularProgressIndicator(),
+        ),
+      );
+    }
+    return MarkdownBody(
+      data: widget.data,
+      styleSheet: documentMarkdownStyle(context),
     );
   }
 }

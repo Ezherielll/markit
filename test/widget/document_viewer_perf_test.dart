@@ -52,6 +52,18 @@ Future<void> pumpLoaded(WidgetTester tester, Widget root) async {
   });
 }
 
+const int heavyChars = 24 * 1024;
+
+QueuedFile _heavyDoneJob(String mdPath, String md) => QueuedFile(
+      id: 'heavy',
+      input: PdfInput(
+        name: 'heavy.md',
+        path: mdPath,
+        format: InputFormat.word,
+      ),
+      status: JobStatus.done,
+    )..content = md;
+
 void main() {
   testWidgets('paper di-cache: rebuild parent tidak membuat MarkdownBody baru',
       (tester) async {
@@ -89,6 +101,64 @@ void main() {
     final dark = tester.widget<MarkdownBody>(find.byType(MarkdownBody));
     expect(identical(dark, light), isFalse,
         reason: 'ganti tema harus membangun ulang paper (warna ikut tema)');
+  });
+
+  testWidgets('konten berat: spinner tampil dulu, lalu konten rendered',
+      (tester) async {
+    final tmp = Directory.systemTemp.createTempSync('markit_perf_heavy');
+    addTearDown(() {
+      try {
+        tmp.deleteSync(recursive: true);
+      } on FileSystemException {
+        // abaikan
+      }
+    });
+    final md = '# Judul\n\n${'paragraf dengan kata-kata panjang\n' * 2000}';
+    File('${tmp.path}/heavy.md').writeAsStringSync(md);
+    final job = _heavyDoneJob('${tmp.path}/heavy.md', md);
+
+    await tester.runAsync(() async {
+      await tester.pumpWidget(MaterialApp(
+        theme: PdflowTheme.light(),
+        home: Scaffold(body: DocumentViewer(job: job)),
+      ));
+      await Future<void>.delayed(const Duration(milliseconds: 300));
+    });
+
+    // Frame pertama setelah load: spinner render.
+    await tester.pump();
+    expect(find.byType(CircularProgressIndicator), findsOneWidget);
+
+    // Frame berikutnya: konten rendered.
+    await tester.pump();
+    expect(find.byType(CircularProgressIndicator), findsNothing);
+    expect(find.byType(MarkdownBody), findsOneWidget);
+  });
+
+  testWidgets('konten ringan: tanpa spinner, langsung rendered', (tester) async {
+    final tmp = Directory.systemTemp.createTempSync('markit_perf_light');
+    addTearDown(() {
+      try {
+        tmp.deleteSync(recursive: true);
+      } on FileSystemException {
+        // abaikan
+      }
+    });
+    const md = '# Judul\n\nIsi.\n';
+    File('${tmp.path}/light.md').writeAsStringSync(md);
+    final job = _heavyDoneJob('${tmp.path}/light.md', md);
+
+    await tester.runAsync(() async {
+      await tester.pumpWidget(MaterialApp(
+        theme: PdflowTheme.light(),
+        home: Scaffold(body: DocumentViewer(job: job)),
+      ));
+      await Future<void>.delayed(const Duration(milliseconds: 300));
+    });
+
+    await tester.pump();
+    expect(find.byType(CircularProgressIndicator), findsNothing);
+    expect(find.byType(MarkdownBody), findsOneWidget);
   });
 }
 
