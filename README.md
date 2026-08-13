@@ -61,10 +61,14 @@ read, indexed, and fed to AI systems as input (RAG / LLM).
   individually or as a ZIP.
 - **Error handling per file** — corrupt / encrypted / scanned (no-text)
   files, unsupported formats, or failing extractors fail that file
-  individually with a `JobErrorView` showing full error details; the rest of
-  the batch continues.
+  individually with a `JobErrorView` showing full error details; pages that
+  fail mid-document are collected in the result (failed-page markers), and
+  the rest of the batch continues.
 - **Theme switcher** — light / dark / system, persisted via
   `shared_preferences`.
+- **Design** — paper-and-ink palette with a serif display face
+  (**Fraunces**, bundled with Inter and JetBrains Mono); the Markdown preview
+  renders like a printed page.
 
 ## Screenshots
 
@@ -228,8 +232,8 @@ lib/
     nested headings 100%, numbered sections 100%, ordered lists 100%, nested
     lists 100%, header/footer suppression 100%, multi-column reading order
     100%, and simple / mixed / multi-page tables 100% (table cell F1).
-    The `with_tables` corpus still scores 28.6% (FAIL) — the remaining table
-    gap.
+    Paragraph-level F1 inside table-heavy pages remains the largest gap — the
+    superseded `with_tables` corpus last measured 28.6% (FAIL).
 
 ## Development
 
