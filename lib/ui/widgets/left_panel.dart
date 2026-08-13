@@ -58,104 +58,133 @@ class LeftPanel extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.stretch,
         mainAxisSize: MainAxisSize.min,
         children: [
-          // Header panel.
-          Padding(
-            padding: const EdgeInsets.fromLTRB(
-              PdflowSpacing.lg,
-              PdflowSpacing.lg,
-              PdflowSpacing.sm,
-              PdflowSpacing.sm,
-            ),
-            child: Row(
-              children: [
-                Text(
-                  isEmpty ? Strings.sidebarTitle : Strings.sidebarFiles,
-                  style: Theme.of(context).textTheme.labelLarge,
-                ),
-                if (!isEmpty) ...[
-                  const SizedBox(width: PdflowSpacing.sm),
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 7,
-                      vertical: 1,
-                    ),
-                    decoration: BoxDecoration(
-                      color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.1),
-                      borderRadius: BorderRadius.circular(999),
-                    ),
-                    child: Text(
-                      '${queue.length}',
-                      style: TextStyle(
-                        fontFamily: PdflowTypography.mono,
-                        fontSize: 11,
-                        fontWeight: FontWeight.w600,
-                        fontFeatures: PdflowTypography.tabularFigures,
-                        color: Theme.of(context).colorScheme.primary,
-                      ),
-                    ),
-                  ),
-                ],
-                const Spacer(),
-                IconButton(
-                  onPressed: isRunning ? null : onAddMore,
-                  icon: const Icon(Icons.add, size: 19),
-                  tooltip: Strings.addFiles,
-                  visualDensity: VisualDensity.compact,
-                ),
-              ],
-            ),
-          ),
+          _buildHeader(context, queue, isEmpty),
           const Divider(height: 1),
-          // Isi scrollable: drop zone (kosong) / daftar file + aksi bawah.
-          Expanded(
-            child: isEmpty
-                ? SingleChildScrollView(
-                    padding: const EdgeInsets.all(PdflowSpacing.lg),
-                    child: DropZone(
-                      compact: true,
-                      onFilesPicked: (inputs) {
-                        controller.addFiles(inputs);
-                      },
-                    ),
-                  )
-                // ListView.builder: hanya item terlihat yang dibangun —
-                // batch besar tidak mengkonstruksi semua kartu tiap rebuild.
-                : ListView.builder(
-                    padding: const EdgeInsets.all(PdflowSpacing.md),
-                    itemCount: (warning != null ? 1 : 0) + queue.length + 1,
-                    itemBuilder: (context, index) {
-                      final bannerOffset = warning != null ? 1 : 0;
-                      if (warning != null && index == 0) {
-                        return Column(
-                          crossAxisAlignment: CrossAxisAlignment.stretch,
-                          children: [
-                            _WarningBanner(message: warning),
-                            const SizedBox(height: PdflowSpacing.md),
-                          ],
-                        );
-                      }
-                      if (index == bannerOffset + queue.length) {
-                        return Column(
-                          crossAxisAlignment: CrossAxisAlignment.stretch,
-                          children: [
-                            const SizedBox(height: PdflowSpacing.md),
-                            _buildActions(context, queue, done),
-                          ],
-                        );
-                      }
-                      final isLast = index == bannerOffset + queue.length - 1;
-                      return RepaintBoundary(
-                        child: Padding(
-                          padding: EdgeInsets.only(
-                            bottom: isLast ? 0 : PdflowSpacing.sm,
-                          ),
-                          child: _buildCard(queue[index - bannerOffset]),
-                        ),
-                      );
-                    },
-                  ),
+          _buildContent(context, queue, done, warning),
+        ],
+      ),
+    );
+  }
+
+  /// Header panel: judul (berubah saat kosong) + badge jumlah file + tombol
+  /// tambah (nonaktif saat konversi berjalan).
+  Widget _buildHeader(
+    BuildContext context,
+    List<QueuedFile> queue,
+    bool isEmpty,
+  ) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(
+        PdflowSpacing.lg,
+        PdflowSpacing.lg,
+        PdflowSpacing.sm,
+        PdflowSpacing.sm,
+      ),
+      child: Row(
+        children: [
+          Text(
+            isEmpty ? Strings.sidebarTitle : Strings.sidebarFiles,
+            style: Theme.of(context).textTheme.labelLarge,
+          ),
+          if (!isEmpty) ...[
+            const SizedBox(width: PdflowSpacing.sm),
+            Container(
+              padding: const EdgeInsets.symmetric(
+                horizontal: 7,
+                vertical: 1,
+              ),
+              decoration: BoxDecoration(
+                color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.1),
+                borderRadius: BorderRadius.circular(999),
+              ),
+              child: Text(
+                '${queue.length}',
+                style: TextStyle(
+                  fontFamily: PdflowTypography.mono,
+                  fontSize: 11,
+                  fontWeight: FontWeight.w600,
+                  fontFeatures: PdflowTypography.tabularFigures,
+                  color: Theme.of(context).colorScheme.primary,
+                ),
+              ),
+            ),
+          ],
+          const Spacer(),
+          IconButton(
+            onPressed: isRunning ? null : onAddMore,
+            icon: const Icon(Icons.add, size: 19),
+            tooltip: Strings.addFiles,
+            visualDensity: VisualDensity.compact,
           ),
         ],
+      ),
+    );
+  }
+
+  /// Isi scrollable: drop zone (kosong) atau daftar file + aksi bawah.
+  Widget _buildContent(
+    BuildContext context,
+    List<QueuedFile> queue,
+    int done,
+    String? warning,
+  ) {
+    final isEmpty = queue.isEmpty;
+    return Expanded(
+      child: isEmpty
+          ? SingleChildScrollView(
+              padding: const EdgeInsets.all(PdflowSpacing.lg),
+              child: DropZone(
+                compact: true,
+                onFilesPicked: (inputs) {
+                  controller.addFiles(inputs);
+                },
+              ),
+            )
+          // ListView.builder: hanya item terlihat yang dibangun —
+          // batch besar tidak mengkonstruksi semua kartu tiap rebuild.
+          : ListView.builder(
+              padding: const EdgeInsets.all(PdflowSpacing.md),
+              itemCount: (warning != null ? 1 : 0) + queue.length + 1,
+              itemBuilder: (context, index) =>
+                  _buildQueueTile(context, index, queue, done, warning),
+            ),
+    );
+  }
+
+  /// Satu baris item daftar: banner peringatan, kartu file, atau footer aksi.
+  Widget _buildQueueTile(
+    BuildContext context,
+    int index,
+    List<QueuedFile> queue,
+    int done,
+    String? warning,
+  ) {
+    final bannerOffset = warning != null ? 1 : 0;
+    if (warning != null && index == 0) {
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          _WarningBanner(message: warning),
+          const SizedBox(height: PdflowSpacing.md),
+        ],
+      );
+    }
+    if (index == bannerOffset + queue.length) {
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          const SizedBox(height: PdflowSpacing.md),
+          _buildActions(context, queue, done),
+        ],
+      );
+    }
+    final isLast = index == bannerOffset + queue.length - 1;
+    return RepaintBoundary(
+      child: Padding(
+        padding: EdgeInsets.only(
+          bottom: isLast ? 0 : PdflowSpacing.sm,
+        ),
+        child: _buildCard(queue[index - bannerOffset]),
       ),
     );
   }

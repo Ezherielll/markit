@@ -422,6 +422,31 @@ class _ViewerToolbar extends StatelessWidget {
         ? PdflowColors.inkMutedDark
         : PdflowColors.inkMutedLight;
 
+    return Container(
+      color: isDark ? PdflowColors.surfaceDark : PdflowColors.surfaceLight,
+      padding: const EdgeInsets.symmetric(
+        horizontal: PdflowSpacing.lg,
+        vertical: PdflowSpacing.sm,
+      ),
+      child: Row(
+        children: [
+          Expanded(child: _title(ink, inkMuted)),
+          const SizedBox(width: PdflowSpacing.md),
+          _modeSegments(),
+          if (viewMode == _ViewMode.output) ...[
+            const SizedBox(width: PdflowSpacing.sm),
+            _rawSegments(),
+          ],
+          const SizedBox(width: PdflowSpacing.sm),
+          _actionButton(),
+        ],
+      ),
+    );
+  }
+
+  /// Judul toolbar: nama file output + metadata ringan (heading, paragraf,
+  /// item list, baris tabel) — meta hanya tampil bila statistik tersedia.
+  Widget _title(Color ink, Color inkMuted) {
     final s = stats;
     final meta = [
       if (s != null) ...[
@@ -436,101 +461,95 @@ class _ViewerToolbar extends StatelessWidget {
       ],
     ].join();
 
-    return Container(
-      color: isDark ? PdflowColors.surfaceDark : PdflowColors.surfaceLight,
-      padding: const EdgeInsets.symmetric(
-        horizontal: PdflowSpacing.lg,
-        vertical: PdflowSpacing.sm,
-      ),
-      child: Row(
-        children: [
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Text(
-                  job.input.outputName,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: TextStyle(
-                    fontFamily: PdflowTypography.mono,
-                    fontSize: 13,
-                    fontWeight: FontWeight.w500,
-                    color: ink,
-                  ),
-                ),
-                if (meta.isNotEmpty)
-                  Text(
-                    meta,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
-                      fontFamily: PdflowTypography.ui,
-                      fontSize: 11,
-                      color: inkMuted,
-                    ),
-                  ),
-              ],
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Text(
+          job.input.outputName,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          style: TextStyle(
+            fontFamily: PdflowTypography.mono,
+            fontSize: 13,
+            fontWeight: FontWeight.w500,
+            color: ink,
+          ),
+        ),
+        if (meta.isNotEmpty)
+          Text(
+            meta,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: TextStyle(
+              fontFamily: PdflowTypography.ui,
+              fontSize: 11,
+              color: inkMuted,
             ),
           ),
-          const SizedBox(width: PdflowSpacing.md),
-          SegmentedButton<_ViewMode>(
-            segments: const [
-              ButtonSegment(
-                value: _ViewMode.source,
-                label: Text(Strings.showSource),
-              ),
-              ButtonSegment(
-                value: _ViewMode.output,
-                label: Text(Strings.showOutput),
-              ),
-            ],
-            selected: {viewMode},
-            onSelectionChanged: (s) => onViewModeChanged(s.first),
-            style: SegmentedButton.styleFrom(
-              visualDensity: VisualDensity.compact,
-              textStyle: const TextStyle(
-                fontFamily: PdflowTypography.ui,
-                fontSize: 12,
-                fontWeight: FontWeight.w500,
-              ),
-            ),
-          ),
-          if (viewMode == _ViewMode.output) ...[
-            const SizedBox(width: PdflowSpacing.sm),
-            SegmentedButton<bool>(
-              segments: const [
-                ButtonSegment(value: false, label: Text(Strings.showRendered)),
-                ButtonSegment(value: true, label: Text(Strings.showRaw)),
-              ],
-              selected: {showRaw},
-              onSelectionChanged: (s) => onToggleRaw(s.first),
-              style: SegmentedButton.styleFrom(
-                visualDensity: VisualDensity.compact,
-                textStyle: const TextStyle(
-                  fontFamily: PdflowTypography.ui,
-                  fontSize: 12,
-                  fontWeight: FontWeight.w500,
-                ),
-              ),
-            ),
-          ],
-          const SizedBox(width: PdflowSpacing.sm),
-          if (kIsWeb)
-            IconButton(
-              onPressed: onDownload,
-              icon: const Icon(Icons.download_outlined, size: 19),
-              tooltip: Strings.download,
-            )
-          else
-            IconButton(
-              onPressed: onOpenFolder,
-              icon: const Icon(Icons.folder_open_outlined, size: 19),
-              tooltip: Strings.openOutput,
-            ),
-        ],
+      ],
+    );
+  }
+
+  /// Segmen toggle mode tampilan: Source (input) / Output (hasil konversi).
+  Widget _modeSegments() {
+    return SegmentedButton<_ViewMode>(
+      segments: const [
+        ButtonSegment(
+          value: _ViewMode.source,
+          label: Text(Strings.showSource),
+        ),
+        ButtonSegment(
+          value: _ViewMode.output,
+          label: Text(Strings.showOutput),
+        ),
+      ],
+      selected: {viewMode},
+      onSelectionChanged: (s) => onViewModeChanged(s.first),
+      style: SegmentedButton.styleFrom(
+        visualDensity: VisualDensity.compact,
+        textStyle: const TextStyle(
+          fontFamily: PdflowTypography.ui,
+          fontSize: 12,
+          fontWeight: FontWeight.w500,
+        ),
       ),
+    );
+  }
+
+  /// Segmen toggle rendered/raw — hanya relevan saat mode Output.
+  Widget _rawSegments() {
+    return SegmentedButton<bool>(
+      segments: const [
+        ButtonSegment(value: false, label: Text(Strings.showRendered)),
+        ButtonSegment(value: true, label: Text(Strings.showRaw)),
+      ],
+      selected: {showRaw},
+      onSelectionChanged: (s) => onToggleRaw(s.first),
+      style: SegmentedButton.styleFrom(
+        visualDensity: VisualDensity.compact,
+        textStyle: const TextStyle(
+          fontFamily: PdflowTypography.ui,
+          fontSize: 12,
+          fontWeight: FontWeight.w500,
+        ),
+      ),
+    );
+  }
+
+  /// Tombol aksi utama: unduh hasil (web) atau buka folder output (desktop).
+  Widget _actionButton() {
+    if (kIsWeb) {
+      return IconButton(
+        onPressed: onDownload,
+        icon: const Icon(Icons.download_outlined, size: 19),
+        tooltip: Strings.download,
+      );
+    }
+    return IconButton(
+      onPressed: onOpenFolder,
+      icon: const Icon(Icons.folder_open_outlined, size: 19),
+      tooltip: Strings.openOutput,
     );
   }
 }
