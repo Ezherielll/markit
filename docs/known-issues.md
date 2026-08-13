@@ -13,8 +13,9 @@ keyboard di `lib/`. Penyebab: key-up sebelumnya hilang saat fokus berpindah
 berikutnya tiba. Assertion hanya aktif di mode debug; release/profile tidak
 terpengaruh (tidak crash — error sudah ditangkap services library, app lanjut).
 
-**Referensi:** flutter/flutter#116665 (dan sejenisnya: Alt + layout keyboard
-non-EN / remote desktop).
+**Referensi:** flutter/flutter#124301, #125672, #150326 — assertion
+`RawKeyboard._keysPressed` kosong saat key-down tiba (event Alt/modifier
+inkonsisten dari OS/driver); pantau status di tracker Flutter.
 
 **Mitigasi:** tidak ada patch app yang aman (state internal framework);
 jangan override dependency. Pantau fix di `flutter upgrade`.
