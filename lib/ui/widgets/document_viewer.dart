@@ -14,6 +14,7 @@ import 'package:markit/ui/theme/typography.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../download_text.dart';
+import 'document_load_work.dart';
 import 'markdown_helpers.dart';
 
 /// Panel kanan — workspace utama: document viewer (paper-like reading surface)
@@ -91,25 +92,39 @@ class _DocumentViewerState extends State<DocumentViewer> {
     if (job == null) return;
 
     String content;
+    bool truncated;
+    String preview;
+    MdStats stats;
     if (kIsWeb) {
       content = job.content ?? '';
+      final cut = truncateMarkdownPreview(
+        content,
+        maxChars: maxPreviewChars,
+      );
+      preview = cut.preview;
+      truncated = cut.truncated;
+      stats = computeMdStats(content);
     } else {
       final file = File(job.outputPath);
       if (!await file.exists()) return;
-      content = await file.readAsString();
+      // Baca + decode + stats DI ISOLATE — file output bisa beberapa MB.
+      final result = await compute(
+        loadDocumentWork,
+        (path: job.outputPath, maxChars: maxPreviewChars),
+      );
+      content = result.content;
+      preview = result.preview;
+      truncated = result.truncated;
+      stats = result.stats;
     }
 
-    final truncated = truncateMarkdownPreview(
-      content,
-      maxChars: maxPreviewChars,
-    );
     if (!mounted) return;
+    _paperCache = null;
     setState(() {
       _content = content;
-      _preview = truncated.preview;
-      _previewTruncated = truncated.truncated;
-      _stats = computeMdStats(content);
-      _paperCache = null;
+      _preview = preview;
+      _previewTruncated = truncated;
+      _stats = stats;
     });
   }
 
