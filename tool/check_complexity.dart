@@ -2,8 +2,8 @@ import 'dart:io';
 
 import 'package:cognitive_complexity/cognitive_complexity.dart';
 
-/// Gate Cognitive Complexity (Fase D): gagalkan bila ada fungsi di lib/
-/// dengan score > threshold (default 15 — rekomendasi SonarSource).
+/// Cognitive Complexity gate (Phase D): fails if any function in lib/
+/// has score > threshold (default 15 — SonarSource recommendation).
 ///
 /// Usage: dart run tool/check_complexity.dart [threshold]
 void main(List<String> args) {
@@ -15,11 +15,11 @@ void main(List<String> args) {
     ..sort((a, b) => b.score.compareTo(a.score));
 
   if (offenders.isEmpty) {
-    stdout.writeln('OK: semua fungsi <= $threshold (cognitive complexity)');
+    stdout.writeln('OK: all functions <= $threshold (cognitive complexity)');
     return;
   }
 
-  stdout.writeln('FAIL: ${offenders.length} fungsi > $threshold:');
+  stdout.writeln('FAIL: ${offenders.length} functions > $threshold:');
   for (final r in offenders) {
     stdout.writeln('  ${r.score}  ${r.name}  (${r.filePath}:L${r.startLine})');
   }
