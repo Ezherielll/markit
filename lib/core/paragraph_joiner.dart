@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import '../models/layout.dart';
 import 'doc_stats.dart';
 
@@ -100,8 +102,11 @@ class ParagraphJoiner {
           // xRight diteruskan ke xLeft span pertama baris B sehingga gap X
           // antar-fragmen = 0 → Line.text tidak menyisipkan spasi
           // ("docu-" + "ment" → "document", bukan "docu ment").
+          // Clamp: baris lanjutan yang dimulai lebih kiri (list wrap) membuat
+          // xLeft baris B < xLeft baris A — tanpa max() assertion xLeft<=xRight
+          // gagal di debug (bug #…: list wrap ter-merge hiphenasi).
           xLeft: last.xLeft,
-          xRight: b.spans.first.xLeft,
+          xRight: math.max(last.xLeft, b.spans.first.xLeft),
           yBottom: last.yBottom,
           yTop: last.yTop,
           fontSize: last.fontSize,

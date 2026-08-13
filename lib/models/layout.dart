@@ -34,6 +34,24 @@ class TextSpan {
   double get yCenter => (yTop + yBottom) / 2;
 }
 
+/// Normalisasi bounds fragment PDFium: PDF tertentu (glyph mirror/terflip,
+/// teks diputar) memberi left > right / bottom > top. Ditukar agar invariant
+/// [TextSpan] (xLeft <= xRight, yBottom <= yTop) selalu terpenuhi — guard
+/// defensif di seam dengan library eksternal (pdfrx).
+({double xLeft, double xRight, double yBottom, double yTop})
+    normalizeTextSpanBounds({
+  required double left,
+  required double right,
+  required double bottom,
+  required double top,
+}) =>
+    (
+      xLeft: math.min(left, right),
+      xRight: math.max(left, right),
+      yBottom: math.min(bottom, top),
+      yTop: math.max(bottom, top),
+    );
+
 /// Satu baris teks: kumpulan [TextSpan] yang berada pada baseline yang sama.
 class Line {
   Line({required this.spans}) : assert(spans.isNotEmpty);

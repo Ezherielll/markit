@@ -123,5 +123,14 @@ void main() {
       expect(paras[1].single.text, '10');
       expect(paras[0].single.text, isNot(contains('5-10')));
     });
+
+    test('baris lanjutan lebih kiri (list wrap) → merge aman, tanpa spasi', () {
+      final joiner = ParagraphJoiner();
+      final paras = joiner.join(
+        [gapLine('1. docu-', 30, 90), gapLine('ment', 20, 80, yTop: 85)],
+        isHeading: notHeading,
+      );
+      expect(paras.single.single.text, '1. document');
+    });
   });
 }

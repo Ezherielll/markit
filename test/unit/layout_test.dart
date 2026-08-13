@@ -43,6 +43,51 @@ void main() {
     });
   });
 
+  group('normalizeTextSpanBounds (regresi xLeft<=xRight)', () {
+    test('bounds normal → tidak berubah', () {
+      final b = normalizeTextSpanBounds(
+        left: 10, right: 20, bottom: 5, top: 15,
+      );
+      expect(b.xLeft, 10);
+      expect(b.xRight, 20);
+      expect(b.yBottom, 5);
+      expect(b.yTop, 15);
+    });
+
+    test('x terflip (left > right) → ditukar', () {
+      final b = normalizeTextSpanBounds(
+        left: 20, right: 10, bottom: 5, top: 15,
+      );
+      expect(b.xLeft, 10);
+      expect(b.xRight, 20);
+    });
+
+    test('y terflip (bottom > top) → ditukar', () {
+      final b = normalizeTextSpanBounds(
+        left: 10, right: 20, bottom: 15, top: 5,
+      );
+      expect(b.yBottom, 5);
+      expect(b.yTop, 15);
+    });
+
+    test('hasil normalize lolos assert TextSpan (debug)', () {
+      final b = normalizeTextSpanBounds(
+        left: 20, right: 10, bottom: 15, top: 5,
+      );
+      expect(
+        () => TextSpan(
+          text: 'x',
+          xLeft: b.xLeft,
+          xRight: b.xRight,
+          yBottom: b.yBottom,
+          yTop: b.yTop,
+          fontSize: 10,
+        ),
+        returnsNormally,
+      );
+    });
+  });
+
   group('Block alignments (Fase D)', () {
     test('Block default: alignments null', () {
       final block = Block(type: BlockType.tableRow, lines: ['a | b'], cells: ['a', 'b']);

@@ -116,13 +116,21 @@ class PdfrxSource implements PdfSource {
       final maxCharH = f.charRects
           .where((r) => r.isNotEmpty)
           .fold<double>(0, (a, r) => r.height > a ? r.height : a);
+      // Guard: PDFium bisa memberi bounds terflip (glyph mirror / teks
+      // diputar) → tanpa normalize, assert TextSpan (xLeft<=xRight) crash.
+      final b = normalizeTextSpanBounds(
+        left: f.bounds.left,
+        right: f.bounds.right,
+        bottom: f.bounds.bottom,
+        top: f.bounds.top,
+      );
       spans.add(
         TextSpan(
           text: f.text,
-          xLeft: f.bounds.left,
-          xRight: f.bounds.right,
-          yBottom: f.bounds.bottom,
-          yTop: f.bounds.top,
+          xLeft: b.xLeft,
+          xRight: b.xRight,
+          yBottom: b.yBottom,
+          yTop: b.yTop,
           fontSize: maxCharH,
         ),
       );
