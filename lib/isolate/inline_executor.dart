@@ -99,7 +99,7 @@ class InlineExecutor implements ConversionExecutor {
     if (extractor == null) {
       return JobExecutionResult.failure(
         'unsupported',
-        'Format ${format.label} belum didukung (roadmap Fase 2–3).',
+        'Format ${format.label} belum didukung konversi (roadmap).',
       );
     }
     if (bytes == null) {

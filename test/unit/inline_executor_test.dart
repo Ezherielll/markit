@@ -103,26 +103,27 @@ void main() {
       await executor.shutdown();
     });
 
-    test('markdown passthrough via executor', () async {
+    test('word corrupt (bukan ZIP) → corrupt failure, batch tetap lanjut',
+        () async {
       final executor = InlineExecutor();
       await executor.initialize();
 
       final result = await executor.runJob(
         jobId: 'j5',
         pdfPath: '',
-        pdfBytes: Uint8List.fromList(utf8.encode('# Title\n\nBody.')),
-        outputPath: 'notes.md',
-        format: InputFormat.markdown,
+        pdfBytes: Uint8List.fromList([0x01, 0x02, 0x03]),
+        outputPath: 'bad.md',
+        format: InputFormat.word,
       );
 
-      expect(result.success, isTrue);
-      expect(result.content, contains('# Title'));
-      expect(result.content, contains('Body.'));
+      expect(result.success, isFalse);
+      expect(result.errorType, 'corrupt');
 
       await executor.shutdown();
     });
 
-    test('format tanpa extractor (zip) → unsupported failure', () async {
+    test('format tanpa extractor (powerpoint) → unsupported failure',
+        () async {
       final executor = InlineExecutor();
       await executor.initialize();
 
@@ -131,29 +132,12 @@ void main() {
         pdfPath: '',
         pdfBytes: Uint8List.fromList([0x50, 0x4B, 0x03, 0x04, 1, 2, 3]),
         outputPath: 'doc.md',
-        format: InputFormat.zip,
+        format: InputFormat.powerpoint,
       );
 
       expect(result.success, isFalse);
       expect(result.errorType, 'unsupported');
-
-      await executor.shutdown();
-    });
-
-    test('json corrupt → corrupt failure, batch tetap lanjut', () async {
-      final executor = InlineExecutor();
-      await executor.initialize();
-
-      final result = await executor.runJob(
-        jobId: 'j7',
-        pdfPath: '',
-        pdfBytes: Uint8List.fromList(utf8.encode('{invalid')),
-        outputPath: 'bad.md',
-        format: InputFormat.json,
-      );
-
-      expect(result.success, isFalse);
-      expect(result.errorType, 'corrupt');
+      expect(result.errorMessage, contains('PowerPoint'));
 
       await executor.shutdown();
     });

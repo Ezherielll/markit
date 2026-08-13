@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_markdown_plus/flutter_markdown_plus.dart';
@@ -11,16 +12,19 @@ import 'package:markit/ui/source/text_source_view.dart';
 import 'package:markit/ui/theme/markit_theme.dart';
 import 'package:markit/ui/widgets/document_viewer.dart';
 
+import '../helpers/docx_factory.dart';
+
 QueuedFile _job(
   String name,
   InputFormat format, {
   String? path,
+  Uint8List? bytes,
   JobStatus status = JobStatus.queued,
   String? content,
 }) =>
     QueuedFile(
       id: name,
-      input: PdfInput(name: name, path: path, format: format),
+      input: PdfInput(name: name, path: path, bytes: bytes, format: format),
       status: status,
     )..content = content;
 
@@ -54,13 +58,13 @@ void main() {
     }
   });
 
-  testWidgets('queued TXT: mode Source otomatis, teks sumber tampil',
+  testWidgets('queued CSV: mode Source otomatis, teks sumber tampil',
       (tester) async {
-    File('${tmp.path}/notes.txt').writeAsStringSync('lorem\nipsum\n');
+    File('${tmp.path}/notes.csv').writeAsStringSync('lorem\nipsum\n');
     final job = _job(
-      'notes.txt',
-      InputFormat.text,
-      path: '${tmp.path}/notes.txt',
+      'notes.csv',
+      InputFormat.csv,
+      path: '${tmp.path}/notes.csv',
       status: JobStatus.queued,
     );
 
@@ -74,13 +78,34 @@ void main() {
     expect(find.text(Strings.showOutput), findsOneWidget);
   });
 
-  testWidgets('queued TXT: toggle ke Output → skeleton (belum ada hasil)',
+  testWidgets('queued DOCX (zip): preview teks hasil strip tag',
       (tester) async {
-    File('${tmp.path}/notes.txt').writeAsStringSync('lorem\n');
+    final docx = buildTestDocx(
+      documentXml: docxDocument(
+        '${docxParagraph(docxRun('Judul dokumen'))}'
+        '${docxParagraph(docxRun('Isi paragraf.'))}',
+      ),
+    );
     final job = _job(
-      'notes.txt',
-      InputFormat.text,
-      path: '${tmp.path}/notes.txt',
+      'notes.docx',
+      InputFormat.word,
+      bytes: docx,
+      status: JobStatus.queued,
+    );
+
+    await _pump(tester, job);
+
+    expect(find.byType(TextSourceView), findsOneWidget);
+    expect(find.textContaining('Judul dokumen'), findsOneWidget);
+  });
+
+  testWidgets('queued CSV: toggle ke Output → skeleton (belum ada hasil)',
+      (tester) async {
+    File('${tmp.path}/notes.csv').writeAsStringSync('lorem\n');
+    final job = _job(
+      'notes.csv',
+      InputFormat.csv,
+      path: '${tmp.path}/notes.csv',
       status: JobStatus.queued,
     );
 
@@ -92,11 +117,11 @@ void main() {
   });
 
   testWidgets('running: sumber tampil (hasil belum ada)', (tester) async {
-    File('${tmp.path}/notes.txt').writeAsStringSync('lorem\n');
+    File('${tmp.path}/notes.csv').writeAsStringSync('lorem\n');
     final job = _job(
-      'notes.txt',
-      InputFormat.text,
-      path: '${tmp.path}/notes.txt',
+      'notes.csv',
+      InputFormat.csv,
+      path: '${tmp.path}/notes.csv',
       status: JobStatus.running,
     );
 
@@ -106,9 +131,8 @@ void main() {
     expect(find.text('lorem\n'), findsOneWidget);
   });
 
-  testWidgets('format belum didukung: pesan formatNotSupported tampil',
-      (tester) async {
-    final job = _job('a.zip', InputFormat.zip, status: JobStatus.queued);
+  testWidgets('format legacy: pesan formatNotSupported tampil', (tester) async {
+    final job = _job('a.doc', InputFormat.word, status: JobStatus.queued);
 
     await _pump(tester, job);
 
@@ -118,9 +142,9 @@ void main() {
   testWidgets('file sumber hilang: pesan sourceLoadFailed tampil',
       (tester) async {
     final job = _job(
-      'ghost.txt',
-      InputFormat.text,
-      path: '${tmp.path}/ghost.txt',
+      'ghost.csv',
+      InputFormat.csv,
+      path: '${tmp.path}/ghost.csv',
       status: JobStatus.queued,
     );
 
@@ -132,12 +156,12 @@ void main() {
   testWidgets('done: mode Output default (rendered); toggle Source↔Output',
       (tester) async {
     const md = '# Heading\n\nbody\n';
-    File('${tmp.path}/doc.txt').writeAsStringSync(md);
+    File('${tmp.path}/doc.csv').writeAsStringSync(md);
     File('${tmp.path}/doc.md').writeAsStringSync(md);
     final job = _job(
-      'doc.txt',
-      InputFormat.text,
-      path: '${tmp.path}/doc.txt',
+      'doc.csv',
+      InputFormat.csv,
+      path: '${tmp.path}/doc.csv',
       status: JobStatus.done,
       content: md,
     );
@@ -164,9 +188,9 @@ void main() {
   testWidgets('raw view (output): Scrollbar tidak melempar assertion (bug #2)',
       (tester) async {
     final job = _job(
-      'doc.txt',
-      InputFormat.text,
-      path: '${tmp.path}/doc.txt',
+      'doc.csv',
+      InputFormat.csv,
+      path: '${tmp.path}/doc.csv',
       status: JobStatus.done,
       // Cukup panjang → scroll horizontal aktif pada raw view.
       content: '${'kata ' * 400}\n',
@@ -186,11 +210,11 @@ void main() {
   });
 
   testWidgets('failed tapi sumber terbaca: teks tetap tampil', (tester) async {
-    File('${tmp.path}/bad.txt').writeAsStringSync('konten mentah\n');
+    File('${tmp.path}/bad.csv').writeAsStringSync('konten mentah\n');
     final job = _job(
-      'bad.txt',
-      InputFormat.text,
-      path: '${tmp.path}/bad.txt',
+      'bad.csv',
+      InputFormat.csv,
+      path: '${tmp.path}/bad.csv',
       status: JobStatus.failed,
     );
 
@@ -203,9 +227,9 @@ void main() {
   testWidgets('failed dan sumber tidak terbaca: sourceLoadFailed',
       (tester) async {
     final job = _job(
-      'gone.txt',
-      InputFormat.text,
-      path: '${tmp.path}/gone.txt',
+      'gone.csv',
+      InputFormat.csv,
+      path: '${tmp.path}/gone.csv',
       status: JobStatus.failed,
     );
 

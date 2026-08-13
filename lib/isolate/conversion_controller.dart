@@ -3,6 +3,7 @@ import 'dart:io';
 
 import 'package:flutter/foundation.dart';
 
+import '../core/format_catalog.dart';
 import '../core/input_format.dart';
 import '../core/pdfrx_source.dart';
 import '../models/pdf_input.dart';
@@ -299,6 +300,20 @@ class BatchConversionController extends ConversionController {
     job.currentPage = 0;
     job.totalPages = null;
     notifyListeners();
+
+    // Format legacy (OLE2: .doc/.ppt/.pps/.pot/.xls/.xlsb) terdeteksi tapi
+    // belum punya parser — gagal JELAS ("not supported yet"), bukan gagal
+    // "corrupt" saat dibaca. Batch tetap lanjut ke file berikutnya.
+    if (isLegacyFormatExtension(job.input.format, job.input.name)) {
+      final ext = job.input.name.toLowerCase().split('.').last;
+      job.status = JobStatus.failed;
+      job.errorType = 'unsupported';
+      job.errorMessage =
+          'Format ${job.input.format.label} (.$ext) belum didukung konversi '
+          '(roadmap).';
+      notifyListeners();
+      return;
+    }
 
     try {
       final result = await _executor.runJob(

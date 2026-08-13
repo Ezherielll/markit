@@ -7,22 +7,16 @@ import 'package:markit/ui/theme/spacing.dart';
 import 'package:markit/ui/theme/typography.dart';
 import 'package:markit/ui/widgets/job_error_view.dart';
 
-/// Ikon per format input (M5 multi-format).
+/// Ikon per format input — satu ikon per keluarga format.
 IconData iconForFormat(InputFormat format) => switch (format) {
       InputFormat.pdf => Icons.picture_as_pdf_outlined,
-      InputFormat.text => Icons.description_outlined,
-      InputFormat.markdown => Icons.notes,
-      InputFormat.csv => Icons.table_chart_outlined,
-      InputFormat.json => Icons.data_object,
-      InputFormat.xml => Icons.code,
-      InputFormat.html => Icons.language,
-      InputFormat.docx => Icons.description,
-      InputFormat.xlsx => Icons.table_chart,
-      InputFormat.pptx => Icons.slideshow_outlined,
+      InputFormat.word => Icons.description_outlined,
+      InputFormat.powerpoint => Icons.slideshow_outlined,
+      InputFormat.excel => Icons.table_chart_outlined,
+      InputFormat.opendocument => Icons.article_outlined,
+      InputFormat.rtf => Icons.notes,
       InputFormat.epub => Icons.menu_book_outlined,
-      InputFormat.zip => Icons.folder_zip_outlined,
-      InputFormat.image => Icons.image_outlined,
-      InputFormat.audio => Icons.audiotrack_outlined,
+      InputFormat.csv => Icons.table_rows_outlined,
       InputFormat.unknown => Icons.insert_drive_file_outlined,
     };
 

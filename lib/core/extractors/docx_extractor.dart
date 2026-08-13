@@ -11,7 +11,7 @@ import '../extractor.dart';
 import '../input_format.dart';
 import '../markdown_writer.dart';
 
-/// Ekstraktor DOCX (Office Open XML) → markdown.
+/// Ekstraktor Word (Office Open XML: `.docx`/`.docm`) → markdown.
 ///
 /// Arsitektur: DOCX adalah ZIP berisi XML. Yang dibaca:
 /// - `word/document.xml` — konten utama (w:p paragraf, w:tbl tabel);
@@ -25,7 +25,7 @@ class DocxExtractor implements FormatExtractor {
   const DocxExtractor();
 
   @override
-  InputFormat get format => InputFormat.docx;
+  InputFormat get format => InputFormat.word;
 
   @override
   Future<ExtractionResult> extract({

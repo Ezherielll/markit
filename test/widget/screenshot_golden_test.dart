@@ -187,7 +187,7 @@ void main() {
     );
   });
 
-  testWidgets('golden: mode source (queued TXT)', (tester) async {
+  testWidgets('golden: mode source (queued CSV)', (tester) async {
     await _loadFonts();
     final tmp = Directory.systemTemp.createTempSync('markit_shot_source');
     addTearDown(() {
@@ -200,7 +200,7 @@ void main() {
         }
       }
     });
-    final txt = '${tmp.path}/notes.txt';
+    final txt = '${tmp.path}/notes.csv';
     File(txt).writeAsStringSync(
       '# Catatan rapat\n\n'
       '- Agenda & target\n'
@@ -213,9 +213,9 @@ void main() {
     final job = QueuedFile(
       id: 'src1',
       input: PdfInput(
-        name: 'notes.txt',
+        name: 'notes.csv',
         path: txt,
-        format: InputFormat.text,
+        format: InputFormat.csv,
       ),
       status: JobStatus.queued,
     );

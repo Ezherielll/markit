@@ -1,154 +1,162 @@
 import 'dart:convert';
 import 'dart:typed_data';
 
+import 'package:archive/archive.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:markit/core/extractors/extractor_registry.dart';
+import 'package:markit/core/format_catalog.dart';
 import 'package:markit/core/input_format.dart';
 
 Uint8List _bytes(String s) => Uint8List.fromList(utf8.encode(s));
 
-Uint8List _concat(List<int> a, String b) =>
-    Uint8List.fromList([...a, ...utf8.encode(b)]);
+/// ZIP sintetis berisi entry-entry dengan nama yang diberikan.
+Uint8List _zip(List<String> entries) {
+  final archive = Archive();
+  for (final e in entries) {
+    archive.addFile(ArchiveFile.string(e, '<x/>'));
+  }
+  return Uint8List.fromList(ZipEncoder().encode(archive));
+}
+
+const List<int> _ole2 = [0xD0, 0xCF, 0x11, 0xE0, 0xA1, 0xB1, 0x1A, 0xE1];
 
 void main() {
   group('detectFormat — magic bytes', () {
-    test('PDF via %PDF magic, tanpa ekstensi', () {
+    test('PDF via %PDF, tanpa ekstensi', () {
       expect(
         detectFormat('book', Uint8List.fromList([0x25, 0x50, 0x44, 0x46, 0x2D])),
         InputFormat.pdf,
       );
     });
 
-    test('ZIP-based docx via PK magic + konten word/', () {
-      final zip = _concat(
-        [0x50, 0x4B, 0x03, 0x04],
-        '[Content_Types].xml word/document.xml',
-      );
-      expect(detectFormat('renamed.dat', zip), InputFormat.docx);
-    });
-
-    test('ZIP-based xlsx via PK + xl/', () {
-      final zip = _concat([0x50, 0x4B, 0x03, 0x04], 'xl/worksheets/sheet1.xml');
-      expect(detectFormat('renamed.bin', zip), InputFormat.xlsx);
-    });
-
-    test('ZIP-based pptx via PK + ppt/', () {
-      final zip = _concat([0x50, 0x4B, 0x03, 0x04], 'ppt/slides/slide1.xml');
-      expect(detectFormat('renamed.blob', zip), InputFormat.pptx);
-    });
-
-    test('EPUB via PK + mimetype entry', () {
-      final zip = _concat(
-        [0x50, 0x4B, 0x03, 0x04],
-        'mimetypeapplication/epub+zip',
-      );
-      expect(detectFormat('book.bin', zip), InputFormat.epub);
-    });
-
-    test('ZIP polos via PK', () {
-      final zip = _concat([0x50, 0x4B, 0x03, 0x04], 'some/entry.txt');
-      expect(detectFormat('archive.zip', zip), InputFormat.zip);
-    });
-
-    test('JPEG magic', () {
-      final jpeg = Uint8List.fromList([0xFF, 0xD8, 0xFF, 0xE0]);
-      expect(detectFormat('photo.dat', jpeg), InputFormat.image);
-    });
-
-    test('PNG magic', () {
-      final png = Uint8List.fromList([0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A]);
-      expect(detectFormat('img.bin', png), InputFormat.image);
-    });
-
-    test('MP3 ID3 magic', () {
-      final mp3 = Uint8List.fromList([0x49, 0x44, 0x33, 0x04, 0x00]);
-      expect(detectFormat('song.dat', mp3), InputFormat.audio);
-    });
-
-    test('JSON via { setelah whitespace', () {
-      expect(detectFormat('data', _bytes('  \n{ "a": 1 }')), InputFormat.json);
-    });
-
-    test('JSON via [ tanpa ekstensi', () {
-      expect(detectFormat('list', _bytes('[1, 2, 3]')), InputFormat.json);
-    });
-
-    test('XML via <?xml', () {
+    test('RTF via {\\rtf', () {
       expect(
-        detectFormat('doc', _bytes('<?xml version="1.0"?><root/>')),
-        InputFormat.xml,
+        detectFormat('doc.bin', _bytes('{\\rtf1\\ansi Hello')),
+        InputFormat.rtf,
       );
     });
 
-    test('HTML via <!DOCTYPE html', () {
+    test('ZIP docx (word/) walau di-rename', () {
       expect(
-        detectFormat('page', _bytes('<!DOCTYPE html><html><body>hi</body></html>')),
-        InputFormat.html,
+        detectFormat('renamed.dat', _zip(['[Content_Types].xml', 'word/document.xml'])),
+        InputFormat.word,
       );
     });
 
-    test('HTML via <html langsung', () {
+    test('ZIP xlsx (xl/) walau di-rename', () {
       expect(
-        detectFormat('page', _bytes('<html><body>hi</body></html>')),
-        InputFormat.html,
+        detectFormat('renamed.bin', _zip(['xl/worksheets/sheet1.xml'])),
+        InputFormat.excel,
       );
     });
-  });
 
-  group('RIFF classification (Fase picker)', () {
-    // RIFF (52 49 46 46) ambigu: WAV=audio, WEBP/AVI=image/video.
-    Uint8List riff() => Uint8List.fromList([0x52, 0x49, 0x46, 0x46, 0, 0, 0, 0]);
-
-    test('.wav dengan magic RIFF → audio', () {
-      expect(detectFormat('song.wav', riff()), InputFormat.audio);
+    test('ZIP pptx (ppt/) walau di-rename', () {
+      expect(
+        detectFormat('renamed.blob', _zip(['ppt/slides/slide1.xml'])),
+        InputFormat.powerpoint,
+      );
     });
 
-    test('.webp dengan magic RIFF → image', () {
-      expect(detectFormat('pic.webp', riff()), InputFormat.image);
+    test('ZIP opendocument (content.xml + mimetype) walau di-rename', () {
+      expect(
+        detectFormat('renamed.odt', _zip(['mimetype', 'content.xml'])),
+        InputFormat.opendocument,
+      );
     });
 
-    test('.avi dengan magic RIFF → image (video belum didukung)', () {
-      expect(detectFormat('clip.avi', riff()), InputFormat.image);
+    test('ZIP epub (mimetype application/epub+zip)', () {
+      expect(
+        detectFormat('book.bin', _zip(['mimetype', 'META-INF/container.xml'])),
+        InputFormat.epub,
+      );
+    });
+
+    test('ZIP polos tanpa entry dikenal → unknown (format zip dihapus)', () {
+      expect(
+        detectFormat('archive.zip', _zip(['some/entry.txt'])),
+        InputFormat.unknown,
+      );
+    });
+
+    test('OLE2 magic + .doc → word', () {
+      expect(
+        detectFormat('old.doc', Uint8List.fromList([..._ole2, 0, 0])),
+        InputFormat.word,
+      );
+    });
+
+    test('OLE2 magic + .ppt → powerpoint', () {
+      expect(
+        detectFormat('old.ppt', Uint8List.fromList([..._ole2, 0, 0])),
+        InputFormat.powerpoint,
+      );
+    });
+
+    test('OLE2 magic + .xls → excel', () {
+      expect(
+        detectFormat('old.xls', Uint8List.fromList([..._ole2, 0, 0])),
+        InputFormat.excel,
+      );
+    });
+
+    test('OLE2 tanpa ekstensi dikenal → unknown', () {
+      expect(
+        detectFormat('mystery.bin', Uint8List.fromList([..._ole2, 0, 0])),
+        InputFormat.unknown,
+      );
     });
   });
 
   group('detectFormat — ekstensi fallback', () {
-    test('txt', () => expect(detectFormat('a.txt', _bytes('x')), InputFormat.text));
-    test('md', () => expect(detectFormat('a.md', _bytes('# t')), InputFormat.markdown));
-    test('markdown', () {
-      expect(detectFormat('a.markdown', _bytes('x')), InputFormat.markdown);
+    test('semua ekstensi katalog → keluarga masing-masing', () {
+      for (final family in kFormatCatalog) {
+        for (final ext in family.extensions) {
+          expect(detectFormat('file.$ext', _bytes('x')), family.format,
+              reason: ext);
+        }
+      }
     });
-    test('csv', () => expect(detectFormat('a.csv', _bytes('a,b')), InputFormat.csv));
-    test('json ekstensi walau isi aneh', () {
-      expect(detectFormat('a.json', _bytes('not json')), InputFormat.json);
+
+    test('format yang dihapus (txt/md/json/xml/html/zip/image/audio) → unknown',
+        () {
+      for (final name in [
+        'a.txt', 'a.md', 'a.markdown', 'a.json', 'a.xml', 'a.html', 'a.htm',
+        'a.zip', 'a.jpg', 'a.png', 'a.gif', 'a.webp', 'a.wav', 'a.mp3',
+        'a.flac', 'a.ogg',
+      ]) {
+        expect(detectFormat(name, _bytes('x')), InputFormat.unknown,
+            reason: name);
+      }
     });
-    test('xml ekstensi', () {
-      expect(detectFormat('a.xml', _bytes('plain')), InputFormat.xml);
+
+    test('magic JSON/HTML lama tidak lagi dikenali', () {
+      expect(detectFormat('data', _bytes('  \n{ "a": 1 }')), InputFormat.unknown);
+      expect(detectFormat('list', _bytes('[1, 2, 3]')), InputFormat.unknown);
+      expect(
+        detectFormat('page', _bytes('<html><body>hi</body></html>')),
+        InputFormat.unknown,
+      );
     });
-    test('html ekstensi', () {
-      expect(detectFormat('a.html', _bytes('plain')), InputFormat.html);
-    });
+
     test('unknown untuk ekstensi tak dikenal', () {
       expect(detectFormat('a.xyz', _bytes('x')), InputFormat.unknown);
     });
+
     test('nama tanpa titik sebelum ekstensi → unknown (regresi .ext)', () {
-      for (final name in ['mypdf', 'datacsv', 'indexhtml', 'filexml', 'docx', 'a.txtcsv']) {
-        expect(detectFormat(name, _bytes('x')), InputFormat.unknown, reason: name);
+      for (final name in ['mypdf', 'datacsv', 'docx', 'a.txtcsv', 'indexhtml']) {
+        expect(detectFormat(name, _bytes('x')), InputFormat.unknown,
+            reason: name);
       }
     });
   });
 
   group('kDetectableExtensions (filter picker)', () {
-    test('mencakup semua format yang dideteksi — termasuk non-teks', () {
-      // Bug kritikal: picker dulu hanya memuat format teks → .docx dll tak
-      // bisa dipilih dari dialog Windows.
-      expect(kDetectableExtensions, containsAll([
-        'pdf', 'docx', 'xlsx', 'pptx', 'epub', 'zip',
-        'jpg', 'png', 'gif', 'wav', 'mp3', 'flac',
-      ]));
-      // Brief menulis 26, tapi _extensionRules berisi 27 entri (termasuk
-      // 'aac') — panjang harus mengikuti sumber tunggal yang sebenarnya.
-      expect(kDetectableExtensions.length, 27);
+    test('persis daftar ekstensi katalog (21)', () {
+      final expected = [
+        for (final f in kFormatCatalog) ...f.extensions,
+      ];
+      expect(kDetectableExtensions, expected);
+      expect(kDetectableExtensions.length, 21);
     });
 
     test('tidak ada duplikat', () {
@@ -162,11 +170,40 @@ void main() {
     test('bukan URL', () => expect(isUrlName('book.pdf'), isFalse));
   });
 
-  group('isSupported', () {
-    test('docx kini didukung (isSupported + registry)', () {
-      expect(InputFormat.docx.isSupported, isTrue);
-      expect(ExtractorRegistry.forFormat(InputFormat.docx), isNotNull);
+  group('isFormatSupported & isLegacyFormatExtension', () {
+    test('pdf/word/csv didukung konversi; sisanya roadmap', () {
+      expect(isFormatSupported(InputFormat.pdf), isTrue);
+      expect(isFormatSupported(InputFormat.word), isTrue);
+      expect(isFormatSupported(InputFormat.csv), isTrue);
+      expect(isFormatSupported(InputFormat.powerpoint), isFalse);
+      expect(isFormatSupported(InputFormat.excel), isFalse);
+      expect(isFormatSupported(InputFormat.opendocument), isFalse);
+      expect(isFormatSupported(InputFormat.rtf), isFalse);
+      expect(isFormatSupported(InputFormat.epub), isFalse);
+    });
+
+    test('legacy extension per keluarga (OLE2)', () {
+      expect(isLegacyFormatExtension(InputFormat.word, 'a.doc'), isTrue);
+      expect(isLegacyFormatExtension(InputFormat.word, 'a.docx'), isFalse);
+      expect(isLegacyFormatExtension(InputFormat.word, 'a.docm'), isFalse);
+      expect(isLegacyFormatExtension(InputFormat.powerpoint, 'a.ppt'), isTrue);
+      expect(isLegacyFormatExtension(InputFormat.powerpoint, 'a.pps'), isTrue);
+      expect(isLegacyFormatExtension(InputFormat.powerpoint, 'a.pot'), isTrue);
+      expect(isLegacyFormatExtension(InputFormat.powerpoint, 'a.pptx'), isFalse);
+      expect(isLegacyFormatExtension(InputFormat.excel, 'a.xls'), isTrue);
+      expect(isLegacyFormatExtension(InputFormat.excel, 'a.xlsb'), isTrue);
+      expect(isLegacyFormatExtension(InputFormat.excel, 'a.xlsx'), isFalse);
+      expect(isLegacyFormatExtension(InputFormat.csv, 'a.csv'), isFalse);
+    });
+
+    test('registry: word → DocxExtractor, csv → CsvExtractor, lain null', () {
+      expect(ExtractorRegistry.forFormat(InputFormat.word), isNotNull);
+      expect(ExtractorRegistry.forFormat(InputFormat.csv), isNotNull);
+      expect(ExtractorRegistry.forFormat(InputFormat.powerpoint), isNull);
+      expect(ExtractorRegistry.forFormat(InputFormat.excel), isNull);
+      expect(ExtractorRegistry.forFormat(InputFormat.opendocument), isNull);
+      expect(ExtractorRegistry.forFormat(InputFormat.rtf), isNull);
+      expect(ExtractorRegistry.forFormat(InputFormat.epub), isNull);
     });
   });
 }
-

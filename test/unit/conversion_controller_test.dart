@@ -109,6 +109,42 @@ void main() {
     });
   });
 
+  group('format legacy (graceful unsupported)', () {
+    test('.doc → failed dengan errorType unsupported, batch tetap lanjut',
+        () async {
+      final controller = BatchConversionController(executor: _WritingExecutor());
+      controller.addFiles([
+        PdfInput(name: 'a.doc', path: 'C:/a.doc', format: InputFormat.word),
+        PdfInput(name: 'b.pdf', path: 'C:/b.pdf'),
+      ]);
+      final a = controller.queue[0];
+      final b = controller.queue[1];
+
+      await controller.convertAll();
+
+      expect(a.status, JobStatus.failed);
+      expect(a.errorType, 'unsupported');
+      expect(a.errorMessage, contains('Word (.doc)'));
+      expect(b.status, JobStatus.done); // batch lanjut ke file berikutnya
+      expect(controller.isRunning, isFalse);
+    });
+
+    test('.xlsx modern → diproses executor (bukan legacy check)', () async {
+      final controller = BatchConversionController(executor: _WritingExecutor());
+      controller.addFiles([
+        PdfInput(
+          name: 'a.xlsx',
+          path: 'C:/a.xlsx',
+          format: InputFormat.excel,
+        ),
+      ]);
+
+      await controller.convertAll();
+
+      expect(controller.queue.single.status, JobStatus.done);
+    });
+  });
+
   group('output temp batch (tidak auto-simpan ke folder sumber)', () {
     test('desktop: hasil konversi ditulis ke temp, bukan folder sumber',
         () async {

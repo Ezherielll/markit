@@ -2,11 +2,13 @@ import 'dart:convert';
 import 'dart:io';
 import 'dart:typed_data';
 
+import 'package:archive/archive.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:markit/core/input_format.dart';
 import 'package:markit/models/pdf_input.dart';
 import 'package:markit/ui/source/source_loader.dart';
 
+import '../helpers/docx_factory.dart';
 import '../helpers/pdf_factory.dart';
 
 void main() {
@@ -35,9 +37,9 @@ void main() {
 
   group('loadSourceText', () {
     test('path: konten persis, tidak terpotong', () async {
-      final path = await writeFile('a.txt', 'halo\ndunia\n');
+      final path = await writeFile('a.csv', 'halo\ndunia\n');
       final r = await loadSourceText(
-        PdfInput(name: 'a.txt', path: path, format: InputFormat.text),
+        PdfInput(name: 'a.csv', path: path, format: InputFormat.csv),
       );
       expect(r, isA<SourceText>());
       expect(r.content, 'halo\ndunia\n');
@@ -46,9 +48,9 @@ void main() {
 
     test('konten > maxChars: terpotong di batas baris', () async {
       final big = List.filled(8000, 'baris ke-N\n').join();
-      final path = await writeFile('big.txt', big);
+      final path = await writeFile('big.csv', big);
       final r = await loadSourceText(
-        PdfInput(name: 'big.txt', path: path, format: InputFormat.text),
+        PdfInput(name: 'big.csv', path: path, format: InputFormat.csv),
         maxChars: 1024,
       );
       expect(r.truncated, isTrue);
@@ -62,12 +64,12 @@ void main() {
     test('bytes (web): konten sama dengan path', () async {
       final r = await loadSourceText(
         PdfInput(
-          name: 'a.md',
-          bytes: Uint8List.fromList(utf8.encode('# Judul\n\nisi\n')),
-          format: InputFormat.markdown,
+          name: 'a.csv',
+          bytes: Uint8List.fromList(utf8.encode('a,b\n1,2\n')),
+          format: InputFormat.csv,
         ),
       );
-      expect(r.content, '# Judul\n\nisi\n');
+      expect(r.content, 'a,b\n1,2\n');
       expect(r.truncated, isFalse);
     });
 
@@ -76,7 +78,7 @@ void main() {
         PdfInput(
           name: 'b.bin',
           bytes: Uint8List.fromList([0xFF, 0xFE, 0x00, 0x41, 0x61]),
-          format: InputFormat.text,
+          format: InputFormat.rtf,
         ),
       );
       expect(r, isA<SourceText>());
@@ -85,7 +87,7 @@ void main() {
     test('file tidak ada: SourceLoadException', () async {
       expect(
         () => loadSourceText(
-          PdfInput(name: 'x.txt', path: '${tmp.path}/missing.txt'),
+          PdfInput(name: 'x.csv', path: '${tmp.path}/missing.csv'),
         ),
         throwsA(isA<SourceLoadException>()),
       );
@@ -93,7 +95,7 @@ void main() {
 
     test('tanpa bytes dan path: SourceLoadException', () async {
       expect(
-        () => loadSourceText(PdfInput(name: 'x.txt')),
+        () => loadSourceText(PdfInput(name: 'x.csv')),
         throwsA(isA<SourceLoadException>()),
       );
     });
@@ -128,10 +130,19 @@ void main() {
   });
 
   group('loadSource (routing)', () {
-    test('format teks → SourceText', () async {
+    test('csv → SourceText (teks mentah)', () async {
       final path = await writeFile('a.csv', 'a,b\n1,2\n');
       final r = await loadSource(
         PdfInput(name: 'a.csv', path: path, format: InputFormat.csv),
+      );
+      expect(r, isA<SourceText>());
+      expect((r as SourceText).content, 'a,b\n1,2\n');
+    });
+
+    test('rtf → SourceText (teks mentah)', () async {
+      final path = await writeFile('a.rtf', '{\\rtf1 Hello}');
+      final r = await loadSource(
+        PdfInput(name: 'a.rtf', path: path, format: InputFormat.rtf),
       );
       expect(r, isA<SourceText>());
     });
@@ -147,17 +158,65 @@ void main() {
       expect(r, isA<SourcePdf>());
     });
 
-    test('format belum didukung (zip/unknown) → SourceUnsupported',
+    test('docx (zip) → SourceText via ZipTextPreview (tag di-strip)', () async {
+      final docx = buildTestDocx(
+        documentXml: docxDocument(
+          '${docxParagraph(docxRun('Judul A'))}'
+          '${docxParagraph(docxRun('Isi paragraf pertama.'))}',
+        ),
+      );
+      final r = await loadSource(
+        PdfInput(
+          name: 'a.docx',
+          bytes: docx,
+          format: InputFormat.word,
+        ),
+      );
+      expect(r, isA<SourceText>());
+      expect((r as SourceText).content, contains('Judul A'));
+      expect(r.content, contains('Isi paragraf pertama.'));
+      expect(r.content, isNot(contains('<w:')));
+    });
+
+    test('epub (zip, entry XHTML) → SourceText via ZipTextPreview', () async {
+      final archive = Archive()
+        ..addFile(ArchiveFile.string(
+          'OEBPS/ch1.xhtml',
+          '<html><body><h1>Bab 1</h1><p>Teks.</p></body></html>',
+        ));
+      final bytes = Uint8List.fromList(ZipEncoder().encode(archive));
+      final r = await loadSource(
+        PdfInput(name: 'a.epub', bytes: bytes, format: InputFormat.epub),
+      );
+      expect(r, isA<SourceText>());
+      expect((r as SourceText).content, contains('Bab 1'));
+      expect(r.content, isNot(contains('<h1')));
+    });
+
+    test('zip tanpa entry yang dikenal → SourceLoadException', () async {
+      final archive = Archive()
+        ..addFile(ArchiveFile.string('some/entry.txt', 'isi'));
+      final bytes = Uint8List.fromList(ZipEncoder().encode(archive));
+      expect(
+        () => loadSource(
+          PdfInput(name: 'a.docx', bytes: bytes, format: InputFormat.word),
+        ),
+        throwsA(isA<SourceLoadException>()),
+      );
+    });
+
+    test('format legacy (.doc) → SourceUnsupported', () async {
+      expect(
+        () => loadSource(
+          PdfInput(name: 'a.doc', format: InputFormat.word),
+        ),
+        throwsA(isA<SourceUnsupportedException>()),
+      );
+    });
+
+    test('format belum didukung preview (unknown) → SourceUnsupported',
         () async {
-      for (final f in [
-        InputFormat.xlsx,
-        InputFormat.pptx,
-        InputFormat.epub,
-        InputFormat.zip,
-        InputFormat.image,
-        InputFormat.audio,
-        InputFormat.unknown,
-      ]) {
+      for (final f in [InputFormat.unknown]) {
         expect(
           () => loadSource(PdfInput(name: 'a', format: f)),
           throwsA(isA<SourceUnsupportedException>()),

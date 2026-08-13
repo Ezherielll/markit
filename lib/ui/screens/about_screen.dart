@@ -136,12 +136,12 @@ class AboutScreen extends StatelessWidget {
                 _SectionTitle(
                   icon: Icons.folder_open_outlined,
                   title: Strings.aboutFormatsTitle,
-                  subtitle: Strings.aboutFormatsSub,
+                  subtitle: Strings.aboutFormatsList,
                 ),
                 const SizedBox(height: PdflowSpacing.md),
-                const _InfoCard(
+                _InfoCard(
                   icon: Icons.check_circle_outline,
-                  title: Strings.aboutFormatsSub,
+                  title: Strings.aboutFormatsList,
                   body: Strings.aboutFormatsMore,
                 ),
                 const SizedBox(height: PdflowSpacing.xxl),

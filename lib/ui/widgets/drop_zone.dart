@@ -4,7 +4,7 @@ import 'dart:io';
 import 'package:file_selector/file_selector.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
-import 'package:markit/core/input_format.dart';
+import 'package:markit/core/format_catalog.dart';
 import 'package:markit/i18n/strings.dart';
 import 'package:markit/models/pdf_input.dart';
 import 'package:markit/ui/theme/palette.dart';

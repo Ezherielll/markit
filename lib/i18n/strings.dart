@@ -1,3 +1,5 @@
+import 'package:markit/core/format_catalog.dart';
+
 /// String terpusat — D10: Inggris primary, struktur siap i18n.
 class Strings {
   const Strings._();
@@ -16,12 +18,12 @@ class Strings {
   static const themeSystem = 'System';
   static const heroHeadline = 'Turn documents into clean markdown';
   static const heroSub = 'Fast, private, and fully offline. Drop your documents '
-      '— PDFs, DOCX, spreadsheets and more — get structured markdown, ready '
-      'for reading or feeding your AI tools.';
+      '— PDFs, Word docs, spreadsheets and more — get structured markdown, '
+      'ready for reading or feeding your AI tools.';
   static const dropHere = 'Drop your files here';
   static const dropSub = 'or';
   static const dropCompact = 'Drop files here or choose files';
-  static const dropCompactSub = 'Multiple files supported · PDF, DOCX, TXT & more';
+  static const dropCompactSub = 'Multiple files supported · PDF, Word, Excel, PPT & more';
   static const pickFile = 'Choose files';
   static const pickFileSingular = 'Choose a file';
   static const addFiles = 'Add files';
@@ -79,8 +81,8 @@ class Strings {
   static const conversionPending =
       'Conversion pending — the source is shown while waiting.';
   static const formatNotSupported =
-      'This file type cannot be previewed yet '
-      '(roadmap: DOCX/XLSX/PPTX/EPUB/ZIP/images/audio).';
+      'This file type cannot be previewed yet (legacy .doc/.ppt/.xls formats '
+      'are on the roadmap).';
   static const statsHeading = 'Headings';
   static const statsParagraphs = 'Paragraphs';
   static const statsListItems = 'List items';
@@ -103,8 +105,9 @@ class Strings {
       'supported.';
   static const errorNoText = 'No text could be extracted. This looks like a '
       'scanned document (OCR is not supported).';
-  static const errorUnsupported = 'This file type is not supported yet '
-      '(roadmap: DOCX/XLSX/PPTX/EPUB/ZIP/images/audio).';
+  static const errorUnsupported =
+      'This file type is not supported yet '
+      '(legacy .doc/.ppt/.xls formats are on the roadmap).';
   static const errorGeneric = 'Something went wrong: %s';
   static const showFullError = 'Show full error';
   static const close = 'Close';
@@ -132,10 +135,10 @@ class Strings {
   static const aboutTitle = 'About MarkIt';
   static const aboutHero = 'Your documents, converted to clean, reusable text.';
   static const aboutIntro =
-      'MarkIt turns your documents — PDFs, text files, spreadsheets, web '
-      'pages, and more — into Markdown. Markdown is a clean, simple text '
-      'format that is easy to read, copy, and reuse anywhere: notes, docs, '
-      'or even as input for AI tools.';
+      'MarkIt turns your documents — PDFs, Word documents, spreadsheets, '
+      'presentations, and more — into Markdown. Markdown is a clean, simple '
+      'text format that is easy to read, copy, and reuse anywhere: notes, '
+      'docs, or even as input for AI tools.';
   static const aboutHowTitle = 'How it works';
   static const aboutHowSub = 'Three simple steps — no account, no setup.';
   static const aboutStep1Title = 'Add your files';
@@ -151,10 +154,14 @@ class Strings {
       'Check the result as a clean document, then download the Markdown '
       'file. Batch output can be downloaded as a ZIP.';
   static const aboutFormatsTitle = 'Supported formats';
-  static const aboutFormatsSub =
-      'PDF · TXT · Markdown · CSV · JSON · XML · HTML';
+
+  /// Daftar format didukung — diturunkan dari katalog format (sumber
+  /// tunggal), bukan hardcoded di sini.
+  static String get aboutFormatsList =>
+      kFormatCatalog.map((f) => f.format.label).join(' · ');
+
   static const aboutFormatsMore =
-      'More formats are on the way — DOCX, XLSX, PPTX, EPUB, and more.';
+      'Legacy formats (.doc, .ppt, .xls) are on the roadmap.';
   static const aboutPrivacyTitle = '100% private & offline';
   static const aboutPrivacySub =
       'Your files never leave your device. There are no uploads, no cloud, '

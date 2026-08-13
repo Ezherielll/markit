@@ -6,6 +6,7 @@ import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:flutter_test/flutter_test.dart';
+import 'package:markit/core/format_catalog.dart';
 import 'package:markit/core/input_format.dart';
 import 'package:markit/isolate/conversion_controller.dart';
 import 'package:markit/models/pdf_input.dart';

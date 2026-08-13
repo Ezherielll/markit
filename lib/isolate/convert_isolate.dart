@@ -139,7 +139,7 @@ Future<void> _runSemantic(
       mainPort.send(ConvertFailed(
         jobId: start.jobId,
         errorType: 'unsupported',
-        message: 'Format ${format.label} belum didukung (roadmap Fase 2–3).',
+        message: 'Format ${format.label} belum didukung konversi (roadmap).',
       ));
       return;
     }
