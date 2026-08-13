@@ -70,7 +70,22 @@ class _HomeScreenState extends State<HomeScreen> {
     }
 
     _startConversion();
-    await controller.convertAll();
+    var convertFailed = false;
+    try {
+      await controller.convertAll();
+    } catch (_) {
+      // convertAll tidak seharusnya throw (per-job failure ditangani
+      // controller), tapi bila terjadi: tetap lanjut ke save.
+      convertFailed = true;
+    } finally {
+      // Bila convertAll melempar, save TETAP ditawarkan — job yang sukses
+      // bisa disimpan independen walau batch tidak selesai normal.
+      // (Batch normal memakai tombol Save di sidebar — auto-dialog sudah
+      // diganti tombol; di sini finally adalah jalur penyelamat.)
+      if (!kIsWeb && mounted && convertFailed) {
+        await _offerMoveOutputs(controller);
+      }
+    }
   }
 
   /// Tombol Save di sidebar → pilih folder tujuan hasil .md (desktop).

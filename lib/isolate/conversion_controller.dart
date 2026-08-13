@@ -279,32 +279,40 @@ class BatchConversionController extends ConversionController {
     job.totalPages = null;
     notifyListeners();
 
-    final result = await _executor.runJob(
-      jobId: job.id,
-      pdfPath: job.input.path ?? '',
-      pdfBytes: job.input.bytes,
-      outputPath: job.outputPath,
-      format: job.input.format,
-      onProgress: (page, total, phase, elapsedMs) {
-        job.currentPage = page;
-        job.totalPages = total;
-        _phase = phase;
-        notifyListeners();
-      },
-    );
+    try {
+      final result = await _executor.runJob(
+        jobId: job.id,
+        pdfPath: job.input.path ?? '',
+        pdfBytes: job.input.bytes,
+        outputPath: job.outputPath,
+        format: job.input.format,
+        onProgress: (page, total, phase, elapsedMs) {
+          job.currentPage = page;
+          job.totalPages = total;
+          _phase = phase;
+          notifyListeners();
+        },
+      );
 
-    if (_cancelRequested) {
-      job.status = JobStatus.cancelled;
-    } else if (result.success) {
-      job.status = JobStatus.done;
-      job.pageCount = result.pageCount;
-      job.failedPages = result.failedPages;
-      job.bodyFontSize = result.bodyFontSize;
-      job.content = result.content;
-    } else {
+      if (_cancelRequested) {
+        job.status = JobStatus.cancelled;
+      } else if (result.success) {
+        job.status = JobStatus.done;
+        job.pageCount = result.pageCount;
+        job.failedPages = result.failedPages;
+        job.bodyFontSize = result.bodyFontSize;
+        job.content = result.content;
+      } else {
+        job.status = JobStatus.failed;
+        job.errorType = result.errorType;
+        job.errorMessage = result.errorMessage;
+      }
+    } catch (e) {
+      // Bug internal executor tidak boleh meledakkan seluruh batch —
+      // job ini ditandai failed, batch lanjut (FR-10c: page-level failure).
       job.status = JobStatus.failed;
-      job.errorType = result.errorType;
-      job.errorMessage = result.errorMessage;
+      job.errorType = 'corrupt';
+      job.errorMessage = 'Kesalahan tak terduga saat konversi: $e';
     }
     notifyListeners();
   }
