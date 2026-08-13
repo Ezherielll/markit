@@ -1,0 +1,79 @@
+import 'dart:io';
+
+import 'package:flutter_test/flutter_test.dart';
+import 'package:markit/core/output_mover.dart';
+
+void main() {
+  late Directory tmp;
+  late Directory src;
+  late Directory dst;
+
+  setUp(() async {
+    tmp = await Directory.systemTemp.createTemp('markit_move');
+    src = Directory('${tmp.path}/src')..createSync();
+    dst = Directory('${tmp.path}/dst')..createSync();
+  });
+
+  tearDown(() async {
+    await tmp.delete(recursive: true);
+  });
+
+  group('planOutputMoves', () {
+    test('susun pasangan from→to dan deteksi konflik', () {
+      File('${src.path}/a.md').writeAsStringSync('a');
+      File('${src.path}/b.md').writeAsStringSync('b');
+      File('${dst.path}/b.md').writeAsStringSync('old');
+
+      final plan = planOutputMoves([
+        ('${src.path}/a.md', 'a.md'),
+        ('${src.path}/b.md', 'b.md'),
+      ], dst.path);
+
+      expect(plan.moves, hasLength(2));
+      expect(plan.moves[0].$2, '${dst.path}/a.md');
+      expect(plan.conflicts, ['${dst.path}/b.md']);
+      expect(plan.hasConflicts, isTrue);
+    });
+
+    test('tanpa konflik → hasConflicts false', () {
+      final plan = planOutputMoves([('${src.path}/a.md', 'a.md')], dst.path);
+      expect(plan.hasConflicts, isFalse);
+      expect(plan.conflicts, isEmpty);
+    });
+  });
+
+  group('applyOutputMoves', () {
+    test('overwrite=false: konflik di-skip, sisanya dipindah', () async {
+      File('${src.path}/a.md').writeAsStringSync('a');
+      File('${src.path}/b.md').writeAsStringSync('b');
+      File('${dst.path}/b.md').writeAsStringSync('old');
+
+      final plan = planOutputMoves([
+        ('${src.path}/a.md', 'a.md'),
+        ('${src.path}/b.md', 'b.md'),
+      ], dst.path);
+
+      final applied = await applyOutputMoves(plan, overwrite: false);
+
+      expect(applied, hasLength(1));
+      expect(applied.single.$2, '${dst.path}/a.md');
+      expect(File('${src.path}/a.md').existsSync(), isFalse);
+      expect(File('${dst.path}/a.md').existsSync(), isTrue);
+      // b.md konflik: tetap di sumber, target lama utuh
+      expect(File('${src.path}/b.md').existsSync(), isTrue);
+      expect(File('${dst.path}/b.md').readAsStringSync(), 'old');
+    });
+
+    test('overwrite=true: target dihapus dulu lalu diganti', () async {
+      File('${src.path}/b.md').writeAsStringSync('new');
+      File('${dst.path}/b.md').writeAsStringSync('old');
+
+      final plan = planOutputMoves([('${src.path}/b.md', 'b.md')], dst.path);
+      final applied = await applyOutputMoves(plan, overwrite: true);
+
+      expect(applied, hasLength(1));
+      expect(File('${dst.path}/b.md').readAsStringSync(), 'new');
+      expect(File('${src.path}/b.md').existsSync(), isFalse);
+    });
+  });
+}
