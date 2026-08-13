@@ -118,7 +118,13 @@ void main() {
       expect(File(path).readAsStringSync(), 'isi');
     });
 
-    test('from == to beda separator (path kanonik): di-skip, tanpa exception', () async {
+    test('from == to beda separator (path kanonik): di-skip, tanpa exception',
+        skip: !Platform.isWindows, () async {
+      // Di POSIX '\' bukan path separator — skenario ini hanya berlaku Windows.
+      if (!Platform.isWindows) {
+        markTestSkipped('separator campuran hanya relevan di Windows');
+        return;
+      }
       final from = '${dst.path}/a.md';
       final to = from.replaceAll('/', r'\');
       File(from).writeAsStringSync('isi');
