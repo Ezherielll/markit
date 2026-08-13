@@ -129,6 +129,9 @@ class FakeConversionController extends ConversionController {
 
   @override
   Future<void> shutdown() async {}
+
+  @override
+  Future<void> cleanupTempOutputs() async {}
 }
 
 /// Fake platform file_selector: getDirectoryPath mengembalikan [directory].
@@ -200,7 +203,7 @@ void main() {
     job.errorMessage = 'Detail error yang cukup panjang untuk memastikan '
         'tidak terpotong oleh ellipsis pada kartu sidebar.';
     await pumpWide(tester, MaterialApp(home: HomeScreen(controller: controller)));
-    // runAsync: _confirmOverwrite memakai File.exists (IO nyata) & timer
+    // runAsync: IO nyata (File.exists / move) macet di fake-async & timer
     // batch berjalan real-time.
     await tester.runAsync(() async {
       await tester.tap(find.text('Convert (1)'));
@@ -494,11 +497,6 @@ void main() {
         await Future<void>.delayed(const Duration(milliseconds: 50));
         await tester.pump(const Duration(milliseconds: 50));
       });
-      // Output .md sudah ada → dialog FR-12 (overwrite) muncul dulu.
-      expect(find.text(Strings.overwriteTitle), findsOneWidget);
-      await tester.runAsync(() async {
-        await tester.tap(find.text(Strings.overwriteConfirm));
-      });
       // Batch (2x10ms) — tanpa auto-dialog lagi setelah selesai.
       await drive(tester, 30);
       // Auto-dialog TIDAK muncul lagi — file belum dipindah sebelum tap Save.
@@ -538,11 +536,6 @@ void main() {
         await Future<void>.delayed(const Duration(milliseconds: 50));
         await tester.pump(const Duration(milliseconds: 50));
       });
-      // Output .md sudah ada → dialog FR-12 (overwrite) muncul dulu.
-      expect(find.text(Strings.overwriteTitle), findsOneWidget);
-      await tester.runAsync(() async {
-        await tester.tap(find.text(Strings.overwriteConfirm));
-      });
       await drive(tester, 30);
 
       // Batch selesai → tombol Save muncul (auto-dialog diganti tombol).
@@ -554,7 +547,7 @@ void main() {
 
       expect(File(job.outputPath).existsSync(), isTrue); // tetap di sumber
       expect(job.outputPath, '${src.path}/a.md');
-      expect(find.text(Strings.outputKeptInPlace), findsOneWidget);
+      expect(find.text(Strings.outputNotSaved), findsOneWidget);
     });
 
     testWidgets('konflik di folder tujuan → dialog overwrite → setuju → diganti',
@@ -580,11 +573,6 @@ void main() {
         await tester.tap(find.text('Convert (1)'));
         await Future<void>.delayed(const Duration(milliseconds: 50));
         await tester.pump(const Duration(milliseconds: 50));
-      });
-      // Output .md sudah ada → dialog FR-12 (overwrite) muncul dulu.
-      expect(find.text(Strings.overwriteTitle), findsOneWidget);
-      await tester.runAsync(() async {
-        await tester.tap(find.text(Strings.overwriteConfirm));
       });
       await drive(tester, 30);
       // Auto-dialog tidak muncul — file belum dipindah sebelum tap Save.
@@ -614,7 +602,7 @@ void main() {
       await tester.pump();
       expect(find.text('Save (1)'), findsNothing); // belum convert → done=0
 
-      // runAsync: _confirmOverwrite memakai File.exists (IO nyata).
+      // runAsync: IO nyata (File.exists / move) macet di fake-async.
       await tester.runAsync(() async {
         await tester.tap(find.text('Convert (1)'));
         await Future<void>.delayed(const Duration(milliseconds: 50));
@@ -648,13 +636,10 @@ void main() {
       await pumpWide(tester, MaterialApp(home: HomeScreen(controller: controller)));
       await tester.runAsync(() async {
         await tester.tap(find.text('Convert (2)'));
-        await Future<void>.delayed(const Duration(milliseconds: 50));
-        await tester.pump(const Duration(milliseconds: 50));
-      });
-      // Output good.md sudah ada → dialog FR-12 (overwrite) muncul dulu.
-      expect(find.text(Strings.overwriteTitle), findsOneWidget);
-      await tester.runAsync(() async {
-        await tester.tap(find.text(Strings.overwriteConfirm));
+        // Tanpa pump di sini: frame saat kartu running meluap di font test
+        // (Ahem, 29px) bila batch 2-job belum selesai. Batch selesai dalam
+        // ~40ms real — tunggu real-time di bawah, lalu pump.
+        await Future<void>.delayed(const Duration(milliseconds: 150));
       });
       // Tunggu batch selesai di real time SEBELUM pump apa pun — progress
       // row FileCard meluap di font test (Ahem) bila frame di-pump saat
@@ -697,10 +682,6 @@ void main() {
         await tester.tap(find.text('Convert (1)'));
         await Future<void>.delayed(const Duration(milliseconds: 50));
         await tester.pump(const Duration(milliseconds: 50));
-      });
-      expect(find.text(Strings.overwriteTitle), findsOneWidget);
-      await tester.runAsync(() async {
-        await tester.tap(find.text(Strings.overwriteConfirm));
       });
       // Tunggu batch selesai (dan finally menawarkan save) di real time
       // SEBELUM pump — progress row FileCard meluap di font test (Ahem)

@@ -36,6 +36,11 @@ class DocumentViewer extends StatefulWidget {
 enum _ViewMode { source, output }
 
 class _DocumentViewerState extends State<DocumentViewer> {
+  /// Controller scroll untuk raw view (horizontal) — Scrollbar wajib punya
+  /// ScrollPosition terpasang; tanpa controller eksplisit ia memakai
+  /// PrimaryScrollController yang tidak di-attach oleh SingleChildScrollView
+  /// horizontal → assertion "no ScrollPosition attached" (bug #2).
+  final ScrollController _rawScrollController = ScrollController();
   static const int maxPreviewChars = 64 * 1024;
 
   String? _content;
@@ -180,6 +185,12 @@ class _DocumentViewerState extends State<DocumentViewer> {
   }
 
   @override
+  void dispose() {
+    _rawScrollController.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
     final job = widget.job;
     if (job == null) {
@@ -246,8 +257,10 @@ class _DocumentViewerState extends State<DocumentViewer> {
                                     // Raw view: baris utuh (no-wrap) + scroll
                                     // horizontal; seleksi tetap tersedia (M4).
                                     Scrollbar(
+                                      controller: _rawScrollController,
                                       thumbVisibility: true,
                                       child: SingleChildScrollView(
+                                        controller: _rawScrollController,
                                         scrollDirection: Axis.horizontal,
                                         child: SelectionArea(
                                           child: Text(

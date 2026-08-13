@@ -78,6 +78,9 @@ class ShotController extends ConversionController {
 
   @override
   Future<void> shutdown() async {}
+
+  @override
+  Future<void> cleanupTempOutputs() async {}
 }
 
 Future<void> _loadFonts() async {

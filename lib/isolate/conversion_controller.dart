@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:io';
 
 import 'package:flutter/foundation.dart';
 
@@ -110,6 +111,11 @@ abstract class ConversionController extends ChangeNotifier {
 
   /// Hentikan executor (dipanggil saat app dispose). Aman dipanggil ulang.
   Future<void> shutdown();
+
+  /// Hapus direktori temp output batch (desktop). Dipanggil setelah alur
+  /// Save selesai (file yang tidak disimpan user dibuang), saat reset,
+  /// dan saat shutdown.
+  Future<void> cleanupTempOutputs();
 }
 
 /// Implementasi nyata: pipeline via [ConversionExecutor] (FR-08),
@@ -126,6 +132,11 @@ class BatchConversionController extends ConversionController {
   int _phase = 1;
   bool _cancelRequested = false;
   int _idCounter = 0;
+
+  /// Direktori temp per-batch untuk hasil .md (desktop). Konversi TIDAK
+  /// menulis ke folder sumber — file baru "disimpan" saat user menekan
+  /// tombol Save dan memilih direktori tujuan (alur pindah temp → tujuan).
+  Directory? _tempOutputDir;
 
   @override
   bool get isRunning => _isRunning;
@@ -248,6 +259,16 @@ class BatchConversionController extends ConversionController {
               j.status == JobStatus.failed)
           .toList();
 
+      // Fase pilih lokasi: hasil konversi desktop ditulis ke direktori TEMP
+      // (bukan folder sumber) — file tidak otomatis tersimpan; baru pindah
+      // ke direktori tujuan saat user menekan tombol Save.
+      final tempDir = await _ensureTempOutputDir();
+      for (final job in jobs) {
+        if (job.input.path != null) {
+          job.outputPath = '${tempDir.path}/${job.input.outputName}';
+        }
+      }
+
       await Future.wait([
         for (final job in jobs) _runOneConcurrent(job),
       ]);
@@ -330,7 +351,22 @@ class BatchConversionController extends ConversionController {
     _queue.clear();
     _phase = 1;
     _cancelRequested = false;
+    // Buang output temp batch sebelumnya yang belum sempat di-Save
+    // (sinkron — reset adalah operasi non-async).
+    _discardTempOutputSync();
     notifyListeners();
+  }
+
+  /// Hapus direktori temp batch secara sinkron (reset).
+  void _discardTempOutputSync() {
+    final dir = _tempOutputDir;
+    _tempOutputDir = null;
+    if (dir == null || !dir.existsSync()) return;
+    try {
+      dir.deleteSync(recursive: true);
+    } on FileSystemException {
+      // File terkunci sesaat (Windows) — dibersihkan batch berikutnya.
+    }
   }
 
   @override
@@ -338,5 +374,24 @@ class BatchConversionController extends ConversionController {
     if (_isRunning) return;
     _executorReady = false;
     await _executor.shutdown();
+    await cleanupTempOutputs();
+  }
+
+  /// Buat (atau pakai ulang) direktori temp batch untuk hasil .md desktop.
+  Future<Directory> _ensureTempOutputDir() async {
+    final existing = _tempOutputDir;
+    if (existing != null && existing.existsSync()) return existing;
+    final dir = await Directory.systemTemp.createTemp('markit_batch');
+    _tempOutputDir = dir;
+    return dir;
+  }
+
+  @override
+  Future<void> cleanupTempOutputs() async {
+    final dir = _tempOutputDir;
+    _tempOutputDir = null;
+    if (dir != null && dir.existsSync()) {
+      await dir.delete(recursive: true);
+    }
   }
 }

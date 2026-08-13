@@ -88,6 +88,9 @@ class _FakeController extends ConversionController {
 
   @override
   Future<void> shutdown() async {}
+
+  @override
+  Future<void> cleanupTempOutputs() async {}
 }
 
 void main() {
@@ -98,7 +101,8 @@ void main() {
   });
 
   testWidgets(
-      'convert all: dialog overwrite saat .md sudah ada, konfirmasi lanjut konversi (FR-12)',
+      'convert all: konversi berjalan tanpa dialog pre-overwrite (hasil tidak '
+      'lagi otomatis ke folder sumber; konflik ditangani saat Save)',
       (WidgetTester tester) async {
     final dir = Directory.systemTemp.createTempSync('markit_convert_test');
     addTearDown(() async {
@@ -124,21 +128,17 @@ void main() {
       MaterialApp(home: HomeScreen(controller: controller)),
     );
 
-    // Konflik terdeteksi → dialog overwrite muncul sebelum konversi jalan.
-    // File.exists() adalah IO nyata → interaksi dijalankan di luar fake-async
-    // zone (runAsync), rendering tetap lewat pump.
+    // FR-12 pre-conversion dihapus: hasil tidak lagi ditulis ke folder
+    // sumber, jadi tidak ada dialog overwrite sebelum konversi. File.exists()
+    // adalah IO nyata → interaksi dijalankan di luar fake-async zone.
     await tester.runAsync(() async {
       await tester.tap(find.text('Convert (1)'));
       await Future<void>.delayed(const Duration(milliseconds: 50));
     });
-    await tester.pumpAndSettle();
-    expect(find.text(Strings.overwriteTitle), findsOneWidget);
-    expect(controller.convertAllCalls, 0);
+    await tester.pump();
+    expect(find.text(Strings.overwriteTitle), findsNothing);
+    expect(controller.convertAllCalls, 1);
 
-    await tester.runAsync(() async {
-      await tester.tap(find.text(Strings.overwriteConfirm));
-      await Future<void>.delayed(const Duration(milliseconds: 100));
-    });
     // Konversi selesai (real-timer di runAsync) → auto-select job done →
     // viewer memuat .md dari disk (IO nyata) — beri kesempatan selesai.
     await tester.pump();
@@ -151,7 +151,7 @@ void main() {
     await tester.pump(const Duration(milliseconds: 100));
     await tester.pump(const Duration(milliseconds: 500));
 
-    // Setelah konfirmasi: batch dijalankan, job selesai, summary tampil.
+    // Batch dijalankan, job selesai, summary tampil.
     expect(controller.convertAllCalls, 1);
     expect(controller.doneCount, 1);
     expect(find.text(Strings.clearAll), findsOneWidget);

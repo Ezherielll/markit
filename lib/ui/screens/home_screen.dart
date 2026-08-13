@@ -39,7 +39,6 @@ class HomeScreen extends StatefulWidget {
 class _HomeScreenState extends State<HomeScreen> {
   DateTime? _startTime;
   Timer? _ticker;
-  bool _overwriteConfirmed = false;
   String? _selectedJobId;
   late final ThemeController _theme =
       widget.themeController ?? ThemeController();
@@ -61,14 +60,6 @@ class _HomeScreenState extends State<HomeScreen> {
     final controller = widget.controller;
     if (controller.queue.isEmpty) return;
 
-    // Konfirmasi overwrite sekali per batch (FR-12) — hanya desktop;
-    // di web output selalu di memory (tidak ada filesystem).
-    if (!kIsWeb && !_overwriteConfirmed) {
-      final proceed = await _confirmOverwrite(controller);
-      if (proceed != true || !mounted) return;
-      _overwriteConfirmed = true;
-    }
-
     _startConversion();
     var convertFailed = false;
     try {
@@ -84,6 +75,8 @@ class _HomeScreenState extends State<HomeScreen> {
       // diganti tombol; di sini finally adalah jalur penyelamat.)
       if (!kIsWeb && mounted && convertFailed) {
         await _offerMoveOutputs(controller);
+        // File yang tidak sempat disimpan user dibuang dari temp.
+        await controller.cleanupTempOutputs();
       }
     }
   }
@@ -91,46 +84,17 @@ class _HomeScreenState extends State<HomeScreen> {
   /// Tombol Save di sidebar → pilih folder tujuan hasil .md (desktop).
   Future<void> _onSaveOutput() async {
     if (!mounted) return;
-    await _offerMoveOutputs(widget.controller);
-  }
-
-  /// Dialog konfirmasi overwrite (FR-12): muncul bila ada output .md yang
-  /// sudah ada. Return true bila user menyetujui (atau tidak ada konflik).
-  Future<bool> _confirmOverwrite(ConversionController controller) async {
-    final conflicts = <String>[];
-    for (final job in controller.queue) {
-      if (await File(job.outputPath).exists()) {
-        conflicts.add(job.outputPath);
-      }
-    }
-    if (conflicts.isEmpty || !mounted) return true;
-
-    final proceed = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text(Strings.overwriteTitle),
-        content: Text(Strings.overwriteBody
-            .replaceFirst('%d', '${conflicts.length}')),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, false),
-            child: const Text(Strings.cancel),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.pop(ctx, true),
-            child: const Text(Strings.overwriteConfirm),
-          ),
-        ],
-      ),
-    );
-    return proceed == true && mounted;
+    final controller = widget.controller;
+    await _offerMoveOutputs(controller);
+    // Selesai (disimpan atau dibatalkan): file temp yang tidak terpilih
+    // dibuang — tidak ada yang "tersimpan otomatis".
+    await controller.cleanupTempOutputs();
   }
 
   /// Tawarkan pemindahan output .md yang sukses ke folder pilihan user.
-  /// Cancel dialog → file tetap di folder sumber (SnackBar info).
+  /// Cancel dialog → file temp dibuang (tidak tersimpan otomatis).
   Future<void> _offerMoveOutputs(ConversionController controller) async {
-    final done =
-        controller.queue.where((j) => j.status == JobStatus.done).toList();
+    final done = await _doneJobsWithOutput(controller);
     if (done.isEmpty || !mounted) return;
 
     final directory = await _pickOutputDirectory();
@@ -173,10 +137,10 @@ class _HomeScreenState extends State<HomeScreen> {
     return _confirmMoveOverwrite(plan.conflicts.length);
   }
 
-  /// SnackBar hasil pemindahan (atau info "tetap di sumber").
+  /// SnackBar hasil pemindahan (atau info "tidak disimpan").
   void _showMoveSnack(int movedCount, String? directory) {
     final message = movedCount == 0 || directory == null
-        ? Strings.outputKeptInPlace
+        ? Strings.outputNotSaved
         : Strings.outputSavedTo
             .replaceFirst('%d', '$movedCount')
             .replaceFirst('%s', directory);
@@ -184,8 +148,21 @@ class _HomeScreenState extends State<HomeScreen> {
         .showSnackBar(SnackBar(content: Text(message)));
   }
 
-  /// Dialog konfirmasi overwrite untuk target di folder tujuan (pola sama
-  /// dengan [_confirmOverwrite]).
+  /// Job done yang file-nya benar-benar ada (temp batch) — job failed atau
+  /// file yang sudah dibersihkan tidak ikut.
+  Future<List<QueuedFile>> _doneJobsWithOutput(
+    ConversionController controller,
+  ) async {
+    final done = <QueuedFile>[];
+    for (final job in controller.queue) {
+      if (job.status != JobStatus.done) continue;
+      if (await File(job.outputPath).exists()) done.add(job);
+    }
+    return done;
+  }
+
+  /// Dialog konfirmasi overwrite untuk target di folder tujuan (fase Save;
+  /// konflik di direktori pilihan user — pola dialog konfirmasi standar).
   Future<bool> _confirmMoveOverwrite(int count) async {
     final proceed = await showDialog<bool>(
       context: context,
@@ -218,7 +195,6 @@ class _HomeScreenState extends State<HomeScreen> {
 
   void _reset() {
     _ticker?.cancel();
-    _overwriteConfirmed = false;
     _selectedJobId = null;
     widget.controller.reset();
   }

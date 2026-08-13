@@ -63,6 +63,9 @@ class FakeController extends ConversionController {
 
   @override
   Future<void> shutdown() async {}
+
+  @override
+  Future<void> cleanupTempOutputs() async {}
 }
 
 Future<void> pumpHome(WidgetTester tester, FakeController controller) async {

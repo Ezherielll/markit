@@ -161,6 +161,30 @@ void main() {
     expect(find.byType(MarkdownBody), findsOneWidget);
   });
 
+  testWidgets('raw view (output): Scrollbar tidak melempar assertion (bug #2)',
+      (tester) async {
+    final job = _job(
+      'doc.txt',
+      InputFormat.text,
+      path: '${tmp.path}/doc.txt',
+      status: JobStatus.done,
+      // Cukup panjang → scroll horizontal aktif pada raw view.
+      content: '${'kata ' * 400}\n',
+    );
+
+    await _pump(tester, job);
+
+    // Toggle raw view — Scrollbar horizontal tanpa controller eksplisit
+    // melempar "Scrollbar has no ScrollPosition" di scheduler callback.
+    await tester.tap(find.text(Strings.showRaw));
+    await tester.pump(const Duration(milliseconds: 100));
+    // Beberapa frame lagi: assertion muncul di frame callback berikutnya.
+    await tester.pump(const Duration(milliseconds: 100));
+    await tester.pump(const Duration(milliseconds: 100));
+
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets('failed tapi sumber terbaca: teks tetap tampil', (tester) async {
     File('${tmp.path}/bad.txt').writeAsStringSync('konten mentah\n');
     final job = _job(

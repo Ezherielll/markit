@@ -1,3 +1,4 @@
+import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:flutter_test/flutter_test.dart';
@@ -5,6 +6,42 @@ import 'package:markit/core/input_format.dart';
 import 'package:markit/isolate/conversion_controller.dart';
 import 'package:markit/isolate/conversion_executor.dart';
 import 'package:markit/models/pdf_input.dart';
+
+/// Fake executor: menulis file .md sungguhan ke [outputPath] (simulasi
+/// hasil konversi) lalu sukses.
+class _WritingExecutor implements ConversionExecutor {
+  @override
+  Future<void> initialize() async {}
+
+  @override
+  Future<JobExecutionResult> runJob({
+    required String jobId,
+    required String pdfPath,
+    Uint8List? pdfBytes,
+    required String outputPath,
+    InputFormat format = InputFormat.pdf,
+    void Function(int page, int total, int phase, int elapsedMs)? onProgress,
+  }) async {
+    File(outputPath).writeAsStringSync('# hasil $jobId');
+    return JobExecutionResult(
+      success: true,
+      pageCount: 1,
+      failedPages: const [],
+      bodyFontSize: 12,
+      outputPath: outputPath,
+      content: '# hasil $jobId',
+    );
+  }
+
+  @override
+  void cancel() {}
+
+  @override
+  void resetCancel() {}
+
+  @override
+  Future<void> shutdown() async {}
+}
 
 /// Fake executor: throw untuk jobId tertentu, sukses untuk lainnya.
 class _ThrowingExecutor implements ConversionExecutor {
@@ -69,6 +106,56 @@ void main() {
       expect(a.errorMessage, contains('Kesalahan tak terduga'));
       expect(b.status, JobStatus.done); // batch lanjut
       expect(controller.isRunning, isFalse);
+    });
+  });
+
+  group('output temp batch (tidak auto-simpan ke folder sumber)', () {
+    test('desktop: hasil konversi ditulis ke temp, bukan folder sumber',
+        () async {
+      final controller = BatchConversionController(executor: _WritingExecutor());
+      controller.addFiles([
+        PdfInput(name: 'a.pdf', path: 'C:/docs/a.pdf'),
+      ]);
+      final job = controller.queue.single;
+      final sourceOutput = job.outputPath; // default: folder sumber
+      expect(sourceOutput, 'C:/docs/a.md');
+
+      await controller.convertAll();
+
+      expect(job.status, JobStatus.done);
+      // OutputPath di-override ke direktori temp batch.
+      expect(job.outputPath, isNot(sourceOutput));
+      expect(job.outputPath, contains('markit_batch'));
+      expect(job.outputPath, endsWith('a.md'));
+      // Hasil ada di temp, folder sumber TIDAK tersentuh.
+      expect(File(job.outputPath).existsSync(), isTrue);
+      expect(File('C:/docs/a.md').existsSync(), isFalse);
+
+      // Cleanup setelah alur Save → file temp dibuang.
+      await controller.cleanupTempOutputs();
+      expect(File(job.outputPath).existsSync(), isFalse);
+    });
+
+    test('reset membersihkan output temp batch', () async {
+      final controller = BatchConversionController(executor: _WritingExecutor());
+      controller.addFiles([PdfInput(name: 'a.pdf', path: 'C:/docs/a.pdf')]);
+      await controller.convertAll();
+      final tempPath = controller.queue.single.outputPath;
+      expect(File(tempPath).existsSync(), isTrue);
+
+      controller.reset();
+      expect(File(tempPath).existsSync(), isFalse);
+    });
+
+    test('web (tanpa path): outputPath tetap nama file, bukan temp', () async {
+      final controller = BatchConversionController(executor: _WritingExecutor());
+      controller.addFiles([
+        PdfInput(name: 'a.pdf', sizeBytes: 1, bytes: Uint8List(0)),
+      ]);
+      await controller.convertAll();
+      final job = controller.queue.single;
+      expect(job.outputPath, 'a.md'); // web: tanpa filesystem
+      expect(job.outputPath, isNot(contains('markit_batch')));
     });
   });
 

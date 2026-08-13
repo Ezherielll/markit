@@ -117,7 +117,7 @@ class Strings {
   static const moveConflictsBody =
       '%d file(s) already exist in the chosen folder.';
   static const outputSavedTo = 'Saved %d file(s) to %s';
-  static const outputKeptInPlace = 'Output kept in the source folder.';
+  static const outputNotSaved = 'Output was not saved.';
   static const saveOutput = 'Save';
   static const featureFast = 'Fast';
   static const featureFastSub = 'Hundreds of pages in seconds';
