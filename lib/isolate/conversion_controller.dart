@@ -232,12 +232,7 @@ class BatchConversionController extends ConversionController {
     if (_isRunning) return;
     _cancelRequested = false;
 
-    // Wait for all probes to finish before spawning worker (PDFium deadlock).
-    final probes = [..._pendingProbes];
-    _pendingProbes.clear();
-    if (probes.isNotEmpty) {
-      await Future.wait(probes);
-    }
+    await _awaitPendingProbes();
 
     // Persistent executor for entire application lifetime (worker isolate on desktop;
     // inline on web).
@@ -259,37 +254,52 @@ class BatchConversionController extends ConversionController {
               j.status == JobStatus.failed)
           .toList();
 
-      // Location picker phase: desktop conversion result written to TEMP dir
-      // (not source folder) — file not automatically saved; moved to destination
-      // directory when user presses Save button. Null on web (no filesystem) —
-      // jobs keep their output names and run normally.
-      final tempDir = await ensureTempOutputDir();
-      if (tempDir != null) {
-        for (final job in jobs) {
-          if (job.input.path != null) {
-            job.outputPath = '${tempDir.path}/${job.input.outputName}';
-          }
-        }
-      }
+      await _assignTempOutputPaths(jobs);
 
       await Future.wait([
         for (final job in jobs) _runOneConcurrent(job),
       ]);
     } finally {
-      // Remaining unprocessed queue during cancel → cancelled.
-      if (_cancelRequested) {
-        for (final job in _queue) {
-          if (job.status == JobStatus.queued) {
-            job.status = JobStatus.cancelled;
-          }
-        }
-      }
+      _cancelRemainingQueuedJobs();
       // ALWAYS reset running state, even when the batch above fails with an
       // unexpected exception (e.g. filesystem unavailable on web). Without
       // this, `_isRunning` stays true forever and the UI is wedged on
       // "Processing" with jobs that never run.
       _isRunning = false;
       notifyListeners();
+    }
+  }
+
+  /// Wait for all probes to finish before spawning worker (PDFium deadlock).
+  Future<void> _awaitPendingProbes() async {
+    final probes = [..._pendingProbes];
+    _pendingProbes.clear();
+    if (probes.isNotEmpty) {
+      await Future.wait(probes);
+    }
+  }
+
+  /// Location picker phase: desktop conversion result written to TEMP dir
+  /// (not source folder) — file not automatically saved; moved to destination
+  /// directory when user presses Save button. Null on web (no filesystem) —
+  /// jobs keep their output names and run normally.
+  Future<void> _assignTempOutputPaths(List<QueuedFile> jobs) async {
+    final tempDir = await ensureTempOutputDir();
+    if (tempDir == null) return;
+    for (final job in jobs) {
+      if (job.input.path != null) {
+        job.outputPath = '${tempDir.path}/${job.input.outputName}';
+      }
+    }
+  }
+
+  /// Remaining unprocessed queue during cancel → cancelled.
+  void _cancelRemainingQueuedJobs() {
+    if (!_cancelRequested) return;
+    for (final job in _queue) {
+      if (job.status == JobStatus.queued) {
+        job.status = JobStatus.cancelled;
+      }
     }
   }
 
