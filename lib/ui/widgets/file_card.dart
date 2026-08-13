@@ -169,7 +169,7 @@ class _FileCardState extends State<FileCard> {
         const SizedBox(height: 2),
         Text(
           [
-            if (size != null) size,
+            ?size,
             if (job.pageCount != null)
               '${job.pageCount} ${Strings.pagesLabel}',
           ].join('  ·  '),
