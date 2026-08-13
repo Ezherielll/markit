@@ -44,7 +44,7 @@ class _HomeScreenState extends State<HomeScreen> {
   late final ThemeController _theme =
       widget.themeController ?? ThemeController();
   // Koalesensi rebuild: notifikasi controller berfrekuensi tinggi hanya
-  // memicu satu setState per frame (di akhir frame).
+  // memicu satu setState per frame (di awal frame berikutnya).
   late final FrameCoalescer _rebuilds =
       FrameCoalescer(onFrame: _flushControllerChanged);
 

@@ -104,7 +104,7 @@ class ParagraphJoiner {
           // ("docu-" + "ment" → "document", bukan "docu ment").
           // Clamp: baris lanjutan yang dimulai lebih kiri (list wrap) membuat
           // xLeft baris B < xLeft baris A — tanpa max() assertion xLeft<=xRight
-          // gagal di debug (bug #…: list wrap ter-merge hiphenasi).
+          // gagal di debug untuk list wrap yang ter-merge hiphenasi.
           xLeft: last.xLeft,
           xRight: math.max(last.xLeft, b.spans.first.xLeft),
           yBottom: last.yBottom,

@@ -38,7 +38,7 @@ class ZipTextPreview {
     String? raw;
     for (final hint in entryHints) {
       final entry = archive.files
-          .where((f) => f.name.toLowerCase().contains(hint))
+          .where((f) => f.isFile && f.name.toLowerCase().contains(hint))
           .firstOrNull;
       if (entry == null) continue;
       raw = utf8.decode(entry.content as List<int>, allowMalformed: true);

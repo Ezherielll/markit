@@ -118,7 +118,7 @@ class _DocumentViewerState extends State<DocumentViewer> {
       stats = result.stats;
     }
 
-    if (!mounted) return;
+    if (!mounted || widget.job?.id != job.id) return;
     _paperCache = null;
     setState(() {
       _content = content;
