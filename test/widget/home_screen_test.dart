@@ -1,5 +1,9 @@
+import 'dart:io';
+
+import 'package:file_selector_platform_interface/file_selector_platform_interface.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:markit/i18n/strings.dart';
 import 'package:markit/isolate/conversion_controller.dart';
 import 'package:markit/models/pdf_input.dart';
 import 'package:markit/theme/theme_controller.dart';
@@ -115,6 +119,19 @@ class FakeConversionController extends ConversionController {
 
   @override
   Future<void> shutdown() async {}
+}
+
+/// Fake platform file_selector: getDirectoryPath mengembalikan [directory].
+class _FakeFileSelectorPlatform extends FileSelectorPlatform {
+  _FakeFileSelectorPlatform(this.directory);
+  final String? directory;
+
+  @override
+  Future<String?> getDirectoryPath({
+    String? initialDirectory,
+    String? confirmButtonText,
+  }) async =>
+      directory;
 }
 
 void main() {
@@ -397,5 +414,142 @@ void main() {
     // Running dengan total null → bar indeterminate (default phase 1).
     expect(find.byType(LinearProgressIndicator), findsOneWidget);
     expect(find.text('Converting'), findsOneWidget);
+  });
+
+  group('pilih folder output setelah batch (desktop)', () {
+    late FileSelectorPlatform original;
+
+    setUp(() {
+      original = FileSelectorPlatform.instance;
+    });
+
+    tearDown(() {
+      FileSelectorPlatform.instance = original;
+    });
+
+    // Jalankan interaksi di zone real (runAsync): testWidgets memakai fake
+    // async yang TIDAK bisa menyelesaikan IO async dart:io (File.exists,
+    // rename, dst.) — tanpa runAsync future-nya macet selamanya di fake queue.
+    Future<void> drive(WidgetTester tester, int iterations) =>
+        tester.runAsync(() async {
+          for (var i = 0; i < iterations; i++) {
+            await Future<void>.delayed(const Duration(milliseconds: 50));
+            await tester.pump(const Duration(milliseconds: 50));
+          }
+        });
+
+    testWidgets('batch sukses → pilih folder → .md dipindah + outputPath update',
+        (tester) async {
+      // Setup pakai IO sinkron — IO async di body testWidgets tidak selesai
+      // (continuation menumpuk di fake microtask queue).
+      final src = Directory.systemTemp.createTempSync('markit_src');
+      final dst = Directory.systemTemp.createTempSync('markit_dst');
+      addTearDown(() {
+        src.deleteSync(recursive: true);
+        dst.deleteSync(recursive: true);
+      });
+
+      final controller = FakeConversionController()
+        ..addFiles([
+          PdfInput(name: 'a.pdf', path: '${src.path}/a.pdf'),
+        ]);
+      final job = controller.queue.single;
+      final oldPath = job.outputPath; // path sebelum dipindah (akan berubah)
+      File(job.outputPath).writeAsStringSync('# a'); // simulasi hasil konversi
+      FileSelectorPlatform.instance = _FakeFileSelectorPlatform(dst.path);
+
+      await pumpWide(tester, MaterialApp(home: HomeScreen(controller: controller)));
+      await tester.runAsync(() async {
+        await tester.tap(find.text('Convert (1)'));
+        await Future<void>.delayed(const Duration(milliseconds: 50));
+        await tester.pump(const Duration(milliseconds: 50));
+      });
+      // Output .md sudah ada → dialog FR-12 (overwrite) muncul dulu.
+      expect(find.text(Strings.overwriteTitle), findsOneWidget);
+      await tester.runAsync(() async {
+        await tester.tap(find.text(Strings.overwriteConfirm));
+      });
+      // Batch (2x10ms) + dialog folder + move + snackbar
+      await drive(tester, 30);
+
+      expect(File('${dst.path}/a.md').existsSync(), isTrue);
+      expect(File(oldPath).existsSync(), isFalse);
+      expect(job.outputPath, '${dst.path}/a.md');
+      expect(find.textContaining('Saved 1 file'), findsOneWidget);
+    });
+
+    testWidgets('dialog folder di-cancel → output tetap di folder sumber',
+        (tester) async {
+      final src = Directory.systemTemp.createTempSync('markit_src');
+      addTearDown(() {
+        src.deleteSync(recursive: true);
+      });
+
+      final controller = FakeConversionController()
+        ..addFiles([
+          PdfInput(name: 'a.pdf', path: '${src.path}/a.pdf'),
+        ]);
+      final job = controller.queue.single;
+      File(job.outputPath).writeAsStringSync('# a');
+      FileSelectorPlatform.instance = _FakeFileSelectorPlatform(null); // cancel
+
+      await pumpWide(tester, MaterialApp(home: HomeScreen(controller: controller)));
+      await tester.runAsync(() async {
+        await tester.tap(find.text('Convert (1)'));
+        await Future<void>.delayed(const Duration(milliseconds: 50));
+        await tester.pump(const Duration(milliseconds: 50));
+      });
+      // Output .md sudah ada → dialog FR-12 (overwrite) muncul dulu.
+      expect(find.text(Strings.overwriteTitle), findsOneWidget);
+      await tester.runAsync(() async {
+        await tester.tap(find.text(Strings.overwriteConfirm));
+      });
+      await drive(tester, 30);
+
+      expect(File(job.outputPath).existsSync(), isTrue); // tetap di sumber
+      expect(job.outputPath, '${src.path}/a.md');
+      expect(find.text(Strings.outputKeptInPlace), findsOneWidget);
+    });
+
+    testWidgets('konflik di folder tujuan → dialog overwrite → setuju → diganti',
+        (tester) async {
+      final src = Directory.systemTemp.createTempSync('markit_src');
+      final dst = Directory.systemTemp.createTempSync('markit_dst');
+      addTearDown(() {
+        src.deleteSync(recursive: true);
+        dst.deleteSync(recursive: true);
+      });
+
+      final controller = FakeConversionController()
+        ..addFiles([
+          PdfInput(name: 'a.pdf', path: '${src.path}/a.pdf'),
+        ]);
+      final job = controller.queue.single;
+      File(job.outputPath).writeAsStringSync('# new');
+      File('${dst.path}/a.md').writeAsStringSync('# old'); // konflik
+      FileSelectorPlatform.instance = _FakeFileSelectorPlatform(dst.path);
+
+      await pumpWide(tester, MaterialApp(home: HomeScreen(controller: controller)));
+      await tester.runAsync(() async {
+        await tester.tap(find.text('Convert (1)'));
+        await Future<void>.delayed(const Duration(milliseconds: 50));
+        await tester.pump(const Duration(milliseconds: 50));
+      });
+      // Output .md sudah ada → dialog FR-12 (overwrite) muncul dulu.
+      expect(find.text(Strings.overwriteTitle), findsOneWidget);
+      await tester.runAsync(() async {
+        await tester.tap(find.text(Strings.overwriteConfirm));
+      });
+      await drive(tester, 30);
+      // Dialog konflik (folder tujuan) muncul → tap tombol overwrite
+      expect(find.textContaining('already exist'), findsOneWidget);
+      await tester.runAsync(() async {
+        await tester.tap(find.text(Strings.overwriteConfirm));
+      });
+      await drive(tester, 10);
+
+      expect(File('${dst.path}/a.md').readAsStringSync(), '# new');
+      expect(job.outputPath, '${dst.path}/a.md');
+    });
   });
 }

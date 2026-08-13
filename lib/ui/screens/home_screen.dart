@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:io';
 
+import 'package:file_selector/file_selector.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:markit/i18n/strings.dart';
@@ -14,6 +15,7 @@ import 'package:markit/ui/widgets/left_panel.dart';
 import 'package:markit/ui/widgets/drop_zone.dart';
 import 'package:markit/ui/download_text.dart';
 
+import '../../core/output_mover.dart';
 import '../../isolate/conversion_controller.dart';
 import '../../theme/theme_controller.dart';
 
@@ -69,6 +71,12 @@ class _HomeScreenState extends State<HomeScreen> {
 
     _startConversion();
     await controller.convertAll();
+
+    // Fase pilih lokasi (desktop): setelah batch selesai, tawarkan folder
+    // tujuan untuk hasil .md yang sukses. Web selalu download via Blob.
+    if (!kIsWeb && mounted) {
+      await _offerMoveOutputs(controller);
+    }
   }
 
   /// Dialog konfirmasi overwrite (FR-12): muncul bila ada output .md yang
@@ -101,6 +109,87 @@ class _HomeScreenState extends State<HomeScreen> {
       ),
     );
     return proceed == true && mounted;
+  }
+
+  /// Tawarkan pemindahan output .md yang sukses ke folder pilihan user.
+  /// Cancel dialog → file tetap di folder sumber (SnackBar info).
+  Future<void> _offerMoveOutputs(ConversionController controller) async {
+    final done =
+        controller.queue.where((j) => j.status == JobStatus.done).toList();
+    if (done.isEmpty || !mounted) return;
+
+    final directory = await _pickOutputDirectory();
+    if (directory == null || !mounted) {
+      if (mounted) _showMoveSnack(0, null);
+      return;
+    }
+
+    final plan = planOutputMoves([
+      for (final job in done) (job.outputPath, job.input.outputName),
+    ], directory);
+
+    final overwrite = await _resolveMoveOverwrite(plan);
+    if (!mounted) return;
+
+    final applied = await applyOutputMoves(plan, overwrite: overwrite);
+    final movedByFrom = {for (final (from, to) in applied) from: to};
+    for (final job in done) {
+      final target = movedByFrom[job.outputPath];
+      if (target != null) job.outputPath = target;
+    }
+    if (!mounted) return;
+    _showMoveSnack(applied.length, directory);
+  }
+
+  /// Buka dialog pilih folder. Bila plugin gagal (mis. lingkungan test tanpa
+  /// implementasi channel), perlakukan sama seperti cancel.
+  Future<String?> _pickOutputDirectory() async {
+    try {
+      return await getDirectoryPath(
+          confirmButtonText: Strings.chooseOutputFolder);
+    } catch (_) {
+      return null;
+    }
+  }
+
+  /// Putuskan overwrite bila ada konflik target di folder tujuan.
+  Future<bool> _resolveMoveOverwrite(OutputMovePlan plan) async {
+    if (!plan.hasConflicts || !mounted) return false;
+    return _confirmMoveOverwrite(plan.conflicts.length);
+  }
+
+  /// SnackBar hasil pemindahan (atau info "tetap di sumber").
+  void _showMoveSnack(int movedCount, String? directory) {
+    final message = movedCount == 0 || directory == null
+        ? Strings.outputKeptInPlace
+        : Strings.outputSavedTo
+            .replaceFirst('%d', '$movedCount')
+            .replaceFirst('%s', directory);
+    ScaffoldMessenger.of(context)
+        .showSnackBar(SnackBar(content: Text(message)));
+  }
+
+  /// Dialog konfirmasi overwrite untuk target di folder tujuan (pola sama
+  /// dengan [_confirmOverwrite]).
+  Future<bool> _confirmMoveOverwrite(int count) async {
+    final proceed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text(Strings.overwriteTitle),
+        content: Text(Strings.moveConflictsBody.replaceFirst('%d', '$count')),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text(Strings.cancel),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text(Strings.overwriteConfirm),
+          ),
+        ],
+      ),
+    );
+    return proceed == true;
   }
 
   /// Mulai ticker refresh UI + catat waktu mulai konversi.

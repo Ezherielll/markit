@@ -111,6 +111,11 @@ class Strings {
   static const overwriteBody = '%d file(s) already have a .md output. '
       'Continue and replace them?';
   static const overwriteConfirm = 'Overwrite all';
+  static const chooseOutputFolder = 'Choose output folder';
+  static const moveConflictsBody =
+      '%d file(s) already exist in the chosen folder.';
+  static const outputSavedTo = 'Saved %d file(s) to %s';
+  static const outputKeptInPlace = 'Output kept in the source folder.';
   static const featureFast = 'Fast';
   static const featureFastSub = 'Hundreds of pages in seconds';
   static const featureOffline = 'Private';
