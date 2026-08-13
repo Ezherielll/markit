@@ -7,7 +7,7 @@ a DMG (macOS, ARM64), and a tarball (Linux).
 
 ## How to Release
 
-1. **Bump version** in `pubspec.yaml` (e.g. `1.1.0+1` → `1.2.0+2`),
+1. **Bump version** in `pubspec.yaml` (e.g. to `1.2.0+1`),
    commit, and push to master.
 
    ```sh
