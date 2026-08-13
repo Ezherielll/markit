@@ -17,7 +17,8 @@ class QueuedFile {
     required this.id,
     required this.input,
     this.status = JobStatus.queued,
-  });
+    String? outputPath,
+  }) : outputPath = outputPath ?? _defaultOutputPath(input);
 
   final String id;
   final PdfInput input;
@@ -48,15 +49,15 @@ class QueuedFile {
   /// Isi markdown hasil konversi (web/MemoryOutput); null di desktop.
   String? content;
 
-  /// Path output (desktop: path dengan ekstensi apa pun → .md) atau nama
-  /// file output (web).
-  String get outputPath {
+  /// Path output (desktop: path sumber dengan ekstensi apa pun → .md; web:
+  /// nama file output). Mutable — diperbarui setelah user memilih folder
+  /// tujuan (fase "pilih lokasi"), agar UI ("Open folder") konsisten.
+  String outputPath;
+
+  static String _defaultOutputPath(PdfInput input) {
     final path = input.path;
     if (path != null) {
-      return path.replaceFirst(
-        RegExp(r'\.\w+$'),
-        '.md',
-      );
+      return path.replaceFirst(RegExp(r'\.\w+$'), '.md');
     }
     return input.outputName;
   }
