@@ -12,16 +12,16 @@ import 'package:markit/ui/theme/spacing.dart';
 import 'package:markit/ui/theme/typography.dart';
 import 'package:super_drag_and_drop/super_drag_and_drop.dart';
 
-/// Buka dialog picker file (multi-select, semua format didukung MarkIt).
+/// Buka dialog picker file (multi-select, semua format terdeteksi MarkIt —
+/// termasuk DOCX/XLSX/dll yang belum didukung konversi; user mendapat pesan
+/// "not supported yet" yang jelas, bukan gagal diam-diam).
 /// Desktop: PdfInput berisi path; Web: berisi bytes (tanpa filesystem).
 Future<List<PdfInput>> pickPdfFiles() async {
-  const typeGroup = XTypeGroup(
+  final typeGroup = XTypeGroup(
     label: Strings.pickFileFilterName,
-    extensions: [
-      'pdf', 'txt', 'md', 'markdown', 'csv', 'json', 'xml', 'html', 'htm',
-    ],
+    extensions: kDetectableExtensions,
   );
-  final files = await openFiles(acceptedTypeGroups: const [typeGroup]);
+  final files = await openFiles(acceptedTypeGroups: [typeGroup]);
   final inputs = <PdfInput>[];
   for (final f in files) {
     if (kIsWeb) {

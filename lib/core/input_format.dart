@@ -126,6 +126,14 @@ const _extensionRules = <(String, InputFormat)>[
   ('aac', InputFormat.audio),
 ];
 
+/// Semua ekstensi yang dikenali [detectFormat] — dipakai filter file picker
+/// agar format non-teks (DOCX/XLSX/PPTX/EPUB/ZIP/image/audio) tetap bisa
+/// dipilih dari dialog (lalu ditolak dengan pesan "not supported yet",
+/// bukan gagal "corrupt" saat dibaca). Sumber tunggal: [_extensionRules].
+final List<String> kDetectableExtensions = [
+  for (final (ext, _) in _extensionRules) ext,
+];
+
 /// Deteksi via ekstensi (nama sudah di-lowercase) — fallback untuk teks
 /// dan format tanpa magic bytes.
 InputFormat _detectByExtension(String lower) {

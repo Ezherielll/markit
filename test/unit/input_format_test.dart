@@ -120,6 +120,24 @@ void main() {
     });
   });
 
+  group('kDetectableExtensions (filter picker)', () {
+    test('mencakup semua format yang dideteksi — termasuk non-teks', () {
+      // Bug kritikal: picker dulu hanya memuat format teks → .docx dll tak
+      // bisa dipilih dari dialog Windows.
+      expect(kDetectableExtensions, containsAll([
+        'pdf', 'docx', 'xlsx', 'pptx', 'epub', 'zip',
+        'jpg', 'png', 'gif', 'wav', 'mp3', 'flac',
+      ]));
+      // Brief menulis 26, tapi _extensionRules berisi 27 entri (termasuk
+      // 'aac') — panjang harus mengikuti sumber tunggal yang sebenarnya.
+      expect(kDetectableExtensions.length, 27);
+    });
+
+    test('tidak ada duplikat', () {
+      expect(kDetectableExtensions.toSet().length, kDetectableExtensions.length);
+    });
+  });
+
   group('isUrlName', () {
     test('http URL', () => expect(isUrlName('https://youtu.be/x'), isTrue));
     test('www', () => expect(isUrlName('www.example.com'), isTrue));
