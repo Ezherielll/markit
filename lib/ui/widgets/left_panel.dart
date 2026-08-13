@@ -48,6 +48,7 @@ class LeftPanel extends StatelessWidget {
     final queue = controller.queue;
     final done = controller.doneCount;
     final isEmpty = queue.isEmpty;
+    final warning = _largeBatchWarning(queue);
 
     return Container(
       color: Theme.of(context).brightness == Brightness.dark
@@ -117,21 +118,41 @@ class LeftPanel extends StatelessWidget {
                       },
                     ),
                   )
-                : ListView(
+                // ListView.builder: hanya item terlihat yang dibangun —
+                // batch besar tidak mengkonstruksi semua kartu tiap rebuild.
+                : ListView.builder(
                     padding: const EdgeInsets.all(PdflowSpacing.md),
-                    children: [
-                      if (_largeBatchWarning(queue) case final warning?) ...[
-                        _WarningBanner(message: warning),
-                        const SizedBox(height: PdflowSpacing.md),
-                      ],
-                      for (var i = 0; i < queue.length; i++) ...[
-                        _buildCard(queue[i]),
-                        if (i < queue.length - 1)
-                          const SizedBox(height: PdflowSpacing.sm),
-                      ],
-                      const SizedBox(height: PdflowSpacing.md),
-                      _buildActions(context, queue, done),
-                    ],
+                    itemCount: (warning != null ? 1 : 0) + queue.length + 1,
+                    itemBuilder: (context, index) {
+                      final bannerOffset = warning != null ? 1 : 0;
+                      if (warning != null && index == 0) {
+                        return Column(
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          children: [
+                            _WarningBanner(message: warning),
+                            const SizedBox(height: PdflowSpacing.md),
+                          ],
+                        );
+                      }
+                      if (index == bannerOffset + queue.length) {
+                        return Column(
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          children: [
+                            const SizedBox(height: PdflowSpacing.md),
+                            _buildActions(context, queue, done),
+                          ],
+                        );
+                      }
+                      final isLast = index == bannerOffset + queue.length - 1;
+                      return RepaintBoundary(
+                        child: Padding(
+                          padding: EdgeInsets.only(
+                            bottom: isLast ? 0 : PdflowSpacing.sm,
+                          ),
+                          child: _buildCard(queue[index - bannerOffset]),
+                        ),
+                      );
+                    },
                   ),
           ),
         ],
