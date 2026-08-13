@@ -1,12 +1,12 @@
-/// Model layout internal pipeline (pure Dart, tanpa Flutter).
+/// Internal pipeline layout model (pure Dart, no Flutter).
 ///
-/// Koordinat: sistem koordinat PDF murni, origin bottom-left, Y ke atas.
-/// [TextSpan.yBottom] < [TextSpan.yTop] untuk teks normal.
+/// Coordinates: pure PDF coordinate system, origin bottom-left, Y upwards.
+/// [TextSpan.yBottom] < [TextSpan.yTop] for normal text.
 library;
 
 import 'dart:math' as math;
 
-/// Satu run teks (kata/fragment) dengan posisi absolut di halaman.
+/// A single text run (word/fragment) with absolute page position.
 class TextSpan {
   TextSpan({
     required this.text,
@@ -24,8 +24,7 @@ class TextSpan {
   final double yBottom;
   final double yTop;
 
-  /// Proxy ukuran font (tinggi bbox char terbesar di fragment).
-  /// pdfrx 2.x tidak mengekspos fontSize; lihat docs/spike-pdfrx.md.
+  /// Font size proxy (max character bbox height in fragment).
   final double fontSize;
 
   double get width => xRight - xLeft;
@@ -34,10 +33,10 @@ class TextSpan {
   double get yCenter => (yTop + yBottom) / 2;
 }
 
-/// Normalisasi bounds fragment PDFium: PDF tertentu (glyph mirror/terflip,
-/// teks diputar) memberi left > right / bottom > top. Ditukar agar invariant
-/// [TextSpan] (xLeft <= xRight, yBottom <= yTop) selalu terpenuhi — guard
-/// defensif di seam dengan library eksternal (pdfrx).
+/// Normalize PDFium fragment bounds: certain PDFs (glyph mirror/flipped,
+/// rotated text) return left > right / bottom > top. Swapped to ensure
+/// [TextSpan] invariants (xLeft <= xRight, yBottom <= yTop) are always satisfied —
+/// defensive guard at boundary with external library (pdfrx).
 ({double xLeft, double xRight, double yBottom, double yTop})
     normalizeTextSpanBounds({
   required double left,
@@ -52,7 +51,7 @@ class TextSpan {
       yTop: math.max(bottom, top),
     );
 
-/// Satu baris teks: kumpulan [TextSpan] yang berada pada baseline yang sama.
+/// A single text line: collection of [TextSpan]s sharing the same baseline.
 class Line {
   Line({required this.spans}) : assert(spans.isNotEmpty);
 
@@ -63,12 +62,12 @@ class Line {
   double get height => yTop - yBottom;
   double get yCenter => (yTop + yBottom) / 2;
 
-  /// Ukuran font representatif baris (terbesar).
+  /// Representative font size of the line (maximum).
   double get fontSize => spans.map((s) => s.fontSize).reduce(math.max);
 
-  /// Teks baris dengan word spacing normalization (Fase B):
-  /// jika gap antar fragment > 0.3 * fontSize, tambahkan spasi.
-  /// Gap kecil / teks yang sudah mengandung spasi tidak digandakan.
+  /// Line text with word spacing normalization:
+  /// if gap between fragments > 0.3 * fontSize, insert space.
+  /// Small gaps or fragments with spaces are not duplicated.
   String get text {
     if (spans.length == 1) return spans.first.text;
     final buf = StringBuffer();
@@ -88,45 +87,45 @@ class Line {
   }
 }
 
-/// Jenis blok yang diklasifikasikan oleh pipeline.
+/// Block types classified by the pipeline.
 enum BlockType {
   heading,
   paragraph,
-  listItem, // alias backward-compat
-  unorderedListItem, // Fase A: item bullet
-  orderedListItem, // Fase A: item bernomor
-  tableHeader, // Fase C: baris pertama tabel → header + separator
-  tableRow, // Fase C: baris isi tabel
+  listItem, // backward-compat alias
+  unorderedListItem, // bullet item
+  orderedListItem, // numbered item
+  tableHeader, // first row of table → header + separator
+  tableRow, // body row of table
 }
 
-/// Blok semantik hasil klasifikasi, siap dirender ke markdown.
+/// Semantic block produced by classification, ready for markdown rendering.
 class Block {
   Block({
     required this.type,
     required this.lines,
     this.headingLevel = 0,
-    this.listDepth = 0, // Fase C: kedalaman nested list (0=flat, 1=nested)
-    this.cells, // Fase C: sel tabel (non-null hanya untuk tableRow/tableHeader)
-    this.listIndex, // Fase A: nomor ordered list (1-based); null untuk bullet
-    this.alignments, // Fase D: 'left'|'center'|'right' per kolom; null = left
+    this.listDepth = 0,
+    this.cells,
+    this.listIndex,
+    this.alignments,
   });
 
   final BlockType type;
   final List<String> lines;
 
-  /// Level heading 1-based; 0 bila bukan heading.
+  /// Heading level 1-based; 0 if not heading.
   final int headingLevel;
 
-  /// Kedalaman nested list (0=flat, 1=nested).
+  /// Nested list depth (0=flat, 1=nested).
   final int listDepth;
 
-  /// Sel tabel; non-null hanya untuk [BlockType.tableRow]/[BlockType.tableHeader].
+  /// Table cells; non-null only for [BlockType.tableRow]/[BlockType.tableHeader].
   final List<String>? cells;
 
-  /// Nomor ordered list item (1-based); null bila bukan ordered list.
+  /// Ordered list item number (1-based); null if not an ordered list.
   final int? listIndex;
 
-  /// Alignment per kolom tabel ('left'|'center'|'right'); null = semua left.
+  /// Table column alignments ('left'|'center'|'right'); null = all left.
   final List<String>? alignments;
 
   String get text => lines.join('\n');

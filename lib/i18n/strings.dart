@@ -1,13 +1,14 @@
 import 'package:markit/core/format_catalog.dart';
 
-/// String terpusat — D10: Inggris primary, struktur siap i18n.
+/// Centralized strings — English primary, i18n ready.
 class Strings {
   const Strings._();
 
   static const appTitle = 'MarkIt';
   static const tagline = 'Documents → Markdown, on your machine';
   static const headerSubtitle = 'Convert documents into structured Markdown';
-  static const statusReady = 'Ready to process files';  static const statusFilesLoaded = '%d files loaded';
+  static const statusReady = 'Ready to process files';
+  static const statusFilesLoaded = '%d files loaded';
   static const statusProcessing = 'Processing %d documents';
   static const statusConverted = '%d converted';
   static const statusBatchComplete = 'Batch conversion complete';
@@ -155,8 +156,7 @@ class Strings {
       'file. Batch output can be downloaded as a ZIP.';
   static const aboutFormatsTitle = 'Supported formats';
 
-  /// Daftar format didukung — diturunkan dari katalog format (sumber
-  /// tunggal), bukan hardcoded di sini.
+  /// Supported formats list — derived from format catalog (single source of truth).
   static String get aboutFormatsList =>
       kFormatCatalog.map((f) => f.format.label).join(' · ');
 

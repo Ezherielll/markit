@@ -2,7 +2,7 @@ import 'dart:typed_data';
 
 import '../core/input_format.dart';
 
-/// Hasil eksekusi satu job konversi (platform-agnostic).
+/// Result of a single conversion job execution (platform-agnostic).
 class JobExecutionResult {
   JobExecutionResult({
     required this.success,
@@ -28,39 +28,39 @@ class JobExecutionResult {
   final bool success;
   final int pageCount;
 
-  /// Halaman gagal (1-based) — FR-10c.
+  /// Failed pages (1-based).
   final List<int> failedPages;
   final double bodyFontSize;
 
-  /// Path file output (desktop/FileOutput); null untuk MemoryOutput (web).
+  /// Output file path (desktop/FileOutput); null for MemoryOutput (web).
   final String? outputPath;
 
-  /// Isi markdown hasil konversi (web/MemoryOutput).
+  /// Resulting markdown content (web/MemoryOutput).
   final String? content;
 
-  /// Nama error ('corrupt'/'encrypted'/'noText'/dsb) bila gagal.
+  /// Error type ('corrupt'/'encrypted'/'noText'/etc) on failure.
   final String? errorType;
   final String? errorMessage;
 }
 
-/// Abstraksi eksekusi job konversi.
+/// Conversion job execution abstraction.
 ///
-/// Desktop: [IsolateExecutor] (worker isolate persist — pdfrx tidak aman
-/// di-spawn/teardown berulang dalam satu proses).
-/// Web: [InlineExecutor] (pipeline langsung di main isolate, `Isolate.spawn`
-/// tidak didukung di web).
+/// Desktop: [IsolateExecutor] (persistent worker isolate — pdfrx is unsafe
+/// to repeatedly spawn/teardown in a single process).
+/// Web: [InlineExecutor] (pipeline runs directly on main isolate, `Isolate.spawn`
+/// is not supported on web).
 abstract class ConversionExecutor {
-  /// Siapkan executor (spawn worker untuk isolate; no-op untuk inline).
-  /// Dipanggil sekali sebelum batch pertama.
+  /// Initialize executor (spawn worker for isolate; no-op for inline).
+  /// Called once before the first batch.
   Future<void> initialize();
 
-  /// Jalankan satu job.
+  /// Run a single job.
   ///
-  /// [pdfPath] dipakai desktop; [pdfBytes] dipakai web (tanpa filesystem).
-  /// [outputPath] = path output (desktop) atau nama file output (web).
+  /// [pdfPath] used by desktop; [pdfBytes] used by web (no filesystem).
+  /// [outputPath] = output path (desktop) or output filename (web).
   /// [onProgress] callback: (page, total, phase, elapsedMs).
-  /// [format] format input — PDF → pipeline heuristic; lainnya → semantic
-  /// extractor (plan §5).
+  /// [format] input format — PDF → heuristic pipeline; others → semantic
+  /// extractor.
   Future<JobExecutionResult> runJob({
     required String jobId,
     required String pdfPath,
@@ -70,12 +70,12 @@ abstract class ConversionExecutor {
     void Function(int page, int total, int phase, int elapsedMs)? onProgress,
   });
 
-  /// Batalkan job aktif.
+  /// Cancel active job.
   void cancel();
 
-  /// Reset flag cancel antar batch (executor persist).
+  /// Reset cancel flag between batches (persistent executor).
   void resetCancel();
 
-  /// Hentikan executor (worker shutdown untuk isolate; no-op untuk inline).
+  /// Shut down executor (worker shutdown for isolate; no-op for inline).
   Future<void> shutdown();
 }
