@@ -130,4 +130,115 @@ void main() {
       expect(md, contains('Dari path'));
     });
   });
+
+  group('DocxExtractor — tabel & ordered list', () {
+    test('w:tbl → tabel markdown + separator', () async {
+      final tbl =
+          '<w:tbl>'
+          '<w:tr>${docxParagraph(docxRun('Name'))}'
+          '${docxParagraph(docxRun('Qty'))}</w:tr>'
+          '<w:tr>${docxParagraph(docxRun('Apples'))}'
+          '${docxParagraph(docxRun('10'))}</w:tr>'
+          '</w:tbl>';
+      final bytes = buildTestDocx(documentXml: docxDocument(tbl));
+      final md = await _extract(bytes);
+      expect(md, contains('| Name | Qty |'));
+      expect(md, contains('| --- | --- |'));
+      expect(md, contains('| Apples | 10 |'));
+    });
+
+    test("sel berisi '|' → di-escape", () async {
+      final tbl =
+          '<w:tbl>'
+          '<w:tr>${docxParagraph(docxRun('a|b'))}'
+          '${docxParagraph(docxRun('c'))}</w:tr>'
+          '</w:tbl>';
+      final bytes = buildTestDocx(documentXml: docxDocument(tbl));
+      final md = await _extract(bytes);
+      expect(md, contains(r'| a\|b | c |'));
+    });
+
+    test('numFmt decimal → ordered list dengan listIndex increment', () async {
+      final numberingXml =
+          '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
+          '<w:numbering xmlns:w="http://schemas.openxmlformats.org/'
+          'wordprocessingml/2006/main">'
+          '<w:abstractNum w:abstractNumId="0">'
+          '<w:lvl w:ilvl="0"><w:numFmt w:val="decimal"/></w:lvl>'
+          '</w:abstractNum>'
+          '<w:num w:numId="1"><w:abstractNumId w:val="0"/></w:num>'
+          '</w:numbering>';
+      final bytes = buildTestDocx(
+        documentXml: docxDocument(
+          docxParagraph(docxRun('Pertama'), numId: '1') +
+              docxParagraph(docxRun('Kedua'), numId: '1') +
+              docxParagraph(docxRun('Bukan list')),
+        ),
+        numberingXml: numberingXml,
+      );
+      final md = await _extract(bytes);
+      expect(md, contains('1. Pertama'));
+      expect(md, contains('2. Kedua'));
+      expect(md, contains('Bukan list'));
+    });
+
+    test('numFmt bullet → unordered list', () async {
+      final numberingXml =
+          '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
+          '<w:numbering xmlns:w="http://schemas.openxmlformats.org/'
+          'wordprocessingml/2006/main">'
+          '<w:abstractNum w:abstractNumId="0">'
+          '<w:lvl w:ilvl="0"><w:numFmt w:val="bullet"/></w:lvl>'
+          '</w:abstractNum>'
+          '<w:num w:numId="1"><w:abstractNumId w:val="0"/></w:num>'
+          '</w:numbering>';
+      final bytes = buildTestDocx(
+        documentXml: docxDocument(
+          docxParagraph(docxRun('Butir'), numId: '1'),
+        ),
+        numberingXml: numberingXml,
+      );
+      final md = await _extract(bytes);
+      expect(md, contains('- Butir'));
+    });
+
+    test('w:tab dan w:br → spasi, bukan karakter aneh', () async {
+      final bytes = buildTestDocx(
+        documentXml: docxDocument(
+          docxParagraph('<w:r><w:tab/><w:t>teks</w:t>'
+              '<w:br/><w:t>lanjut</w:t></w:r>'),
+        ),
+      );
+      final md = await _extract(bytes);
+      expect(md, isNot(contains('\t')));
+      expect(md, contains('teks lanjut'));
+    });
+
+    test('progress dipanggil + cancel menghentikan ekstraksi', () async {
+      final bytes = buildTestDocx(
+        documentXml: docxDocument(
+          docxParagraph(docxRun('satu')) +
+              docxParagraph(docxRun('dua')) +
+              docxParagraph(docxRun('tiga')),
+        ),
+      );
+      var calls = 0;
+      var cancelled = false;
+      final buffer = StringBuffer();
+      final writer = MarkdownWriter(MemoryMdSink(buffer));
+      final result = await const DocxExtractor().extract(
+        bytes: bytes,
+        writer: writer,
+        onProgress: (done, total) => calls = done,
+        isCancelled: () {
+          cancelled = true;
+          return true; // cancel sejak awal → berhenti setelah blok pertama
+        },
+      );
+      await writer.close();
+      expect(result.itemCount, lessThan(3));
+      expect(calls, lessThan(3));
+      expect(cancelled, isTrue);
+    });
+  });
 }

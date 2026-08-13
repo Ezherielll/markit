@@ -93,6 +93,9 @@ class DocxExtractor implements FormatExtractor {
   }
 
   /// Jalani children `<w:body>`: paragraf → Block, tabel → raw markdown.
+  ///
+  /// [orderedCounter] mengikuti blok ordered list berurutan (1-based);
+  /// reset saat keluar dari deretan ordered (paragraf lain / tabel).
   void _walkBody(
     XmlElement body,
     List<Block> blocks,
@@ -100,14 +103,27 @@ class DocxExtractor implements FormatExtractor {
     Map<String, int> styles,
     Map<String, bool> orderedNumIds,
   ) {
+    var orderedCounter = 0;
     for (final node in body.children) {
       if (node is! XmlElement) continue;
       switch (node.name.local) {
         case 'p':
           final block = _paragraphToBlock(node, styles, orderedNumIds);
-          if (block != null) blocks.add(block);
+          if (block == null) continue;
+          if (block.type == BlockType.orderedListItem) {
+            orderedCounter++;
+            blocks.add(Block(
+              type: BlockType.orderedListItem,
+              lines: block.lines,
+              listIndex: orderedCounter,
+            ));
+          } else {
+            orderedCounter = 0;
+            blocks.add(block);
+          }
         case 'tbl':
           raws.add(_tableMarkdown(node));
+          orderedCounter = 0;
         case 'sectPr':
           break;
       }
@@ -319,17 +335,7 @@ class DocxExtractor implements FormatExtractor {
     var first = true;
     for (final tr in tbl.descendants.whereType<XmlElement>()) {
       if (tr.name.local != 'tr') continue;
-      final cells = <String>[];
-      for (final tc in tr.children.whereType<XmlElement>()) {
-        if (tc.name.local != 'tc') continue;
-        final cellText = tc.descendants
-            .whereType<XmlElement>()
-            .where((e) => e.name.local == 'p')
-            .map(_paragraphText)
-            .where((t) => t.isNotEmpty)
-            .join(' ');
-        cells.add(cellText.replaceAll('|', r'\|'));
-      }
+      final cells = _rowCells(tr);
       if (cells.isEmpty) continue;
       sb.writeln('| ${cells.join(' | ')} |');
       if (first) {
@@ -338,5 +344,26 @@ class DocxExtractor implements FormatExtractor {
       }
     }
     return sb.toString().trimRight();
+  }
+
+  /// Sel satu baris tabel: `<w:tc>` (paragraf di dalam sel) atau `<w:p>`
+  /// langsung sebagai sel (format ringkas); `|` di-escape untuk markdown.
+  List<String> _rowCells(XmlElement tr) {
+    final cells = <String>[];
+    for (final child in tr.children.whereType<XmlElement>()) {
+      switch (child.name.local) {
+        case 'tc':
+          final cellText = child.descendants
+              .whereType<XmlElement>()
+              .where((e) => e.name.local == 'p')
+              .map(_paragraphText)
+              .where((t) => t.isNotEmpty)
+              .join(' ');
+          cells.add(cellText.replaceAll('|', r'\|'));
+        case 'p':
+          cells.add(_paragraphText(child).replaceAll('|', r'\|'));
+      }
+    }
+    return cells;
   }
 }
