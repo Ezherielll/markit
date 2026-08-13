@@ -173,7 +173,10 @@ class _DocumentViewerState extends State<DocumentViewer> {
   /// Subtree paper output (rendered/raw) — di-cache agar parent rebuild
   /// (notifikasi progress) tidak membangun ulang MarkdownBody.
   Widget _buildOutputPaper(QueuedFile job, Color ink, Color inkMuted) {
-    final cacheKey = '${widget.job?.id}|$_showRaw|$_preview';
+    // Brightness ikut dalam kunci: toggle tema (light↔dark) harus
+    // membangun ulang paper — warna/stylesheet terkunci di instance cache.
+    final cacheKey =
+        '${widget.job?.id}|$_showRaw|$_preview|${Theme.of(context).brightness}';
     if (_paperCache != null && _paperCacheJobId == cacheKey) {
       return _paperCache!;
     }
