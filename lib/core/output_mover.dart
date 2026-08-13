@@ -15,14 +15,23 @@ class OutputMovePlan {
 
 /// Susun pemindahan: tiap (fromPath, fileName) → `directory/fileName`.
 /// Target yang sudah ada di disk dicatat sebagai konflik (tidak dihapus).
+/// Target duplikat dalam batch yang sama (dua input beda folder, nama sama)
+/// DIBUANG dari [moves] dan targetnya masuk [conflicts] — file tetap di
+/// sumber, tidak boleh saling timpa.
 OutputMovePlan planOutputMoves(
   List<(String fromPath, String fileName)> outputs,
   String directory,
 ) {
   final moves = <(String, String)>[];
   final conflicts = <String>[];
+  final seen = <String>{};
   for (final (from, name) in outputs) {
     final to = '$directory/$name';
+    if (seen.contains(to)) {
+      conflicts.add(to);
+      continue;
+    }
+    seen.add(to);
     moves.add((from, to));
     if (File(to).existsSync()) conflicts.add(to);
   }
@@ -38,6 +47,7 @@ Future<List<(String, String)>> applyOutputMoves(
 }) async {
   final applied = <(String, String)>[];
   for (final (from, to) in plan.moves) {
+    if (from == to) continue;
     final exists = await File(to).exists();
     if (exists && !overwrite) continue;
     if (exists) await File(to).delete();

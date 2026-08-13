@@ -40,6 +40,18 @@ void main() {
       expect(plan.hasConflicts, isFalse);
       expect(plan.conflicts, isEmpty);
     });
+
+    test('target duplikat dalam batch: move kedua dibuang & masuk konflik', () {
+      final plan = planOutputMoves([
+        ('${src.path}/a.md', 'a.md'),
+        ('${src.path}/sub/a.md', 'a.md'),
+      ], dst.path);
+
+      expect(plan.moves, hasLength(1));
+      expect(plan.moves.single, ('${src.path}/a.md', '${dst.path}/a.md'));
+      expect(plan.conflicts, ['${dst.path}/a.md']);
+      expect(plan.hasConflicts, isTrue);
+    });
   });
 
   group('applyOutputMoves', () {
@@ -74,6 +86,36 @@ void main() {
       expect(applied, hasLength(1));
       expect(File('${dst.path}/b.md').readAsStringSync(), 'new');
       expect(File('${src.path}/b.md').existsSync(), isFalse);
+    });
+
+    test('target duplikat batch + overwrite=true: hanya satu dipindah, tanpa kehilangan isi', () async {
+      File('${src.path}/a.md').writeAsStringSync('konten A');
+      final sub = Directory('${src.path}/sub')..createSync();
+      File('${sub.path}/a.md').writeAsStringSync('konten B');
+      File('${dst.path}/a.md').writeAsStringSync('old');
+
+      final plan = planOutputMoves([
+        ('${src.path}/a.md', 'a.md'),
+        ('${src.path}/sub/a.md', 'a.md'),
+      ], dst.path);
+      final applied = await applyOutputMoves(plan, overwrite: true);
+
+      expect(applied, hasLength(1));
+      expect(File('${dst.path}/a.md').readAsStringSync(), 'konten A');
+      // File kedua tetap di sumber — tidak ditimpa/saling menghapus.
+      expect(File('${src.path}/sub/a.md').existsSync(), isTrue);
+      expect(File('${src.path}/sub/a.md').readAsStringSync(), 'konten B');
+    });
+
+    test('from == to dengan overwrite=true: di-skip, tanpa exception', () async {
+      final path = '${src.path}/x.md';
+      File(path).writeAsStringSync('isi');
+      final plan = OutputMovePlan(moves: [(path, path)], conflicts: []);
+      final applied = await applyOutputMoves(plan, overwrite: true);
+
+      expect(applied, isEmpty);
+      expect(File(path).existsSync(), isTrue);
+      expect(File(path).readAsStringSync(), 'isi');
     });
   });
 }
