@@ -1,6 +1,7 @@
 import '../extractor.dart';
 import '../input_format.dart';
 import 'csv_extractor.dart';
+import 'docx_extractor.dart';
 import 'html_extractor.dart';
 import 'json_extractor.dart';
 import 'text_extractor.dart';
@@ -21,6 +22,7 @@ class ExtractorRegistry {
     InputFormat.json: const JsonExtractor(),
     InputFormat.xml: const XmlExtractor(),
     InputFormat.html: const HtmlExtractor(),
+    InputFormat.docx: const DocxExtractor(),
   };
 
   /// Extractors non-PDF; null → format belum didukung (Fase 2–3 roadmap).

@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'dart:typed_data';
 
 import 'package:flutter_test/flutter_test.dart';
+import 'package:markit/core/extractors/extractor_registry.dart';
 import 'package:markit/core/input_format.dart';
 
 Uint8List _bytes(String s) => Uint8List.fromList(utf8.encode(s));
@@ -159,6 +160,13 @@ void main() {
     test('http URL', () => expect(isUrlName('https://youtu.be/x'), isTrue));
     test('www', () => expect(isUrlName('www.example.com'), isTrue));
     test('bukan URL', () => expect(isUrlName('book.pdf'), isFalse));
+  });
+
+  group('isSupported', () {
+    test('docx kini didukung (isSupported + registry)', () {
+      expect(InputFormat.docx.isSupported, isTrue);
+      expect(ExtractorRegistry.forFormat(InputFormat.docx), isNotNull);
+    });
   });
 }
 

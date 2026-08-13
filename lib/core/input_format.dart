@@ -23,7 +23,8 @@ enum InputFormat {
   unknown;
 
   bool get isSupported => this == pdf || this == text || this == markdown ||
-      this == csv || this == json || this == xml || this == html;
+      this == csv || this == json || this == xml || this == html ||
+      this == docx;
 
   String get label => switch (this) {
         pdf => 'PDF',
