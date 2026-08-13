@@ -3,17 +3,23 @@ import 'dart:typed_data';
 import 'package:archive/archive.dart';
 
 /// Builder .docx sintetis (zip + XML string) — dipakai test extractor.
+///
+/// [includeDocumentXml] false → entry `word/document.xml` dihilangkan
+/// (mensimulasikan DOCX rusak tanpa entry utama).
 Uint8List buildTestDocx({
   required String documentXml,
   String? stylesXml,
   String? numberingXml,
+  bool includeDocumentXml = true,
 }) {
-  final archive = Archive()
-    ..addFile(ArchiveFile.string('word/document.xml', documentXml))
-    ..addFile(ArchiveFile.string(
-      '[Content_Types].xml',
-      '<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Types/>',
-    ));
+  final archive = Archive();
+  if (includeDocumentXml) {
+    archive.addFile(ArchiveFile.string('word/document.xml', documentXml));
+  }
+  archive.addFile(ArchiveFile.string(
+    '[Content_Types].xml',
+    '<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Types/>',
+  ));
   if (stylesXml != null) {
     archive.addFile(ArchiveFile.string('word/styles.xml', stylesXml));
   }

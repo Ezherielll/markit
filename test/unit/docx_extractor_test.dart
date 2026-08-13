@@ -24,6 +24,9 @@ Future<String> _extract(Uint8List bytes, {String? path}) async {
   return buffer.toString();
 }
 
+/// Sel tabel `<w:tc>` berisi satu paragraf polos (tanpa styleId/numId).
+String _tc(String runs) => '<w:tc>${docxParagraph(runs)}</w:tc>';
+
 void main() {
   group('DocxExtractor — parsing inti', () {
     test('paragraf + heading via styles.xml → markdown', () async {
@@ -93,7 +96,7 @@ void main() {
       );
     });
 
-    test('zip tanpa word/document.xml → corrupt', () async {
+    test('entry document.xml kosong → corrupt (XML tidak valid)', () async {
       final bytes = buildTestDocx(documentXml: '');
       await expectLater(
         () => const DocxExtractor().extract(
@@ -102,6 +105,26 @@ void main() {
         ),
         throwsA(isA<ConvertException>()
             .having((e) => e.type, 'type', ConvertError.corrupt)),
+      );
+    });
+
+    test('zip tanpa word/document.xml → corrupt', () async {
+      final bytes = buildTestDocx(
+        documentXml: '',
+        includeDocumentXml: false,
+      );
+      await expectLater(
+        () => const DocxExtractor().extract(
+          bytes: bytes,
+          writer: MarkdownWriter(MemoryMdSink(StringBuffer())),
+        ),
+        throwsA(isA<ConvertException>()
+            .having((e) => e.type, 'type', ConvertError.corrupt)
+            .having(
+              (e) => e.message,
+              'message',
+              contains('no word/document.xml'),
+            )),
       );
     });
 
@@ -132,13 +155,11 @@ void main() {
   });
 
   group('DocxExtractor — tabel & ordered list', () {
-    test('w:tbl → tabel markdown + separator', () async {
+    test('w:tbl → tabel markdown + separator (sel w:tc)', () async {
       final tbl =
           '<w:tbl>'
-          '<w:tr>${docxParagraph(docxRun('Name'))}'
-          '${docxParagraph(docxRun('Qty'))}</w:tr>'
-          '<w:tr>${docxParagraph(docxRun('Apples'))}'
-          '${docxParagraph(docxRun('10'))}</w:tr>'
+          '<w:tr>${_tc(docxRun('Name'))}${_tc(docxRun('Qty'))}</w:tr>'
+          '<w:tr>${_tc(docxRun('Apples'))}${_tc(docxRun('10'))}</w:tr>'
           '</w:tbl>';
       final bytes = buildTestDocx(documentXml: docxDocument(tbl));
       final md = await _extract(bytes);
@@ -147,15 +168,25 @@ void main() {
       expect(md, contains('| Apples | 10 |'));
     });
 
-    test("sel berisi '|' → di-escape", () async {
+    test("sel w:tc berisi '|' → di-escape", () async {
       final tbl =
           '<w:tbl>'
-          '<w:tr>${docxParagraph(docxRun('a|b'))}'
-          '${docxParagraph(docxRun('c'))}</w:tr>'
+          '<w:tr>${_tc(docxRun('a|b'))}${_tc(docxRun('c'))}</w:tr>'
           '</w:tbl>';
       final bytes = buildTestDocx(documentXml: docxDocument(tbl));
       final md = await _extract(bytes);
       expect(md, contains(r'| a\|b | c |'));
+    });
+
+    test('sel w:p langsung (tanpa w:tc, format ringkas) → tetap jadi sel', () async {
+      final tbl =
+          '<w:tbl>'
+          '<w:tr>${docxParagraph(docxRun('A'))}'
+          '${docxParagraph(docxRun('B'))}</w:tr>'
+          '</w:tbl>';
+      final bytes = buildTestDocx(documentXml: docxDocument(tbl));
+      final md = await _extract(bytes);
+      expect(md, contains('| A | B |'));
     });
 
     test('numFmt decimal → ordered list dengan listIndex increment', () async {
