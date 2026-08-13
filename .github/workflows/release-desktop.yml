@@ -3,7 +3,7 @@ name: Release Desktop
 # Build desktop releases (Windows ZIP, macOS DMG, Linux tarball) and
 # attach them to a draft GitHub Release when a version tag is pushed:
 #
-#   git tag v1.1.0 && git push origin v1.1.0
+#   git tag v1.2.0 && git push origin v1.2.0
 #
 # Tags ending in '-web' (web milestones) are excluded.
 

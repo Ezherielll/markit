@@ -225,4 +225,67 @@ void main() {
       expect(job.outputPath, 'D:/out/a.md');
     });
   });
+
+  group('convertAll — robustness (web / temp-dir failures)', () {
+    test('temp dir null (web, no filesystem) → job still processed, '
+        'outputPath = file name', () async {
+      final controller = _TempDirController(
+        executor: _WritingExecutor(),
+        tempDirResult: null,
+      );
+      controller.addFiles([
+        PdfInput(name: 'a.pdf', sizeBytes: 1, bytes: Uint8List(0)),
+      ]);
+      final job = controller.queue.single;
+
+      await controller.convertAll();
+
+      // Web wedge regression: convertAll used to call
+      // Directory.systemTemp.createTemp without a kIsWeb guard — on web,
+      // dart:io throws UnsupportedError before any job runs, _isRunning was
+      // never reset, and the UI got stuck on "Processing" forever.
+      expect(job.status, JobStatus.done);
+      expect(job.outputPath, 'a.md');
+      expect(job.outputPath, isNot(contains('markit_batch')));
+      expect(controller.isRunning, isFalse);
+    });
+
+    test('temp dir throw → batch fails but controller is not wedged '
+        '(isRunning reset, job not stuck running)', () async {
+      final controller = _TempDirController(
+        executor: _WritingExecutor(),
+        tempDirError: StateError('fs unavailable'),
+      );
+      controller.addFiles([
+        PdfInput(name: 'a.pdf', path: 'C:/docs/a.pdf'),
+      ]);
+      final job = controller.queue.single;
+
+      await expectLater(controller.convertAll(), throwsStateError);
+
+      expect(controller.isRunning, isFalse);
+      expect(job.status, JobStatus.queued); // not stuck running forever
+    });
+  });
+}
+
+/// Subclass with a controllable [BatchConversionController.ensureTempOutputDir]
+/// seam — simulates the web build (null) or filesystem failures (throw).
+class _TempDirController extends BatchConversionController {
+  _TempDirController({
+    required super.executor,
+    this.tempDirResult,
+    this.tempDirError,
+  });
+
+  final Directory? tempDirResult;
+  final Object? tempDirError;
+
+  @override
+  Future<Directory?> ensureTempOutputDir() {
+    if (tempDirError != null) {
+      throw tempDirError!;
+    }
+    return Future.value(tempDirResult);
+  }
 }

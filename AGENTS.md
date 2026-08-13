@@ -1,6 +1,6 @@
 # AGENTS.md
 
-Flutter app **MarkIt** (package `markit`, repo `Ezherielll/MarkIt`, local dir `markit`) — document → Markdown converter. Desktop (Windows/macOS/Linux) **and** web; NOT a mobile app. Dart SDK `^3.12.2`, version `1.1.0+1`.
+Flutter app **MarkIt** (package `markit`, repo `Ezherielll/MarkIt`, local dir `markit`) — document → Markdown converter. Desktop (Windows/macOS/Linux) **and** web; NOT a mobile app. Dart SDK `^3.12.2`, version `1.2.0+1`.
 
 ## Commands
 
@@ -28,7 +28,7 @@ dart run tool/check_complexity.dart    # cognitive complexity gate (≤ 15)
 - Work on `develop`. Merge to `master` with `--no-ff` and message `Merge branch 'develop' — <short desc>`, then push **both** branches.
 - Pushing `master` triggers **Deploy Web** (GitHub Pages) — but only when `lib/**`, `web/**`, `pubspec.yaml`, `pubspec.lock`, or `deploy-web.yml` changed. README/docs-only changes don't redeploy.
 - Commit messages: conventional prefixes (`feat:`, `fix:`, `docs:`, `test:`, `ci:`, `chore:`), written in English.
-- Releases: bump `version:` in pubspec.yaml → tag `v1.1.0` → push tag → CI builds Windows ZIP / macOS DMG (arm64 only) / Linux tar.gz and creates a **draft** release. You must publish the draft manually: `gh release edit v1.1.0 --draft=false`.
+- Releases: bump `version:` in pubspec.yaml → tag `v1.2.0` → push tag → CI builds Windows ZIP / macOS DMG (arm64 only) / Linux tar.gz and creates a **draft** release. You must publish the draft manually: `gh release edit v1.2.0 --draft=false`.
 - Tag names must NOT end in `-web` (reserved for web milestones; the release workflow excludes them via `if: "!endsWith(github.ref_name, '-web')"`).
 
 ## Architecture (what filenames don't reveal)
