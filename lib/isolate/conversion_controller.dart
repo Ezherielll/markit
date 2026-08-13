@@ -261,11 +261,14 @@ class BatchConversionController extends ConversionController {
 
       // Location picker phase: desktop conversion result written to TEMP dir
       // (not source folder) — file not automatically saved; moved to destination
-      // directory when user presses Save button.
-      final tempDir = await _ensureTempOutputDir();
-      for (final job in jobs) {
-        if (job.input.path != null) {
-          job.outputPath = '${tempDir.path}/${job.input.outputName}';
+      // directory when user presses Save button. Null on web (no filesystem) —
+      // jobs keep their output names and run normally.
+      final tempDir = await ensureTempOutputDir();
+      if (tempDir != null) {
+        for (final job in jobs) {
+          if (job.input.path != null) {
+            job.outputPath = '${tempDir.path}/${job.input.outputName}';
+          }
         }
       }
 
@@ -281,10 +284,13 @@ class BatchConversionController extends ConversionController {
           }
         }
       }
+      // ALWAYS reset running state, even when the batch above fails with an
+      // unexpected exception (e.g. filesystem unavailable on web). Without
+      // this, `_isRunning` stays true forever and the UI is wedged on
+      // "Processing" with jobs that never run.
+      _isRunning = false;
+      notifyListeners();
     }
-
-    _isRunning = false;
-    notifyListeners();
   }
 
   /// Run a single job on executor (parallel-friendly: each job has
@@ -391,7 +397,14 @@ class BatchConversionController extends ConversionController {
   }
 
   /// Create (or reuse) batch temp directory for desktop .md results.
-  Future<Directory> _ensureTempOutputDir() async {
+  ///
+  /// Returns null on web — the web build has no filesystem (dart:io is a
+  /// stub there; `Directory.systemTemp` throws UnsupportedError at runtime,
+  /// which used to wedge the whole batch on "Processing" before any job
+  /// started). Public as a seam so tests can simulate web / fs failures.
+  @visibleForTesting
+  Future<Directory?> ensureTempOutputDir() async {
+    if (kIsWeb) return null;
     final existing = _tempOutputDir;
     if (existing != null && existing.existsSync()) return existing;
     final dir = await Directory.systemTemp.createTemp('markit_batch');
