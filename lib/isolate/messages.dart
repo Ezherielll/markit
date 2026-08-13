@@ -1,10 +1,11 @@
+library;
+
 import 'dart:isolate';
 
 /// Inter-isolate messages for conversion pipeline.
 ///
 /// All classes must be transferable via [SendPort] (plain data, no closures).
 /// [jobId] maps message to file in batch queue.
-library;
 
 class StartConvert {
   StartConvert({

@@ -271,7 +271,7 @@ class _FileCardState extends State<FileCard> {
                 ),
         ),
       ),
-    );
+    ];
   }
 
   /// Progress metadata: "12 of 300 pages · 4%" (tabular figures).

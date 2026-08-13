@@ -6,13 +6,13 @@ import 'package:markit/core/output.dart';
 import 'engine_source.dart';
 import 'golden_evaluator.dart';
 
-/// Ambang akurasi per jenis dokumen (PRD §4 + Fase A/B/C).
-/// - single-column book: F1 paragraf ≥ 0.90 (exit criteria M0)
-/// - tabel sederhana: tableCellF1 (FR-23)
-/// - tabel lintas halaman: tableCellF1 (Fase D)
+/// Accuracy threshold per document type (PRD §4 + Phase A/B/C).
+/// - single-column book: paragraph F1 >= 0.90 (M0 exit criteria)
+/// - simple table: tableCellF1
+/// - multi-page table: tableCellF1 (Phase D)
 /// - nested list: nestedListRecall
-/// - Fase A fixtures: headingLevelF1 / orderedListPrecision.
-/// - Fase B fixtures: readingOrderScore / headerSuppressionRecall.
+/// - Phase A fixtures: headingLevelF1 / orderedListPrecision.
+/// - Phase B fixtures: readingOrderScore / headerSuppressionRecall.
 double _thresholdFor(String name) {
   if (name.startsWith('simple_table')) return 0.70; // tableCellF1
   if (name.startsWith('multi_page_table')) return 0.70; // tableCellF1
@@ -26,7 +26,7 @@ double _thresholdFor(String name) {
   return 0.90;
 }
 
-/// Metrik utama per fixture + nilainya. Fallback: paragraphF1.
+/// Primary metric per fixture + its value. Fallback: paragraphF1.
 (double, String) _primaryMetric(String name, EvalReport r) {
   if (name.startsWith('simple_table')) {
     return (r.tableCellF1, 'tableCellF1');
@@ -55,17 +55,16 @@ double _thresholdFor(String name) {
   return (r.paragraphF1, 'paragraphF1');
 }
 
-/// Runner korpus: convert semua `corpus/pdfs/*.pdf` → markdown via pipeline
-/// penuh (Converter), lalu evaluasi terhadap `corpus/golden/{name}.md`.
+/// Corpus runner: converts all `corpus/pdfs/*.pdf` -> markdown via full
+/// pipeline (Converter), then evaluates against `corpus/golden/{name}.md`.
 ///
 /// Usage: `dart run benchmark/run_corpus.dart [name.pdf]`
 ///
-/// Menulis ringkasan ke docs/benchmark.md. Exit 1 bila ada file di bawah
-/// ambang PRD §4.
+/// Writes summary to docs/benchmark.md. Exits 1 if any file falls below PRD §4 threshold.
 void main(List<String> args) async {
   final pdfDir = Directory('corpus/pdfs');
   if (!pdfDir.existsSync()) {
-    stderr.writeln('corpus/pdfs tidak ada. Jalankan dulu: dart run benchmark/make_corpus.dart');
+    stderr.writeln('corpus/pdfs does not exist. Run first: dart run benchmark/make_corpus.dart');
     exitCode = 1;
     return;
   }
@@ -95,7 +94,7 @@ void main(List<String> args) async {
     stdout.writeln('  convert: ${sw.elapsedMilliseconds} ms');
 
     if (!File(golden).existsSync()) {
-      stdout.writeln('  SKIP evaluasi (belum ada golden)');
+      stdout.writeln('  SKIP evaluation (golden reference missing)');
       report.writeln('- $name: (no golden)');
       continue;
     }

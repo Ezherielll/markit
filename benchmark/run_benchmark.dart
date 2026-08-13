@@ -4,14 +4,14 @@ import 'package:pdfrx_engine/pdfrx_engine.dart';
 
 import '../test/helpers/pdf_factory.dart';
 
-/// Benchmark harness headless (Task 16) — `dart run benchmark/run_benchmark.dart`.
+/// Headless benchmark harness — `dart run benchmark/run_benchmark.dart`.
 ///
-/// Mengukur: throughput (ms/halaman, p95), total waktu, peak memory (RSS),
-/// untuk dokumen sintetis besar. Output: tabel ke stdout + hasil mentah ke
+/// Measures: throughput (ms/page, p95), total time, peak memory (RSS),
+/// for large synthetic documents. Output: stdout summary table + raw CSV results in
 /// `benchmark/results/<timestamp>.csv`.
 ///
-/// Decision gate (PRD §11 M0): buku 800 hal ≤ 55 s & RSS ≤ 400 MB
-/// → isolate pool SKIP; jika tidak → backlog v2 #7.
+/// Decision gate (PRD §11 M0): 800-page book <= 55 s & RSS <= 400 MB
+/// -> isolate pool SKIP; if fail -> backlog v2 #7.
 void main(List<String> args) async {
   final pages = args.isNotEmpty ? int.parse(args[0]) : 800;
   final outDir = Directory('benchmark/results')..createSync(recursive: true);
@@ -39,7 +39,7 @@ void main(List<String> args) async {
     final total = doc.pages.length;
     final rssAfterOpenKb = ProcessInfo.currentRss ~/ 1024;
 
-    // Pass 1 (histogram ringan).
+    // Pass 1 (lightweight histogram).
     var pass1Ms = 0;
     {
       final sw1 = Stopwatch()..start();
@@ -50,7 +50,7 @@ void main(List<String> args) async {
       pass1Ms = sw1.elapsedMilliseconds;
     }
 
-    // Pass 2 (full layout + write streaming).
+    // Pass 2 (full layout + streaming write).
     final sink = File(outPath).openWrite();
     var start = DateTime.now();
     for (var i = 0; i < total; i++) {
@@ -81,13 +81,13 @@ void main(List<String> args) async {
         '(${(pass1Ms + totalMs) / 1000}s)');
     stdout.writeln('peak RSS: ${rssKb ~/ 1024} MB '
         '(baseline ${rssBaselineKb ~/ 1024} MB, +open ${(rssAfterOpenKb - rssBaselineKb) ~/ 1024} MB, '
-        'delta selama pass2 ${rssDeltaKb ~/ 1024} MB)');
+        'pass2 delta ${rssDeltaKb ~/ 1024} MB)');
     stdout.writeln('output: ${File(outPath).lengthSync() ~/ 1024} KB');
 
-    // Decision gate waktu: ≤55s untuk 800 hal. Memory dinilai dari delta
-    // (bukan baseline VM yang merupakan overhead engine).
+    // Time decision gate: <=55s for 800 pages. Memory evaluated on delta
+    // (excluding VM engine baseline overhead).
     final decision = (pass1Ms + totalMs) <= 55000 && rssDeltaKb <= 100 * 1024;
-    stdout.writeln('DECISION GATE (≤55s & delta RSS ≤100MB): '
+    stdout.writeln('DECISION GATE (<=55s & delta RSS <=100MB): '
         '${decision ? "PASS → isolate pool SKIP" : "FAIL → backlog v2 #7"}');
 
     final csv = File('${outDir.path}/bench_${DateTime.now().millisecondsSinceEpoch}.csv');
