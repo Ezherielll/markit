@@ -39,7 +39,7 @@ class _NoopExecutor implements ConversionExecutor {
 }
 
 Widget _wrap(ConversionController controller) => MaterialApp(
-      theme: PdflowTheme.light(),
+      theme: MarkitTheme.light(),
       home: Scaffold(
         body: SizedBox(
           height: 600,
@@ -58,7 +58,7 @@ Widget _wrap(ConversionController controller) => MaterialApp(
     );
 
 void main() {
-  testWidgets('batch besar: hanya kartu terlihat yang dibangun (lazy)',
+  testWidgets('large batch: only visible cards are built (lazy)',
       (tester) async {
     final controller = BatchConversionController(executor: _NoopExecutor());
     controller.addFiles([
@@ -72,8 +72,8 @@ void main() {
     final built = find.byType(FileCard).evaluate().length;
     expect(built, lessThan(60));
     expect(built, greaterThan(0));
-    // Footer aksi tetap ada — gulir ke bawah dulu: item list dibangun lazy,
-    // jadi footer belum ada sebelum mendekati viewport.
+    // Action footer still exists — scroll down first: list items built lazily,
+    // so footer doesn't exist before approaching viewport.
     await tester.scrollUntilVisible(
       find.text('Add files'),
       300,

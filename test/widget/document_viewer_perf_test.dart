@@ -9,14 +9,14 @@ import 'package:markit/models/pdf_input.dart';
 import 'package:markit/ui/theme/markit_theme.dart';
 import 'package:markit/ui/widgets/document_viewer.dart';
 
-/// Job done dengan output .md di disk (desktop) — siap ditampilkan.
+/// Done job with .md output on disk (desktop) — ready for display.
 (Directory, QueuedFile) _doneJob() {
   final tmp = Directory.systemTemp.createTempSync('markit_perf_dv');
   addTearDown(() {
     try {
       tmp.deleteSync(recursive: true);
     } on FileSystemException {
-      // Windows: file terkunci sesaat — abaikan.
+      // Windows: file locked briefly — ignore.
     }
   });
   const md = '# Heading\n\nbody\n';
@@ -33,7 +33,7 @@ import 'package:markit/ui/widgets/document_viewer.dart';
   return (tmp, job);
 }
 
-/// Root app dengan tema [theme] dan parent yang sengaja di-rebuild.
+/// Root app with theme [theme] and intentionally rebuilding parent.
 Widget app(QueuedFile job, ThemeData theme) => MaterialApp(
   theme: theme,
   home: Scaffold(
@@ -43,7 +43,7 @@ Widget app(QueuedFile job, ThemeData theme) => MaterialApp(
   ),
 );
 
-/// Pump root + tunggu I/O `_load` selesai (baca file output di disk).
+/// Pump root + wait for `_load` I/O completion (reading output file on disk).
 Future<void> pumpLoaded(WidgetTester tester, Widget root) async {
   await tester.runAsync(() async {
     await tester.pumpWidget(root);
@@ -65,52 +65,51 @@ QueuedFile _heavyDoneJob(String mdPath, String md) => QueuedFile(
     )..content = md;
 
 void main() {
-  testWidgets('paper di-cache: rebuild parent tidak membuat MarkdownBody baru',
+  testWidgets('cached paper: parent rebuild does not create new MarkdownBody',
       (tester) async {
     final (_, job) = _doneJob();
 
-    await pumpLoaded(tester, app(job, PdflowTheme.light()));
+    await pumpLoaded(tester, app(job, MarkitTheme.light()));
 
     final first = tester.widget<MarkdownBody>(find.byType(MarkdownBody));
 
     for (var i = 0; i < 10; i++) {
-      // Parent sengaja di-rebuild ulang; build menghasilkan instance
-      // DocumentViewer baru (mirip HomeScreen yang rebuild tiap frame saat
-      // konversi berjalan).
-      await tester.pumpWidget(app(job, PdflowTheme.light()));
+      // Parent intentionally rebuilt; build produces new DocumentViewer
+      // instance (similar to HomeScreen rebuilding every frame during conversion).
+      await tester.pumpWidget(app(job, MarkitTheme.light()));
     }
 
     final after = tester.widget<MarkdownBody>(find.byType(MarkdownBody));
     expect(identical(after, first), isTrue,
-        reason: 'subtree paper harus di-cache, bukan di-build ulang');
+        reason: 'paper subtree must be cached, not rebuilt');
   });
 
-  testWidgets('toggle tema: cache paper invalid — MarkdownBody baru',
+  testWidgets('theme toggle: paper cache invalid — new MarkdownBody',
       (tester) async {
     final (_, job) = _doneJob();
 
-    await pumpLoaded(tester, app(job, PdflowTheme.light()));
+    await pumpLoaded(tester, app(job, MarkitTheme.light()));
     final light = tester.widget<MarkdownBody>(find.byType(MarkdownBody));
 
-    // Toggle ke dark (state DocumentViewer dipertahankan — job tidak berubah).
-    await tester.pumpWidget(app(job, PdflowTheme.dark()));
-    // MaterialApp memakai AnimatedTheme (200 ms) — tunggu animasi selesai
-    // agar Theme.of(context) benar-benar mengembalikan brightness baru.
+    // Toggle to dark (DocumentViewer state preserved — job unchanged).
+    await tester.pumpWidget(app(job, MarkitTheme.dark()));
+    // MaterialApp uses AnimatedTheme (200 ms) — wait for animation to complete
+    // so Theme.of(context) actually returns new brightness.
     await tester.pump(const Duration(milliseconds: 300));
 
     final dark = tester.widget<MarkdownBody>(find.byType(MarkdownBody));
     expect(identical(dark, light), isFalse,
-        reason: 'ganti tema harus membangun ulang paper (warna ikut tema)');
+        reason: 'theme change must rebuild paper (colors follow theme)');
   });
 
-  testWidgets('konten berat: spinner tampil dulu, lalu konten rendered',
+  testWidgets('heavy content: spinner displayed first, then rendered content',
       (tester) async {
     final tmp = Directory.systemTemp.createTempSync('markit_perf_heavy');
     addTearDown(() {
       try {
         tmp.deleteSync(recursive: true);
       } on FileSystemException {
-        // abaikan
+        // ignore
       }
     });
     final md = '# Judul\n\n${'paragraf dengan kata-kata panjang\n' * 2000}';
@@ -119,29 +118,29 @@ void main() {
 
     await tester.runAsync(() async {
       await tester.pumpWidget(MaterialApp(
-        theme: PdflowTheme.light(),
+        theme: MarkitTheme.light(),
         home: Scaffold(body: DocumentViewer(job: job)),
       ));
       await Future<void>.delayed(const Duration(milliseconds: 300));
     });
 
-    // Frame pertama setelah load: spinner render.
+    // First frame after load: spinner renders.
     await tester.pump();
     expect(find.byType(CircularProgressIndicator), findsOneWidget);
 
-    // Frame berikutnya: konten rendered.
+    // Next frame: content rendered.
     await tester.pump();
     expect(find.byType(CircularProgressIndicator), findsNothing);
     expect(find.byType(MarkdownBody), findsOneWidget);
   });
 
-  testWidgets('konten ringan: tanpa spinner, langsung rendered', (tester) async {
+  testWidgets('light content: no spinner, rendered immediately', (tester) async {
     final tmp = Directory.systemTemp.createTempSync('markit_perf_light');
     addTearDown(() {
       try {
         tmp.deleteSync(recursive: true);
       } on FileSystemException {
-        // abaikan
+        // ignore
       }
     });
     const md = '# Judul\n\nIsi.\n';
@@ -150,7 +149,7 @@ void main() {
 
     await tester.runAsync(() async {
       await tester.pumpWidget(MaterialApp(
-        theme: PdflowTheme.light(),
+        theme: MarkitTheme.light(),
         home: Scaffold(body: DocumentViewer(job: job)),
       ));
       await Future<void>.delayed(const Duration(milliseconds: 300));

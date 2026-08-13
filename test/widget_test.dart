@@ -8,7 +8,7 @@ import 'package:markit/isolate/conversion_controller.dart';
 import 'package:markit/models/pdf_input.dart';
 import 'package:markit/ui/screens/home_screen.dart';
 
-/// Fake controller minimal: simulasi batch tanpa isolate.
+/// Minimal fake controller: simulates batch queue without isolates.
 class _FakeController extends ConversionController {
   final List<QueuedFile> _queue = [];
   bool _isRunning = false;
@@ -95,18 +95,18 @@ class _FakeController extends ConversionController {
 
 void main() {
   testWidgets('app boots to home screen', (WidgetTester tester) async {
-    await tester.pumpWidget(const PdflowApp());
+    await tester.pumpWidget(const MarkitApp());
     expect(find.text('MarkIt'), findsOneWidget);
     expect(find.text('Choose files'), findsOneWidget);
   });
 
   testWidgets(
-      'convert all: konversi berjalan tanpa dialog pre-overwrite (hasil tidak '
-      'lagi otomatis ke folder sumber; konflik ditangani saat Save)',
+      'convert all: conversion proceeds without pre-overwrite dialog (outputs '
+      'no longer automatically saved to source folder; conflicts handled on Save)',
       (WidgetTester tester) async {
     final dir = Directory.systemTemp.createTempSync('markit_convert_test');
     addTearDown(() async {
-      // Windows: viewer masih bisa meminjam handle file sesaat — retry.
+      // Windows: viewer can hold file handle briefly — retry.
       for (var attempt = 0; attempt < 10; attempt++) {
         try {
           dir.deleteSync(recursive: true);
@@ -128,9 +128,9 @@ void main() {
       MaterialApp(home: HomeScreen(controller: controller)),
     );
 
-    // FR-12 pre-conversion dihapus: hasil tidak lagi ditulis ke folder
-    // sumber, jadi tidak ada dialog overwrite sebelum konversi. File.exists()
-    // adalah IO nyata → interaksi dijalankan di luar fake-async zone.
+    // Pre-conversion overwrite check removed: outputs not saved to source
+    // folder, so no pre-conversion overwrite dialog. File.exists()
+    // is real IO -> interaction runs outside fake-async zone.
     await tester.runAsync(() async {
       await tester.tap(find.text('Convert (1)'));
       await Future<void>.delayed(const Duration(milliseconds: 50));
@@ -139,19 +139,19 @@ void main() {
     expect(find.text(Strings.overwriteTitle), findsNothing);
     expect(controller.convertAllCalls, 1);
 
-    // Konversi selesai (real-timer di runAsync) → auto-select job done →
-    // viewer memuat .md dari disk (IO nyata) — beri kesempatan selesai.
+    // Conversion done (real-timer in runAsync) -> auto-select done job ->
+    // viewer loads .md from disk (real IO) — give time to complete.
     await tester.pump();
     await tester.runAsync(
       () => Future<void>.delayed(const Duration(milliseconds: 50)),
     );
-    // Pump berbatas (bukan pumpAndSettle): skeleton viewer punya animasi
-    // repeat tak berujung — sama dengan konvensi home_screen_test.
+    // Bounded pump (not pumpAndSettle): skeleton viewer has infinite
+    // repeating animation — matches home_screen_test convention.
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 100));
     await tester.pump(const Duration(milliseconds: 500));
 
-    // Batch dijalankan, job selesai, summary tampil.
+    // Batch executed, job done, summary displayed.
     expect(controller.convertAllCalls, 1);
     expect(controller.doneCount, 1);
     expect(find.text(Strings.clearAll), findsOneWidget);

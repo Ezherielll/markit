@@ -2,7 +2,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:markit/ui/frame_coalescer.dart';
 
 void main() {
-  testWidgets('beberapa schedule dalam satu frame → satu onFrame', (tester) async {
+  testWidgets('multiple schedules in single frame -> one onFrame', (tester) async {
     var count = 0;
     final coalescer = FrameCoalescer(onFrame: () => count++);
 
@@ -18,7 +18,7 @@ void main() {
     expect(count, 2);
   });
 
-  testWidgets('dispose membatalkan callback yang belum jalan', (tester) async {
+  testWidgets('dispose cancels pending callback', (tester) async {
     var count = 0;
     final coalescer = FrameCoalescer(onFrame: () => count++);
 

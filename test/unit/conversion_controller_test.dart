@@ -103,7 +103,7 @@ void main() {
 
       expect(a.status, JobStatus.failed); // throw → failed, bukan crash
       expect(a.errorType, 'corrupt');
-      expect(a.errorMessage, contains('Kesalahan tak terduga'));
+      expect(a.errorMessage, contains('Unexpected error'));
       expect(b.status, JobStatus.done); // batch lanjut
       expect(controller.isRunning, isFalse);
     });

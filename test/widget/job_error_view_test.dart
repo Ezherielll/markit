@@ -14,12 +14,11 @@ void main() {
         ..errorType = errorType
         ..errorMessage = errorMessage;
 
-  testWidgets('menampilkan judul terpetakan + pesan lengkap (wrap, bukan ellipsis)',
+  testWidgets('displays mapped title + full message (wrap, not ellipsis)',
       (tester) async {
-    final longMessage = 'Gagal membaca file: format tidak dikenali. '
-        'Coba periksa apakah file masih valid, atau konversi ulang '
-        'dari aplikasi sumbernya. Pesan detail ini sengaja panjang '
-        'agar menguji bahwa teks tidak terpotong.';
+    final longMessage = 'Failed to read file: format not recognized. '
+        'Check if file is valid or re-convert from source app. '
+        'This detailed message is intentionally long to test that text is not truncated.';
     await tester.pumpWidget(MaterialApp(
       home: Scaffold(
         body: JobErrorView(job: job(
@@ -29,39 +28,39 @@ void main() {
       ),
     ));
 
-    // Judul terpetakan dari errorType.
+    // Mapped title from errorType.
     expect(find.text(Strings.errorCorrupt), findsOneWidget);
-    // Pesan lengkap TERTAMPIL (bukan ellipsis) — body penuh ditemukan.
+    // Full message DISPLAYED (not ellipsis) — full body found.
     expect(find.text(longMessage), findsOneWidget);
   });
 
-  testWidgets('tombol "Show full error" → dialog berisi pesan penuh',
+  testWidgets('"Show full error" button -> dialog containing full message',
       (tester) async {
-    final longMessage = 'Pesan error yang sangat panjang sekali melebihi '
-        'tiga baris tampilan ringkas pada kartu file.';
+    final longMessage = 'Very long error message that exceeds the maximum length '
+        'threshold of ninety characters so that the show full error button is displayed.';
     await tester.pumpWidget(MaterialApp(
       home: Scaffold(body: JobErrorView(job: job(errorType: 'noText', errorMessage: longMessage))),
     ));
 
     await tester.tap(find.text(Strings.showFullError));
-    await tester.pumpAndSettle(); // dialog — aman (bukan viewer skeleton)
+    await tester.pumpAndSettle(); // dialog — safe (not viewer skeleton)
 
-    expect(find.text(longMessage), findsWidgets); // di dialog
+    expect(find.text(longMessage), findsWidgets); // in dialog
     expect(find.byType(SelectableText), findsWidgets);
   });
 
-  testWidgets('tanpa errorMessage → fallback ke judul mapping', (tester) async {
+  testWidgets('without errorMessage -> fallback to title mapping', (tester) async {
     await tester.pumpWidget(MaterialApp(
       home: Scaffold(body: JobErrorView(job: job(errorType: 'encrypted'))),
     ));
     expect(find.text(Strings.errorEncrypted), findsWidgets);
   });
 
-  testWidgets('errorType tidak dikenal → errorGeneric (dengan %s terisi)', (tester) async {
+  testWidgets('unknown errorType -> errorGeneric (with %s filled)', (tester) async {
     await tester.pumpWidget(MaterialApp(
       home: Scaffold(body: JobErrorView(job: job(errorType: 'weird'))),
     ));
-    // errorGeneric = 'Something went wrong: %s' → %s diganti errorType.
+    // errorGeneric = 'Something went wrong: %s' -> %s replaced with errorType.
     expect(find.text('Something went wrong: weird'), findsOneWidget);
   });
 }

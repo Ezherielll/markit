@@ -159,7 +159,7 @@ void main() {
 
       expect(result.success, isFalse);
       expect(result.errorType, 'unsupported');
-      expect(result.errorMessage, contains('Choose files'));
+      expect(result.errorMessage, contains('Choose Files'));
 
       await executor.shutdown();
     });

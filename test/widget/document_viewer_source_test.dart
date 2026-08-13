@@ -31,10 +31,10 @@ QueuedFile _job(
 Future<void> _pump(WidgetTester tester, QueuedFile job) async {
   await tester.runAsync(() async {
     await tester.pumpWidget(MaterialApp(
-      theme: PdflowTheme.light(),
+      theme: MarkitTheme.light(),
       home: Scaffold(body: DocumentViewer(job: job)),
     ));
-    // Waktu nyata agar I/O (baca file sumber/output) selesai di zone asli.
+    // Real time so I/O (reading source/output file) completes in original zone.
     await Future<void>.delayed(const Duration(milliseconds: 300));
     await tester.pump();
   });
@@ -58,7 +58,7 @@ void main() {
     }
   });
 
-  testWidgets('queued CSV: mode Source otomatis, teks sumber tampil',
+  testWidgets('queued CSV: automatic Source mode, raw source text displayed',
       (tester) async {
     File('${tmp.path}/notes.csv').writeAsStringSync('lorem\nipsum\n');
     final job = _job(
@@ -73,12 +73,12 @@ void main() {
     expect(find.byType(TextSourceView), findsOneWidget);
     expect(find.text('lorem\nipsum\n'), findsOneWidget);
     expect(find.byType(MarkdownBody), findsNothing);
-    // Toolbar dua segmen.
+    // Two-segment toolbar.
     expect(find.text(Strings.showSource), findsOneWidget);
     expect(find.text(Strings.showOutput), findsOneWidget);
   });
 
-  testWidgets('queued DOCX (zip): preview teks hasil strip tag',
+  testWidgets('queued DOCX (zip): tag-stripped text preview displayed',
       (tester) async {
     final docx = buildTestDocx(
       documentXml: docxDocument(
@@ -99,7 +99,7 @@ void main() {
     expect(find.textContaining('Judul dokumen'), findsOneWidget);
   });
 
-  testWidgets('queued CSV: toggle ke Output → skeleton (belum ada hasil)',
+  testWidgets('queued CSV: toggle to Output -> skeleton (no output yet)',
       (tester) async {
     File('${tmp.path}/notes.csv').writeAsStringSync('lorem\n');
     final job = _job(
@@ -116,7 +116,7 @@ void main() {
     expect(find.byType(TextSourceView), findsNothing);
   });
 
-  testWidgets('running: sumber tampil (hasil belum ada)', (tester) async {
+  testWidgets('running: source displayed (no output yet)', (tester) async {
     File('${tmp.path}/notes.csv').writeAsStringSync('lorem\n');
     final job = _job(
       'notes.csv',
@@ -131,7 +131,7 @@ void main() {
     expect(find.text('lorem\n'), findsOneWidget);
   });
 
-  testWidgets('format legacy: pesan formatNotSupported tampil', (tester) async {
+  testWidgets('legacy format: formatNotSupported message displayed', (tester) async {
     final job = _job('a.doc', InputFormat.word, status: JobStatus.queued);
 
     await _pump(tester, job);
@@ -139,7 +139,7 @@ void main() {
     expect(find.text(Strings.formatNotSupported), findsOneWidget);
   });
 
-  testWidgets('file sumber hilang: pesan sourceLoadFailed tampil',
+  testWidgets('missing source file: sourceLoadFailed message displayed',
       (tester) async {
     final job = _job(
       'ghost.csv',
@@ -153,7 +153,7 @@ void main() {
     expect(find.text(Strings.sourceLoadFailed), findsOneWidget);
   });
 
-  testWidgets('done: mode Output default (rendered); toggle Source↔Output',
+  testWidgets('done: Output mode default (rendered); toggle Source<->Output',
       (tester) async {
     const md = '# Heading\n\nbody\n';
     File('${tmp.path}/doc.csv').writeAsStringSync(md);
@@ -168,48 +168,48 @@ void main() {
 
     await _pump(tester, job);
 
-    // Output rendered default — toggle Rendered|Raw ikut tampil.
+    // Default rendered output — Rendered|Raw toggle also displayed.
     expect(find.byType(MarkdownBody), findsOneWidget);
     expect(find.text(Strings.showRendered), findsOneWidget);
 
-    // Pindah ke Source.
+    // Switch to Source.
     await tester.tap(find.text(Strings.showSource));
     await tester.pump(const Duration(milliseconds: 100));
     expect(find.byType(TextSourceView), findsOneWidget);
     expect(find.text('# Heading\n\nbody\n'), findsOneWidget);
     expect(find.byType(MarkdownBody), findsNothing);
 
-    // Kembali ke Output.
+    // Return to Output.
     await tester.tap(find.text(Strings.showOutput));
     await tester.pump(const Duration(milliseconds: 100));
     expect(find.byType(MarkdownBody), findsOneWidget);
   });
 
-  testWidgets('raw view (output): Scrollbar tidak melempar assertion (bug #2)',
+  testWidgets('raw view (output): Scrollbar does not throw assertion (bug #2)',
       (tester) async {
     final job = _job(
       'doc.csv',
       InputFormat.csv,
       path: '${tmp.path}/doc.csv',
       status: JobStatus.done,
-      // Cukup panjang → scroll horizontal aktif pada raw view.
+      // Long enough -> horizontal scroll active in raw view.
       content: '${'kata ' * 400}\n',
     );
 
     await _pump(tester, job);
 
-    // Toggle raw view — Scrollbar horizontal tanpa controller eksplisit
-    // melempar "Scrollbar has no ScrollPosition" di scheduler callback.
+    // Toggle raw view — horizontal Scrollbar without explicit controller
+    // throws "Scrollbar has no ScrollPosition" in scheduler callback.
     await tester.tap(find.text(Strings.showRaw));
     await tester.pump(const Duration(milliseconds: 100));
-    // Beberapa frame lagi: assertion muncul di frame callback berikutnya.
+    // Several more frames: assertion appears in next frame callback.
     await tester.pump(const Duration(milliseconds: 100));
     await tester.pump(const Duration(milliseconds: 100));
 
     expect(tester.takeException(), isNull);
   });
 
-  testWidgets('failed tapi sumber terbaca: teks tetap tampil', (tester) async {
+  testWidgets('failed but readable source: raw text still displayed', (tester) async {
     File('${tmp.path}/bad.csv').writeAsStringSync('konten mentah\n');
     final job = _job(
       'bad.csv',
@@ -224,7 +224,7 @@ void main() {
     expect(find.text(Strings.sourceLoadFailed), findsNothing);
   });
 
-  testWidgets('failed dan sumber tidak terbaca: sourceLoadFailed',
+  testWidgets('failed and unreadable source: sourceLoadFailed',
       (tester) async {
     final job = _job(
       'gone.csv',
