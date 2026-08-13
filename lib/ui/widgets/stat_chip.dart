@@ -3,7 +3,7 @@ import 'package:markit/ui/theme/palette.dart';
 import 'package:markit/ui/theme/spacing.dart';
 import 'package:markit/ui/theme/typography.dart';
 
-/// Chip statistik kecil (label + nilai, font mono untuk angka).
+/// Small statistic chip (label + value, mono font for numbers).
 class StatChip extends StatelessWidget {
   const StatChip({super.key, required this.label, required this.value, this.icon});
 
@@ -14,19 +14,19 @@ class StatChip extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final ink = isDark ? PdflowColors.inkDark : PdflowColors.inkLight;
-    final inkMuted = isDark ? PdflowColors.inkMutedDark : PdflowColors.inkMutedLight;
-    final hairline = isDark ? PdflowColors.hairlineDark : PdflowColors.hairlineLight;
-    final surface = isDark ? PdflowColors.surfaceDark : PdflowColors.surfaceLight;
+    final ink = isDark ? MarkitColors.inkDark : MarkitColors.inkLight;
+    final inkMuted = isDark ? MarkitColors.inkMutedDark : MarkitColors.inkMutedLight;
+    final hairline = isDark ? MarkitColors.hairlineDark : MarkitColors.hairlineLight;
+    final surface = isDark ? MarkitColors.surfaceDark : MarkitColors.surfaceLight;
 
     return Container(
       padding: const EdgeInsets.symmetric(
-        horizontal: PdflowSpacing.md,
-        vertical: PdflowSpacing.sm,
+        horizontal: MarkitSpacing.md,
+        vertical: MarkitSpacing.sm,
       ),
       decoration: BoxDecoration(
         color: surface,
-        borderRadius: BorderRadius.circular(PdflowSpacing.radiusChip),
+        borderRadius: BorderRadius.circular(MarkitSpacing.radiusChip),
         border: Border.all(color: hairline),
       ),
       child: Row(
@@ -34,18 +34,18 @@ class StatChip extends StatelessWidget {
         children: [
           if (icon != null) ...[
             Icon(icon, size: 14, color: Theme.of(context).colorScheme.primary),
-            const SizedBox(width: PdflowSpacing.xs),
+            const SizedBox(width: MarkitSpacing.xs),
           ],
           Text(
             value,
             style: TextStyle(
-              fontFamily: PdflowTypography.mono,
+              fontFamily: MarkitTypography.mono,
               fontSize: 13,
               fontWeight: FontWeight.w500,
               color: ink,
             ),
           ),
-          const SizedBox(width: PdflowSpacing.xs),
+          const SizedBox(width: MarkitSpacing.xs),
           Text(label, style: TextStyle(fontSize: 11.5, color: inkMuted)),
         ],
       ),

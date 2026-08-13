@@ -4,16 +4,16 @@ import 'package:markit/isolate/conversion_controller.dart';
 import 'package:markit/ui/theme/palette.dart';
 import 'package:markit/ui/theme/spacing.dart';
 
-/// Panel error untuk satu job gagal — pesan LENGKAP (wrap), tidak
-/// terpotong ellipsis. Judul dipetakan dari errorType; body = errorMessage
-/// asli (atau fallback judul). Tombol "Show full error" membuka dialog
-/// dengan SelectableText penuh.
+/// Error panel for a failed job — FULL wrapped message, not
+/// truncated with ellipsis. Title mapped from errorType; body = raw errorMessage
+/// (or fallback title). "Show full error" button opens a dialog
+/// with selectable full text.
 class JobErrorView extends StatelessWidget {
   const JobErrorView({super.key, required this.job});
 
   final QueuedFile job;
 
-  /// Judul ramah per errorType; fallback errorGeneric.
+  /// User-friendly title per errorType; fallback to errorGeneric.
   String get _title {
     return switch (job.errorType) {
       'encrypted' => Strings.errorEncrypted,
@@ -24,7 +24,7 @@ class JobErrorView extends StatelessWidget {
     };
   }
 
-  /// Body penuh: pesan asli dari executor bila ada, else judul mapping.
+  /// Full body: raw message from executor if available, else title mapping.
   String get _body {
     final message = job.errorMessage;
     if (message != null && message.isNotEmpty) return message;
@@ -34,15 +34,15 @@ class JobErrorView extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final red = isDark ? PdflowColors.stampRedDark : PdflowColors.stampRedLight;
+    final red = isDark ? MarkitColors.stampRedDark : MarkitColors.stampRedLight;
     final message = job.errorMessage;
     final hasMessage = message != null && message.isNotEmpty;
-    // Pesan panjang (> ~3 baris kartu) → butuh tombol dialog.
+    // Long message (> ~3 card lines) → requires dialog button.
     final showDialogButton = (message?.length ?? 0) > 90;
 
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(PdflowSpacing.sm),
+      padding: const EdgeInsets.all(MarkitSpacing.sm),
       decoration: BoxDecoration(
         color: red.withValues(alpha: 0.08),
         borderRadius: BorderRadius.circular(6),
@@ -52,7 +52,7 @@ class JobErrorView extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Icon(Icons.error_outline, size: 16, color: red),
-          const SizedBox(width: PdflowSpacing.sm),
+          const SizedBox(width: MarkitSpacing.sm),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -68,7 +68,7 @@ class JobErrorView extends StatelessWidget {
                 ),
                 if (hasMessage) ...[
                   const SizedBox(height: 2),
-                  // Pesan lengkap, wrap — TIDAK pakai ellipsis.
+                  // Full message, wrapped — NO ellipsis used.
                   Text(
                     _body,
                     style: TextStyle(fontSize: 10.5, color: red, height: 1.35),

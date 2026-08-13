@@ -20,9 +20,9 @@ import '../../core/output_mover.dart';
 import '../../isolate/conversion_controller.dart';
 import '../../theme/theme_controller.dart';
 
-/// Layar utama — layout desktop dua panel:
-/// kiri = workspace (upload/queue/status/aksi), kanan = document viewer.
-/// Responsive: < 900px panel menumpuk.
+/// Main screen — two-panel desktop layout:
+/// left = workspace (upload/queue/status/actions), right = document viewer.
+/// Responsive: < 900px panels stack.
 class HomeScreen extends StatefulWidget {
   const HomeScreen({
     super.key,
@@ -43,8 +43,8 @@ class _HomeScreenState extends State<HomeScreen> {
   String? _selectedJobId;
   late final ThemeController _theme =
       widget.themeController ?? ThemeController();
-  // Koalesensi rebuild: notifikasi controller berfrekuensi tinggi hanya
-  // memicu satu setState per frame (di awal frame berikutnya).
+  // Coalesced rebuilds: high-frequency controller notifications
+  // trigger at most one setState per frame.
   late final FrameCoalescer _rebuilds =
       FrameCoalescer(onFrame: _flushControllerChanged);
 
@@ -71,34 +71,31 @@ class _HomeScreenState extends State<HomeScreen> {
     try {
       await controller.convertAll();
     } catch (_) {
-      // convertAll tidak seharusnya throw (per-job failure ditangani
-      // controller), tapi bila terjadi: tetap lanjut ke save.
+      // convertAll should not throw (per-job failure handled by controller),
+      // but if it occurs: proceed to save.
       convertFailed = true;
     } finally {
-      // Bila convertAll melempar, save TETAP ditawarkan — job yang sukses
-      // bisa disimpan independen walau batch tidak selesai normal.
-      // (Batch normal memakai tombol Save di sidebar — auto-dialog sudah
-      // diganti tombol; di sini finally adalah jalur penyelamat.)
+      // If convertAll throws, save is STILL offered — successful jobs
+      // can be saved independently even if batch ends abnormally.
       if (!kIsWeb && mounted && convertFailed) {
         await _offerMoveOutputs(controller);
-        // File yang tidak sempat disimpan user dibuang dari temp.
+        // Discard unselected temp files.
         await controller.cleanupTempOutputs();
       }
     }
   }
 
-  /// Tombol Save di sidebar → pilih folder tujuan hasil .md (desktop).
+  /// Save button in sidebar → choose destination folder for .md outputs (desktop).
   Future<void> _onSaveOutput() async {
     if (!mounted) return;
     final controller = widget.controller;
     await _offerMoveOutputs(controller);
-    // Selesai (disimpan atau dibatalkan): file temp yang tidak terpilih
-    // dibuang — tidak ada yang "tersimpan otomatis".
+    // Completed (saved or cancelled): unselected temp files discarded.
     await controller.cleanupTempOutputs();
   }
 
-  /// Tawarkan pemindahan output .md yang sukses ke folder pilihan user.
-  /// Cancel dialog → file temp dibuang (tidak tersimpan otomatis).
+  /// Offer moving successful .md outputs to user-selected folder.
+  /// Cancel dialog → temp files discarded (not saved automatically).
   Future<void> _offerMoveOutputs(ConversionController controller) async {
     final done = await _doneJobsWithOutput(controller);
     if (done.isEmpty || !mounted) return;
@@ -126,8 +123,8 @@ class _HomeScreenState extends State<HomeScreen> {
     _showMoveSnack(applied.length, directory);
   }
 
-  /// Buka dialog pilih folder. Bila plugin gagal (mis. lingkungan test tanpa
-  /// implementasi channel), perlakukan sama seperti cancel.
+  /// Open folder picker dialog. If plugin fails (e.g. test environment),
+  /// treat same as cancel.
   Future<String?> _pickOutputDirectory() async {
     try {
       return await getDirectoryPath(
@@ -137,13 +134,13 @@ class _HomeScreenState extends State<HomeScreen> {
     }
   }
 
-  /// Putuskan overwrite bila ada konflik target di folder tujuan.
+  /// Decide overwrite when target conflict exists in destination folder.
   Future<bool> _resolveMoveOverwrite(OutputMovePlan plan) async {
     if (!plan.hasConflicts || !mounted) return false;
     return _confirmMoveOverwrite(plan.conflicts.length);
   }
 
-  /// SnackBar hasil pemindahan (atau info "tidak disimpan").
+  /// SnackBar showing move results (or "not saved" info).
   void _showMoveSnack(int movedCount, String? directory) {
     final message = movedCount == 0 || directory == null
         ? Strings.outputNotSaved
@@ -154,8 +151,8 @@ class _HomeScreenState extends State<HomeScreen> {
         .showSnackBar(SnackBar(content: Text(message)));
   }
 
-  /// Job done yang file-nya benar-benar ada (temp batch) — job failed atau
-  /// file yang sudah dibersihkan tidak ikut.
+  /// Completed jobs whose output file exists (temp batch) — failed jobs
+  /// or cleaned up files excluded.
   Future<List<QueuedFile>> _doneJobsWithOutput(
     ConversionController controller,
   ) async {
@@ -167,8 +164,7 @@ class _HomeScreenState extends State<HomeScreen> {
     return done;
   }
 
-  /// Dialog konfirmasi overwrite untuk target di folder tujuan (fase Save;
-  /// konflik di direktori pilihan user — pola dialog konfirmasi standar).
+  /// Overwrite confirmation dialog for destination targets.
   Future<bool> _confirmMoveOverwrite(int count) async {
     final proceed = await showDialog<bool>(
       context: context,
@@ -190,7 +186,7 @@ class _HomeScreenState extends State<HomeScreen> {
     return proceed == true;
   }
 
-  /// Mulai ticker refresh UI + catat waktu mulai konversi.
+  /// Start UI refresh ticker + record conversion start time.
   void _startConversion() {
     _startTime = DateTime.now();
     _ticker?.cancel();
@@ -217,15 +213,14 @@ class _HomeScreenState extends State<HomeScreen> {
     widget.controller.addFiles(inputs);
   }
 
-  /// Flush perubahan controller yang dikoalesen: paling banyak sekali per
-  /// frame, bukan per notifikasi.
+  /// Flush coalesced controller changes: at most once per frame.
   void _flushControllerChanged() {
     if (!mounted) return;
     setState(() {
       if (!widget.controller.isRunning) {
         _ticker?.cancel();
       }
-      // Auto-select dokumen done pertama bila belum ada pilihan.
+      // Auto-select first done document if none selected.
       final queue = widget.controller.queue;
       if (_selectedJobId == null) {
         final firstDone = queue.where((f) => f.status == JobStatus.done);
@@ -252,7 +247,7 @@ class _HomeScreenState extends State<HomeScreen> {
     final c = widget.controller;
     final running = c.queue.where((f) => f.status == JobStatus.running);
     if (running.isEmpty) return null;
-    // Agregat: rata-rata progress job running (per-job progress di kartu).
+    // Aggregate: average progress of running jobs.
     final fractions = running
         .map((j) => j.progressFraction)
         .whereType<double>()
@@ -331,8 +326,7 @@ class _HomeScreenState extends State<HomeScreen> {
                     );
 
                     if (wide) {
-                      // Workspace kiri (dominant, ~75%) + sidebar kanan
-                      // (panel utilitas ~25%) — reading flow kiri→kanan.
+                      // Wide layout: left viewer + right sidebar
                       return Row(
                         crossAxisAlignment: CrossAxisAlignment.stretch,
                         children: [
@@ -341,8 +335,7 @@ class _HomeScreenState extends State<HomeScreen> {
                         ],
                       );
                     }
-                    // Layar sempit: workspace atas (dominant), sidebar bawah
-                    // sebagai drawer utilitas yang tetap mengalir.
+                    // Narrow screen: top viewer + bottom sidebar
                     return Column(
                       crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: [
@@ -358,10 +351,10 @@ class _HomeScreenState extends State<HomeScreen> {
               ),
             ],
           ),
-          // Status pill floating di sudut kiri bawah.
+          // Floating status pill in bottom-left corner.
           Positioned(
-            left: PdflowSpacing.lg,
-            bottom: PdflowSpacing.lg,
+            left: MarkitSpacing.lg,
+            bottom: MarkitSpacing.lg,
             child: StatusPill(controller: c),
           ),
         ],
@@ -369,17 +362,16 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  /// Sidebar sebagai panel utilitas: border kiri halus + shadow lembut,
-  /// bukan divider keras — terasa attached, bukan halaman terpisah.
+  /// Sidebar utility panel: subtle left border + soft shadow.
   Widget sidebarPanel(Widget child) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final hairline = isDark ? PdflowColors.hairlineDark : PdflowColors.hairlineLight;
+    final hairline = isDark ? MarkitColors.hairlineDark : MarkitColors.hairlineLight;
     return DecoratedBox(
       decoration: BoxDecoration(
         border: Border(left: BorderSide(color: hairline)),
         boxShadow: [
           BoxShadow(
-            color: (isDark ? PdflowColors.inkDark : PdflowColors.inkLight)
+            color: (isDark ? MarkitColors.inkDark : MarkitColors.inkLight)
                 .withValues(alpha: isDark ? 0.10 : 0.04),
             blurRadius: 10,
             offset: const Offset(-2, 0),

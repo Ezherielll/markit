@@ -2,17 +2,17 @@ import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 
-/// Logo MarkIt `[M]` — tile rounded pen-blue, huruf "M" serif Fraunces,
-/// diapit dua bracket vertikal. Geometri identik dengan icon platform
-/// (tools/generate_icons.ps1), sehingga identitas konsisten di mana-mana.
+/// MarkIt `[M]` mark logo — rounded pen-blue tile, Fraunces serif "M",
+/// flanked by two vertical brackets. Geometry identical to platform icons
+/// (tools/generate_icons.ps1), keeping branding consistent.
 class MarkItMark extends StatelessWidget {
   const MarkItMark({super.key, this.size = 36, this.showBrackets});
 
-  /// Ukuran tile persegi (biasanya 36 di header, 64+ untuk hero).
+  /// Square tile size (typically 36 in header, 64+ for hero).
   final double size;
 
-  /// Bracket digambar bila null & ukuran cukup (>= 56) — di ukuran kecil
-  /// bracket hanya noise, huruf M yang menjaga keterbacaan.
+  /// Brackets rendered when null & size is large enough (>= 56) — at small sizes
+  /// brackets are noise, M letter keeps legibility.
   final bool? showBrackets;
 
   @override

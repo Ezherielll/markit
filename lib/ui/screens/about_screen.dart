@@ -5,25 +5,25 @@ import 'package:markit/ui/theme/spacing.dart';
 import 'package:markit/ui/theme/typography.dart';
 import 'package:url_launcher/url_launcher.dart';
 
-/// Halaman About — penjelasan MarkIt untuk user awam (non-teknis).
-/// Dibuka dari ikon info di header toolbar.
+/// About screen — explanation of MarkIt for end users (non-technical).
+/// Opened from info icon in header toolbar.
 class AboutScreen extends StatelessWidget {
   const AboutScreen({super.key});
 
-  static const String _githubUrl = 'https://github.com/Ezherielll/markit';
+  static const String _githubUrl = 'https://github.com/Ezherielll/MarkIt';
 
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final paper = isDark ? PdflowColors.paperDark : PdflowColors.paperLight;
-    final ink = isDark ? PdflowColors.inkDark : PdflowColors.inkLight;
-    final inkMuted = isDark ? PdflowColors.inkMutedDark : PdflowColors.inkMutedLight;
+    final paper = isDark ? MarkitColors.paperDark : MarkitColors.paperLight;
+    final ink = isDark ? MarkitColors.inkDark : MarkitColors.inkLight;
+    final inkMuted = isDark ? MarkitColors.inkMutedDark : MarkitColors.inkMutedLight;
     final primary = Theme.of(context).colorScheme.primary;
 
     return Scaffold(
       backgroundColor: paper,
       appBar: AppBar(
-        backgroundColor: isDark ? PdflowColors.surfaceDark : PdflowColors.surfaceLight,
+        backgroundColor: isDark ? MarkitColors.surfaceDark : MarkitColors.surfaceLight,
         surfaceTintColor: Colors.transparent,
         elevation: 0,
         scrolledUnderElevation: 0,
@@ -35,7 +35,7 @@ class AboutScreen extends StatelessWidget {
         title: Text(
           Strings.aboutTitle,
           style: TextStyle(
-            fontFamily: PdflowTypography.display,
+            fontFamily: MarkitTypography.display,
             fontSize: 18,
             fontWeight: FontWeight.w600,
             color: ink,
@@ -43,14 +43,14 @@ class AboutScreen extends StatelessWidget {
         ),
       ),
       body: SingleChildScrollView(
-        padding: const EdgeInsets.all(PdflowSpacing.xxl),
+        padding: const EdgeInsets.all(MarkitSpacing.xxl),
         child: Center(
           child: ConstrainedBox(
             constraints: const BoxConstraints(maxWidth: 720),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // Hero — identitas & nilai inti.
+                // Hero — identity & core value.
                 Row(
                   children: [
                     Container(
@@ -70,7 +70,7 @@ class AboutScreen extends StatelessWidget {
                         color: Colors.white,
                       ),
                     ),
-                    const SizedBox(width: PdflowSpacing.lg),
+                    const SizedBox(width: MarkitSpacing.lg),
                     Expanded(
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
@@ -78,7 +78,7 @@ class AboutScreen extends StatelessWidget {
                           Text(
                             Strings.appTitle,
                             style: TextStyle(
-                              fontFamily: PdflowTypography.display,
+                              fontFamily: MarkitTypography.display,
                               fontSize: 26,
                               height: 1.1,
                               fontWeight: FontWeight.w600,
@@ -89,7 +89,7 @@ class AboutScreen extends StatelessWidget {
                           Text(
                             Strings.aboutHero,
                             style: TextStyle(
-                              fontFamily: PdflowTypography.ui,
+                              fontFamily: MarkitTypography.ui,
                               fontSize: 13,
                               color: inkMuted,
                             ),
@@ -99,12 +99,12 @@ class AboutScreen extends StatelessWidget {
                     ),
                   ],
                 ),
-                const SizedBox(height: PdflowSpacing.xl),
+                const SizedBox(height: MarkitSpacing.xl),
                 Text(
                   Strings.aboutIntro,
                   style: Theme.of(context).textTheme.bodyLarge,
                 ),
-                const SizedBox(height: PdflowSpacing.xxl),
+                const SizedBox(height: MarkitSpacing.xxl),
 
                 // How it works.
                 _SectionTitle(
@@ -112,25 +112,25 @@ class AboutScreen extends StatelessWidget {
                   title: Strings.aboutHowTitle,
                   subtitle: Strings.aboutHowSub,
                 ),
-                const SizedBox(height: PdflowSpacing.md),
+                const SizedBox(height: MarkitSpacing.md),
                 const _StepCard(
                   number: '1',
                   title: Strings.aboutStep1Title,
                   body: Strings.aboutStep1Sub,
                 ),
-                const SizedBox(height: PdflowSpacing.md),
+                const SizedBox(height: MarkitSpacing.md),
                 const _StepCard(
                   number: '2',
                   title: Strings.aboutStep2Title,
                   body: Strings.aboutStep2Sub,
                 ),
-                const SizedBox(height: PdflowSpacing.md),
+                const SizedBox(height: MarkitSpacing.md),
                 const _StepCard(
                   number: '3',
                   title: Strings.aboutStep3Title,
                   body: Strings.aboutStep3Sub,
                 ),
-                const SizedBox(height: PdflowSpacing.xxl),
+                const SizedBox(height: MarkitSpacing.xxl),
 
                 // Supported formats.
                 _SectionTitle(
@@ -138,54 +138,54 @@ class AboutScreen extends StatelessWidget {
                   title: Strings.aboutFormatsTitle,
                   subtitle: Strings.aboutFormatsList,
                 ),
-                const SizedBox(height: PdflowSpacing.md),
+                const SizedBox(height: MarkitSpacing.md),
                 _InfoCard(
                   icon: Icons.check_circle_outline,
                   title: Strings.aboutFormatsList,
                   body: Strings.aboutFormatsMore,
                 ),
-                const SizedBox(height: PdflowSpacing.xxl),
+                const SizedBox(height: MarkitSpacing.xxl),
 
-                // Privacy — poin kunci.
+                // Privacy — key points.
                 _SectionTitle(
                   icon: Icons.lock_outline,
                   title: Strings.aboutPrivacyTitle,
                 ),
-                const SizedBox(height: PdflowSpacing.md),
+                const SizedBox(height: MarkitSpacing.md),
                 const _InfoCard(
                   icon: Icons.offline_pin_outlined,
                   title: Strings.aboutPrivacyTitle,
                   body: Strings.aboutPrivacySub,
                   highlight: true,
                 ),
-                const SizedBox(height: PdflowSpacing.xxl),
+                const SizedBox(height: MarkitSpacing.xxl),
 
                 // FAQ.
                 _SectionTitle(
                   icon: Icons.help_outline,
                   title: Strings.aboutFaqTitle,
                 ),
-                const SizedBox(height: PdflowSpacing.md),
+                const SizedBox(height: MarkitSpacing.md),
                 const _FaqCard(
                   q: Strings.aboutFaq1Q,
                   a: Strings.aboutFaq1A,
                 ),
-                const SizedBox(height: PdflowSpacing.sm),
+                const SizedBox(height: MarkitSpacing.sm),
                 const _FaqCard(
                   q: Strings.aboutFaq2Q,
                   a: Strings.aboutFaq2A,
                 ),
-                const SizedBox(height: PdflowSpacing.sm),
+                const SizedBox(height: MarkitSpacing.sm),
                 const _FaqCard(
                   q: Strings.aboutFaq3Q,
                   a: Strings.aboutFaq3A,
                 ),
-                const SizedBox(height: PdflowSpacing.sm),
+                const SizedBox(height: MarkitSpacing.sm),
                 const _FaqCard(
                   q: Strings.aboutFaq4Q,
                   a: Strings.aboutFaq4A,
                 ),
-                const SizedBox(height: PdflowSpacing.xxl),
+                const SizedBox(height: MarkitSpacing.xxl),
 
                 // Footer.
                 Center(
@@ -195,13 +195,13 @@ class AboutScreen extends StatelessWidget {
                         Strings.aboutFooter,
                         textAlign: TextAlign.center,
                         style: TextStyle(
-                          fontFamily: PdflowTypography.display,
+                          fontFamily: MarkitTypography.display,
                           fontSize: 15,
                           fontStyle: FontStyle.italic,
                           color: inkMuted,
                         ),
                       ),
-                      const SizedBox(height: PdflowSpacing.md),
+                      const SizedBox(height: MarkitSpacing.md),
                       OutlinedButton.icon(
                         onPressed: () async {
                           final ok = await launchUrl(
@@ -222,7 +222,7 @@ class AboutScreen extends StatelessWidget {
                     ],
                   ),
                 ),
-                const SizedBox(height: PdflowSpacing.xl),
+                const SizedBox(height: MarkitSpacing.xl),
               ],
             ),
           ),
@@ -232,7 +232,7 @@ class AboutScreen extends StatelessWidget {
   }
 }
 
-/// Judul section: ikon + judul + subtitle opsional.
+/// Section title: icon + title + optional subtitle.
 class _SectionTitle extends StatelessWidget {
   const _SectionTitle({required this.icon, required this.title, this.subtitle});
 
@@ -243,8 +243,8 @@ class _SectionTitle extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final ink = isDark ? PdflowColors.inkDark : PdflowColors.inkLight;
-    final inkMuted = isDark ? PdflowColors.inkMutedDark : PdflowColors.inkMutedLight;
+    final ink = isDark ? MarkitColors.inkDark : MarkitColors.inkLight;
+    final inkMuted = isDark ? MarkitColors.inkMutedDark : MarkitColors.inkMutedLight;
     final primary = Theme.of(context).colorScheme.primary;
 
     return Row(
@@ -259,7 +259,7 @@ class _SectionTitle extends StatelessWidget {
           ),
           child: Icon(icon, size: 17, color: primary),
         ),
-        const SizedBox(width: PdflowSpacing.md),
+        const SizedBox(width: MarkitSpacing.md),
         Expanded(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -267,7 +267,7 @@ class _SectionTitle extends StatelessWidget {
               Text(
                 title,
                 style: TextStyle(
-                  fontFamily: PdflowTypography.display,
+                  fontFamily: MarkitTypography.display,
                   fontSize: 19,
                   height: 1.2,
                   fontWeight: FontWeight.w600,
@@ -289,7 +289,7 @@ class _SectionTitle extends StatelessWidget {
   }
 }
 
-/// Kartu langkah bernomor (1/2/3).
+/// Numbered step card (1/2/3).
 class _StepCard extends StatelessWidget {
   const _StepCard({
     required this.number,
@@ -304,17 +304,17 @@ class _StepCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final surface = isDark ? PdflowColors.surfaceDark : PdflowColors.surfaceLight;
-    final hairline = isDark ? PdflowColors.hairlineDark : PdflowColors.hairlineLight;
-    final ink = isDark ? PdflowColors.inkDark : PdflowColors.inkLight;
-    final inkMuted = isDark ? PdflowColors.inkMutedDark : PdflowColors.inkMutedLight;
+    final surface = isDark ? MarkitColors.surfaceDark : MarkitColors.surfaceLight;
+    final hairline = isDark ? MarkitColors.hairlineDark : MarkitColors.hairlineLight;
+    final ink = isDark ? MarkitColors.inkDark : MarkitColors.inkLight;
+    final inkMuted = isDark ? MarkitColors.inkMutedDark : MarkitColors.inkMutedLight;
     final primary = Theme.of(context).colorScheme.primary;
 
     return Container(
-      padding: const EdgeInsets.all(PdflowSpacing.lg),
+      padding: const EdgeInsets.all(MarkitSpacing.lg),
       decoration: BoxDecoration(
         color: surface,
-        borderRadius: BorderRadius.circular(PdflowSpacing.radiusCard),
+        borderRadius: BorderRadius.circular(MarkitSpacing.radiusCard),
         border: Border.all(color: hairline),
       ),
       child: Row(
@@ -331,14 +331,14 @@ class _StepCard extends StatelessWidget {
             child: Text(
               number,
               style: TextStyle(
-                fontFamily: PdflowTypography.ui,
+                fontFamily: MarkitTypography.ui,
                 fontSize: 13,
                 fontWeight: FontWeight.w700,
                 color: primary,
               ),
             ),
           ),
-          const SizedBox(width: PdflowSpacing.md),
+          const SizedBox(width: MarkitSpacing.md),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -346,7 +346,7 @@ class _StepCard extends StatelessWidget {
                 Text(
                   title,
                   style: TextStyle(
-                    fontFamily: PdflowTypography.ui,
+                    fontFamily: MarkitTypography.ui,
                     fontSize: 14,
                     fontWeight: FontWeight.w600,
                     color: ink,
@@ -370,7 +370,7 @@ class _StepCard extends StatelessWidget {
   }
 }
 
-/// Kartu info umum (formats / privacy).
+/// General info card (formats / privacy).
 class _InfoCard extends StatelessWidget {
   const _InfoCard({
     required this.icon,
@@ -387,19 +387,19 @@ class _InfoCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final surface = isDark ? PdflowColors.surfaceDark : PdflowColors.surfaceLight;
-    final hairline = isDark ? PdflowColors.hairlineDark : PdflowColors.hairlineLight;
-    final ink = isDark ? PdflowColors.inkDark : PdflowColors.inkLight;
-    final inkMuted = isDark ? PdflowColors.inkMutedDark : PdflowColors.inkMutedLight;
+    final surface = isDark ? MarkitColors.surfaceDark : MarkitColors.surfaceLight;
+    final hairline = isDark ? MarkitColors.hairlineDark : MarkitColors.hairlineLight;
+    final ink = isDark ? MarkitColors.inkDark : MarkitColors.inkLight;
+    final inkMuted = isDark ? MarkitColors.inkMutedDark : MarkitColors.inkMutedLight;
     final primary = Theme.of(context).colorScheme.primary;
 
     return Container(
-      padding: const EdgeInsets.all(PdflowSpacing.lg),
+      padding: const EdgeInsets.all(MarkitSpacing.lg),
       decoration: BoxDecoration(
         color: highlight
             ? primary.withValues(alpha: isDark ? 0.1 : 0.05)
             : surface,
-        borderRadius: BorderRadius.circular(PdflowSpacing.radiusCard),
+        borderRadius: BorderRadius.circular(MarkitSpacing.radiusCard),
         border: Border.all(
           color: highlight ? primary.withValues(alpha: 0.35) : hairline,
         ),
@@ -408,7 +408,7 @@ class _InfoCard extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Icon(icon, size: 20, color: primary),
-          const SizedBox(width: PdflowSpacing.md),
+          const SizedBox(width: MarkitSpacing.md),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -416,7 +416,7 @@ class _InfoCard extends StatelessWidget {
                 Text(
                   title,
                   style: TextStyle(
-                    fontFamily: PdflowTypography.mono,
+                    fontFamily: MarkitTypography.mono,
                     fontSize: 12.5,
                     fontWeight: FontWeight.w500,
                     color: ink,
@@ -440,7 +440,7 @@ class _InfoCard extends StatelessWidget {
   }
 }
 
-/// Kartu FAQ: pertanyaan (bold) + jawaban.
+/// FAQ card: question (bold) + answer.
 class _FaqCard extends StatelessWidget {
   const _FaqCard({required this.q, required this.a});
 
@@ -450,17 +450,17 @@ class _FaqCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final surface = isDark ? PdflowColors.surfaceDark : PdflowColors.surfaceLight;
-    final hairline = isDark ? PdflowColors.hairlineDark : PdflowColors.hairlineLight;
-    final ink = isDark ? PdflowColors.inkDark : PdflowColors.inkLight;
-    final inkMuted = isDark ? PdflowColors.inkMutedDark : PdflowColors.inkMutedLight;
+    final surface = isDark ? MarkitColors.surfaceDark : MarkitColors.surfaceLight;
+    final hairline = isDark ? MarkitColors.hairlineDark : MarkitColors.hairlineLight;
+    final ink = isDark ? MarkitColors.inkDark : MarkitColors.inkLight;
+    final inkMuted = isDark ? MarkitColors.inkMutedDark : MarkitColors.inkMutedLight;
 
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(PdflowSpacing.lg),
+      padding: const EdgeInsets.all(MarkitSpacing.lg),
       decoration: BoxDecoration(
         color: surface,
-        borderRadius: BorderRadius.circular(PdflowSpacing.radiusCard),
+        borderRadius: BorderRadius.circular(MarkitSpacing.radiusCard),
         border: Border.all(color: hairline),
       ),
       child: Column(
@@ -469,7 +469,7 @@ class _FaqCard extends StatelessWidget {
           Text(
             q,
             style: TextStyle(
-              fontFamily: PdflowTypography.ui,
+              fontFamily: MarkitTypography.ui,
               fontSize: 13.5,
               fontWeight: FontWeight.w600,
               color: ink,

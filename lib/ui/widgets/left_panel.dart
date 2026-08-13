@@ -9,8 +9,8 @@ import 'package:markit/ui/theme/typography.dart';
 import 'package:markit/ui/widgets/drop_zone.dart';
 import 'package:markit/ui/widgets/file_card.dart';
 
-/// Panel kiri — semua alur kerja: upload, daftar file, status konversi,
-/// aksi (Download ZIP primary / Add files secondary / Clear all danger).
+/// Left panel — workspace workflow: upload, file list, conversion status,
+/// actions (Download ZIP primary / Add files secondary / Clear all danger).
 class LeftPanel extends StatelessWidget {
   const LeftPanel({
     super.key,
@@ -40,7 +40,7 @@ class LeftPanel extends StatelessWidget {
   final bool isRunning;
   final double? progressFraction;
 
-  /// Info baris status saat running (mis. "2 of 3 · 45% · 0:12").
+  /// Status line info while running (e.g. "2 of 3 · 45% · 0:12").
   final String? runningInfo;
 
   @override
@@ -52,8 +52,8 @@ class LeftPanel extends StatelessWidget {
 
     return Container(
       color: Theme.of(context).brightness == Brightness.dark
-          ? PdflowColors.surfaceDark
-          : PdflowColors.surfaceLight,
+          ? MarkitColors.surfaceDark
+          : MarkitColors.surfaceLight,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         mainAxisSize: MainAxisSize.min,
@@ -66,8 +66,8 @@ class LeftPanel extends StatelessWidget {
     );
   }
 
-  /// Header panel: judul (berubah saat kosong) + badge jumlah file + tombol
-  /// tambah (nonaktif saat konversi berjalan).
+  /// Panel header: title (changes when empty) + file count badge +
+  /// add button (disabled while converting).
   Widget _buildHeader(
     BuildContext context,
     List<QueuedFile> queue,
@@ -75,10 +75,10 @@ class LeftPanel extends StatelessWidget {
   ) {
     return Padding(
       padding: const EdgeInsets.fromLTRB(
-        PdflowSpacing.lg,
-        PdflowSpacing.lg,
-        PdflowSpacing.sm,
-        PdflowSpacing.sm,
+        MarkitSpacing.lg,
+        MarkitSpacing.lg,
+        MarkitSpacing.sm,
+        MarkitSpacing.sm,
       ),
       child: Row(
         children: [
@@ -87,7 +87,7 @@ class LeftPanel extends StatelessWidget {
             style: Theme.of(context).textTheme.labelLarge,
           ),
           if (!isEmpty) ...[
-            const SizedBox(width: PdflowSpacing.sm),
+            const SizedBox(width: MarkitSpacing.sm),
             Container(
               padding: const EdgeInsets.symmetric(
                 horizontal: 7,
@@ -100,10 +100,10 @@ class LeftPanel extends StatelessWidget {
               child: Text(
                 '${queue.length}',
                 style: TextStyle(
-                  fontFamily: PdflowTypography.mono,
+                  fontFamily: MarkitTypography.mono,
                   fontSize: 11,
                   fontWeight: FontWeight.w600,
-                  fontFeatures: PdflowTypography.tabularFigures,
+                  fontFeatures: MarkitTypography.tabularFigures,
                   color: Theme.of(context).colorScheme.primary,
                 ),
               ),
@@ -121,7 +121,7 @@ class LeftPanel extends StatelessWidget {
     );
   }
 
-  /// Isi scrollable: drop zone (kosong) atau daftar file + aksi bawah.
+  /// Scrollable content: drop zone (empty) or file list + bottom actions.
   Widget _buildContent(
     BuildContext context,
     List<QueuedFile> queue,
@@ -132,7 +132,7 @@ class LeftPanel extends StatelessWidget {
     return Expanded(
       child: isEmpty
           ? SingleChildScrollView(
-              padding: const EdgeInsets.all(PdflowSpacing.lg),
+              padding: const EdgeInsets.all(MarkitSpacing.lg),
               child: DropZone(
                 compact: true,
                 onFilesPicked: (inputs) {
@@ -140,10 +140,10 @@ class LeftPanel extends StatelessWidget {
                 },
               ),
             )
-          // ListView.builder: hanya item terlihat yang dibangun —
-          // batch besar tidak mengkonstruksi semua kartu tiap rebuild.
+          // ListView.builder: only visible items constructed —
+          // large batches do not construct all cards per rebuild.
           : ListView.builder(
-              padding: const EdgeInsets.all(PdflowSpacing.md),
+              padding: const EdgeInsets.all(MarkitSpacing.md),
               itemCount: (warning != null ? 1 : 0) + queue.length + 1,
               itemBuilder: (context, index) =>
                   _buildQueueTile(context, index, queue, done, warning),
@@ -151,7 +151,7 @@ class LeftPanel extends StatelessWidget {
     );
   }
 
-  /// Satu baris item daftar: banner peringatan, kartu file, atau footer aksi.
+  /// Single list item row: warning banner, file card, or action footer.
   Widget _buildQueueTile(
     BuildContext context,
     int index,
@@ -165,7 +165,7 @@ class LeftPanel extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           _WarningBanner(message: warning),
-          const SizedBox(height: PdflowSpacing.md),
+          const SizedBox(height: MarkitSpacing.md),
         ],
       );
     }
@@ -173,7 +173,7 @@ class LeftPanel extends StatelessWidget {
       return Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          const SizedBox(height: PdflowSpacing.md),
+          const SizedBox(height: MarkitSpacing.md),
           _buildActions(context, queue, done),
         ],
       );
@@ -182,14 +182,14 @@ class LeftPanel extends StatelessWidget {
     return RepaintBoundary(
       child: Padding(
         padding: EdgeInsets.only(
-          bottom: isLast ? 0 : PdflowSpacing.sm,
+          bottom: isLast ? 0 : MarkitSpacing.sm,
         ),
         child: _buildCard(queue[index - bannerOffset]),
       ),
     );
   }
 
-  /// Peringatan beban besar (M4): >10 file atau ada file >100 halaman.
+  /// Large batch warning (>10 files or file >100 pages).
   String? _largeBatchWarning(List<QueuedFile> queue) {
     if (queue.length > 10) {
       return Strings.warnLargeBatch.replaceFirst('%d', '${queue.length}');
@@ -217,7 +217,7 @@ class LeftPanel extends StatelessWidget {
       onTap: job.status == JobStatus.done ? () => onSelect(job) : null,
       onDownload: canDownload ? () => onDownloadFile(job) : null,
       onRemove: isRunning ? null : () => onRemove(job.id),
-      // Progress per-job (concurrent): tiap kartu punya progress sendiri.
+      // Per-job progress (concurrent): each card has its own progress.
       progress: isActive ? job.progressFraction : null,
       phase: controller.phase,
     );
@@ -238,23 +238,23 @@ class LeftPanel extends StatelessWidget {
                   value: progressFraction,
                 ),
               ),
-              const SizedBox(width: PdflowSpacing.sm),
+              const SizedBox(width: MarkitSpacing.sm),
               Expanded(
                 child: Text(
                   runningInfo!,
                   style: TextStyle(
-                    fontFamily: PdflowTypography.mono,
+                    fontFamily: MarkitTypography.mono,
                     fontSize: 11.5,
-                    fontFeatures: PdflowTypography.tabularFigures,
+                    fontFeatures: MarkitTypography.tabularFigures,
                     color: Theme.of(context).brightness == Brightness.dark
-                        ? PdflowColors.inkMutedDark
-                        : PdflowColors.inkMutedLight,
+                        ? MarkitColors.inkMutedDark
+                        : MarkitColors.inkMutedLight,
                   ),
                 ),
               ),
             ],
           ),
-          const SizedBox(height: PdflowSpacing.md),
+          const SizedBox(height: MarkitSpacing.md),
         ],
         if (kIsWeb && done > 1) ...[
           FilledButton.icon(
@@ -262,17 +262,17 @@ class LeftPanel extends StatelessWidget {
             icon: const Icon(Icons.archive_outlined, size: 18),
             label: Text('${Strings.downloadAllZip} ($done)'),
           ),
-          const SizedBox(height: PdflowSpacing.sm),
+          const SizedBox(height: MarkitSpacing.sm),
         ],
-        // Desktop: simpan hasil .md ke folder pilihan — muncul saat idle dan
-        // ada output sukses (done > 0).
+        // Desktop: save .md outputs to chosen folder — shown when idle and
+        // successful outputs exist (done > 0).
         if (!kIsWeb && !isRunning && done > 0) ...[
           FilledButton.icon(
             onPressed: onSaveOutput,
             icon: const Icon(Icons.folder_outlined, size: 18),
             label: Text('${Strings.saveOutput} ($done)'),
           ),
-          const SizedBox(height: PdflowSpacing.sm),
+          const SizedBox(height: MarkitSpacing.sm),
         ],
         if (!isRunning &&
             queue.any((j) => j.status == JobStatus.queued))
@@ -289,13 +289,13 @@ class LeftPanel extends StatelessWidget {
             icon: const Icon(Icons.stop, size: 18),
             label: const Text(Strings.cancel),
           ),
-        const SizedBox(height: PdflowSpacing.sm),
+        const SizedBox(height: MarkitSpacing.sm),
         OutlinedButton.icon(
           onPressed: isRunning ? null : onAddMore,
           icon: const Icon(Icons.add, size: 18),
           label: const Text(Strings.addFiles),
         ),
-        const SizedBox(height: PdflowSpacing.xs),
+        const SizedBox(height: MarkitSpacing.xs),
         TextButton(
           onPressed: isRunning ? null : onClear,
           style: TextButton.styleFrom(
@@ -308,7 +308,7 @@ class LeftPanel extends StatelessWidget {
   }
 }
 
-/// Banner peringatan beban besar (M4) — inline, non-blocking.
+/// Large batch warning banner — inline, non-blocking.
 class _WarningBanner extends StatelessWidget {
   const _WarningBanner({required this.message});
 
@@ -317,18 +317,18 @@ class _WarningBanner extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final warn = isDark ? PdflowColors.stampRedDark : PdflowColors.stampRedLight;
+    final warn = isDark ? MarkitColors.stampRedDark : MarkitColors.stampRedLight;
     return Container(
-      padding: const EdgeInsets.all(PdflowSpacing.md),
+      padding: const EdgeInsets.all(MarkitSpacing.md),
       decoration: BoxDecoration(
         color: warn.withValues(alpha: 0.08),
-        borderRadius: BorderRadius.circular(PdflowSpacing.radiusCard),
+        borderRadius: BorderRadius.circular(MarkitSpacing.radiusCard),
         border: Border.all(color: warn.withValues(alpha: 0.35)),
       ),
       child: Row(
         children: [
           Icon(Icons.info_outline, size: 16, color: warn),
-          const SizedBox(width: PdflowSpacing.sm),
+          const SizedBox(width: MarkitSpacing.sm),
           Expanded(
             child: Text(
               message,
@@ -345,7 +345,7 @@ class _WarningBanner extends StatelessWidget {
   }
 }
 
-/// Kumpulkan semua output sukses (web) → unduh sebagai satu ZIP.
+/// Collect all successful outputs (web) → download as a single ZIP.
 void _downloadAllZip(List<QueuedFile> queue, int done) {
   final files = <String, String>{};
   for (final job in queue) {

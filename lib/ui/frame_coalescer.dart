@@ -1,10 +1,9 @@
 import 'package:flutter/widgets.dart';
 
-/// Koalesensi callback per frame: beberapa [schedule] dalam satu frame hanya
-/// memicu satu [onFrame] — di awal frame berikutnya (fase transient, sebelum
-/// build), sehingga [onFrame] yang memanggil `setState` langsung dirender di
-/// frame yang sama tanpa jeda satu frame. Dipakai agar notifikasi controller
-/// berfrekuensi tinggi tidak memaksa rebuild layar lebih dari sekali per frame.
+/// Per-frame callback coalescing: multiple [schedule] calls in a single frame only
+/// trigger one [onFrame] — at the start of the next frame (transient phase, before
+/// build), so [onFrame] calling `setState` renders in the same frame without a frame delay.
+/// Used so high-frequency controller notifications do not force screen rebuilds more than once per frame.
 class FrameCoalescer {
   FrameCoalescer({required this.onFrame});
 
@@ -15,8 +14,8 @@ class FrameCoalescer {
   void schedule() {
     if (_scheduled) return;
     _scheduled = true;
-    // scheduleFrameCallback juga menjadwalkan frame baru — callback tidak
-    // akan pernah dipanggil kalau engine tidak dibangunkan eksplisit.
+    // scheduleFrameCallback also schedules a new frame — callback will
+    // never be called if engine is not explicitly woken up.
     _callbackId = WidgetsBinding.instance.scheduleFrameCallback(_handleFrame);
   }
 

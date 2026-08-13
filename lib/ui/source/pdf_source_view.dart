@@ -4,17 +4,17 @@ import 'package:markit/ui/source/source_loader.dart';
 import 'package:markit/ui/theme/palette.dart';
 import 'package:pdfrx/pdfrx.dart';
 
-/// Tampilan PDF sumber: halaman ter-render via PdfViewer (pdfrx).
+/// PDF source viewer: rendered pages via PdfViewer (pdfrx).
 ///
-/// Desktop: [PdfViewer.file] (file di disk); web: [PdfViewer.data] (bytes
-/// di memory). PDF ter-enkripsi tidak didukung (butuh input password).
+/// Desktop: [PdfViewer.file] (disk file); web: [PdfViewer.data] (in-memory bytes).
+/// Encrypted PDFs are not supported (requires password input).
 class PdfSourceView extends StatelessWidget {
   const PdfSourceView({super.key, required this.data, required this.name});
 
   final SourcePdf data;
 
-  /// Nama file — dipakai [PdfViewer.data] sebagai `sourceName` (identitas
-  /// unik sumber di cache pdfrx).
+  /// File name — used by [PdfViewer.data] as `sourceName` (unique source identifier
+  /// in pdfrx cache).
   final String name;
 
   @override
@@ -27,7 +27,7 @@ class PdfSourceView extends StatelessWidget {
   }
 
   PdfViewerParams _params(bool isDark) => PdfViewerParams(
-    backgroundColor: isDark ? PdflowColors.paperDark : PdflowColors.paperLight,
+    backgroundColor: isDark ? MarkitColors.paperDark : MarkitColors.paperLight,
     margin: 16,
     pageDropShadow: const BoxShadow(blurRadius: 8, offset: Offset(0, 2)),
   );

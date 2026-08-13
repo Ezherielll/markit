@@ -7,7 +7,7 @@ import 'package:markit/ui/theme/spacing.dart';
 import 'package:markit/ui/theme/typography.dart';
 import 'package:markit/ui/widgets/job_error_view.dart';
 
-/// Ikon per format input — satu ikon per keluarga format.
+/// Icon per input format — one icon per format family.
 IconData iconForFormat(InputFormat format) => switch (format) {
       InputFormat.pdf => Icons.picture_as_pdf_outlined,
       InputFormat.word => Icons.description_outlined,
@@ -20,8 +20,8 @@ IconData iconForFormat(InputFormat format) => switch (format) {
       InputFormat.unknown => Icons.insert_drive_file_outlined,
     };
 
-/// Item daftar file: ikon, nama, ukuran, status chip, progress bar,
-/// download per-file (web, saat selesai) & tombol hapus. Selectable.
+/// File list item card: icon, name, size, status chip, progress bar,
+/// per-file download (web, on completion) & remove button. Selectable.
 class FileCard extends StatefulWidget {
   const FileCard({
     super.key,
@@ -42,10 +42,10 @@ class FileCard extends StatefulWidget {
   final VoidCallback? onTap;
   final bool selected;
 
-  /// Progress 0..1 (job running); null = indeterminate (total belum diketahui).
+  /// Progress 0..1 (running job); null = indeterminate (total unknown yet).
   final double? progress;
 
-  /// 0 = pass 1 (reading), 1 = pass 2 (converting) — untuk label phase.
+  /// 0 = pass 1 (reading), 1 = pass 2 (converting) — for phase label.
   final int phase;
 
   @override
@@ -58,9 +58,9 @@ class _FileCardState extends State<FileCard> {
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final ink = isDark ? PdflowColors.inkDark : PdflowColors.inkLight;
-    final inkMuted = isDark ? PdflowColors.inkMutedDark : PdflowColors.inkMutedLight;
-    final hairline = isDark ? PdflowColors.hairlineDark : PdflowColors.hairlineLight;
+    final ink = isDark ? MarkitColors.inkDark : MarkitColors.inkLight;
+    final inkMuted = isDark ? MarkitColors.inkMutedDark : MarkitColors.inkMutedLight;
+    final hairline = isDark ? MarkitColors.hairlineDark : MarkitColors.hairlineLight;
     final primary = Theme.of(context).colorScheme.primary;
 
     final job = widget.job;
@@ -70,7 +70,7 @@ class _FileCardState extends State<FileCard> {
         : '${(sizeBytes / (1024 * 1024)).toStringAsFixed(1)} MB';
 
     final baseBorder = job.status == JobStatus.failed
-        ? (isDark ? PdflowColors.stampRedDark : PdflowColors.stampRedLight)
+        ? (isDark ? MarkitColors.stampRedDark : MarkitColors.stampRedLight)
         : hairline;
 
     final isInteractive = widget.onTap != null || widget.onRemove != null;
@@ -84,17 +84,17 @@ class _FileCardState extends State<FileCard> {
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 180),
         curve: Curves.easeOut,
-        padding: const EdgeInsets.all(PdflowSpacing.md),
+        padding: const EdgeInsets.all(MarkitSpacing.md),
         decoration: BoxDecoration(
           color: _cardColor(isDark, primary),
-          borderRadius: BorderRadius.circular(PdflowSpacing.radiusCard),
+          borderRadius: BorderRadius.circular(MarkitSpacing.radiusCard),
           border: Border.all(
             color: _cardBorder(primary, baseBorder, isInteractive),
           ),
         ),
         child: InkWell(
           onTap: widget.onTap,
-          borderRadius: BorderRadius.circular(PdflowSpacing.radiusCard),
+          borderRadius: BorderRadius.circular(MarkitSpacing.radiusCard),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             mainAxisSize: MainAxisSize.min,
@@ -102,7 +102,7 @@ class _FileCardState extends State<FileCard> {
               Row(
                 children: [
                   _buildIcon(primary),
-                  const SizedBox(width: PdflowSpacing.md),
+                  const SizedBox(width: MarkitSpacing.md),
                   Expanded(child: _buildInfo(ink, inkMuted, size)),
                   ..._buildActions(),
                 ],
@@ -116,7 +116,7 @@ class _FileCardState extends State<FileCard> {
     );
   }
 
-  /// Warna latar kartu: selected → hover → surface (urutan prioritas).
+  /// Card background color: selected → hover → surface (priority order).
   Color _cardColor(bool isDark, Color primary) {
     if (widget.selected) {
       return primary.withValues(alpha: isDark ? 0.12 : 0.08);
@@ -124,17 +124,17 @@ class _FileCardState extends State<FileCard> {
     if (_hovered) {
       return primary.withValues(alpha: isDark ? 0.06 : 0.04);
     }
-    return isDark ? PdflowColors.surfaceDark : PdflowColors.surfaceLight;
+    return isDark ? MarkitColors.surfaceDark : MarkitColors.surfaceLight;
   }
 
-  /// Warna border kartu: selected/hover-interaktif → primary, else base.
+  /// Card border color: selected/hover-interactive → primary, else base.
   Color _cardBorder(Color primary, Color baseBorder, bool isInteractive) {
     if (widget.selected) return primary;
     if (_hovered && isInteractive) return primary;
     return baseBorder;
   }
 
-  /// Ikon format 36×44 di kiri kartu.
+  /// 36×44 format icon on left of card.
   Widget _buildIcon(Color primary) {
     return Container(
       width: 36,
@@ -151,7 +151,7 @@ class _FileCardState extends State<FileCard> {
     );
   }
 
-  /// Kolom info: nama file, ukuran + halaman, pesan error (bila failed).
+  /// Info column: file name, size + pages, error message (if failed).
   Widget _buildInfo(Color ink, Color inkMuted, String? size) {
     final job = widget.job;
     return Column(
@@ -161,7 +161,7 @@ class _FileCardState extends State<FileCard> {
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
             style: TextStyle(
-              fontFamily: PdflowTypography.mono,
+              fontFamily: MarkitTypography.mono,
               fontSize: 12.5,
               fontWeight: FontWeight.w500,
               color: ink,
@@ -169,13 +169,13 @@ class _FileCardState extends State<FileCard> {
         const SizedBox(height: 2),
         Text(
           [
-            ?size,
+            if (size != null) size,
             if (job.pageCount != null)
               '${job.pageCount} ${Strings.pagesLabel}',
           ].join('  ·  '),
           style: TextStyle(
             fontSize: 11,
-            fontFeatures: PdflowTypography.tabularFigures,
+            fontFeatures: MarkitTypography.tabularFigures,
             color: inkMuted,
           ),
         ),
@@ -187,11 +187,11 @@ class _FileCardState extends State<FileCard> {
     );
   }
 
-  /// Aksi kanan kartu: chip status + tombol download/remove (conditional).
+  /// Right side card actions: status chip + download/remove buttons (conditional).
   List<Widget> _buildActions() {
     return [
       if (widget.showStatus) ...[
-        const SizedBox(width: PdflowSpacing.sm),
+        const SizedBox(width: MarkitSpacing.sm),
         _StatusChip(status: widget.job.status),
       ],
       if (widget.onDownload != null) ...[
@@ -215,13 +215,13 @@ class _FileCardState extends State<FileCard> {
     ];
   }
 
-  /// Bagian progress (muncul saat running/indeterminate): label phase,
-  /// metadata halaman & bar animasi.
+  /// Progress section (shown when running/indeterminate): phase label,
+  /// page metadata & animation bar.
   List<Widget> _buildProgress(Color inkMuted, Color hairline) {
     final job = widget.job;
     return [
-      const SizedBox(height: PdflowSpacing.sm),
-      // Label phase + metadata progress (page X of Y · %).
+      const SizedBox(height: MarkitSpacing.sm),
+      // Phase label + progress metadata (page X of Y · %).
       Row(
         children: [
           Text(
@@ -240,16 +240,16 @@ class _FileCardState extends State<FileCard> {
             Text(
               _progressText(job, widget.progress!),
               style: TextStyle(
-                fontFamily: PdflowTypography.mono,
+                fontFamily: MarkitTypography.mono,
                 fontSize: 10,
-                fontFeatures: PdflowTypography.tabularFigures,
+                fontFeatures: MarkitTypography.tabularFigures,
                 color: inkMuted,
               ),
             ),
         ],
       ),
       const SizedBox(height: 3),
-      // Bar animasi halus; indeterminate saat total belum diketahui.
+      // Smooth animation bar; indeterminate when total unknown.
       ClipRRect(
         borderRadius: BorderRadius.circular(3),
         child: SizedBox(
@@ -271,10 +271,10 @@ class _FileCardState extends State<FileCard> {
                 ),
         ),
       ),
-    ];
+    );
   }
 
-  /// Metadata progress: "12 of 300 pages · 4%" (tabular figures).
+  /// Progress metadata: "12 of 300 pages · 4%" (tabular figures).
   static String _progressText(QueuedFile job, double fraction) {
     final page = job.currentPage ?? 0;
     final total = job.totalPages ?? 0;
@@ -286,7 +286,7 @@ class _FileCardState extends State<FileCard> {
   }
 }
 
-/// Chip status kecil untuk file dalam batch.
+/// Small status chip for file in batch.
 class _StatusChip extends StatelessWidget {
   const _StatusChip({required this.status});
 
@@ -298,7 +298,7 @@ class _StatusChip extends StatelessWidget {
     final (label, color) = switch (status) {
       JobStatus.queued => (
           Strings.fileQueued,
-          isDark ? PdflowColors.inkMutedDark : PdflowColors.inkMutedLight,
+          isDark ? MarkitColors.inkMutedDark : MarkitColors.inkMutedLight,
         ),
       JobStatus.running => (
           Strings.fileRunning,
@@ -306,26 +306,26 @@ class _StatusChip extends StatelessWidget {
         ),
       JobStatus.done => (
           Strings.fileDone,
-          isDark ? PdflowColors.stampGreenDark : PdflowColors.stampGreenLight,
+          isDark ? MarkitColors.stampGreenDark : MarkitColors.stampGreenLight,
         ),
       JobStatus.failed => (
           Strings.fileFailed,
-          isDark ? PdflowColors.stampRedDark : PdflowColors.stampRedLight,
+          isDark ? MarkitColors.stampRedDark : MarkitColors.stampRedLight,
         ),
       JobStatus.cancelled => (
           Strings.fileCancelled,
-          isDark ? PdflowColors.inkMutedDark : PdflowColors.inkMutedLight,
+          isDark ? MarkitColors.inkMutedDark : MarkitColors.inkMutedLight,
         ),
     };
 
     return Container(
       padding: const EdgeInsets.symmetric(
-        horizontal: PdflowSpacing.sm,
-        vertical: PdflowSpacing.xs,
+        horizontal: MarkitSpacing.sm,
+        vertical: MarkitSpacing.xs,
       ),
       decoration: BoxDecoration(
         color: color.withValues(alpha: 0.12),
-        borderRadius: BorderRadius.circular(PdflowSpacing.radiusChip),
+        borderRadius: BorderRadius.circular(MarkitSpacing.radiusChip),
       ),
       child: Text(
         label,

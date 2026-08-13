@@ -8,17 +8,17 @@ import 'package:markit/core/text_truncate.dart';
 import 'package:markit/core/zip_text_preview.dart';
 import 'package:markit/models/pdf_input.dart';
 
-/// Cap preview teks sumber: 1 MiB — lebih longgar dari preview markdown
-/// (64 KiB) karena ini file sumber mentah yang perlu diperiksa utuh.
+/// Source text preview cap: 1 MiB — more generous than markdown preview
+/// (64 KiB) because raw source files may need full inspection.
 const int maxSourceChars = 1024 * 1024;
 
-/// Data sumber yang siap dirender.
+/// Source data ready for rendering.
 sealed class SourceData {
   const SourceData();
 }
 
-/// Teks mentah (CSV/RTF atau hasil [ZipTextPreview] untuk format ZIP+XML) —
-/// sudah dipotong preview.
+/// Raw text (CSV/RTF or [ZipTextPreview] result for ZIP+XML formats) —
+/// preview truncated.
 class SourceText extends SourceData {
   const SourceText({required this.content, required this.truncated});
 
@@ -26,7 +26,7 @@ class SourceText extends SourceData {
   final bool truncated;
 }
 
-/// PDF — referensi file (desktop) atau bytes (web).
+/// PDF — file path (desktop) or bytes (web).
 class SourcePdf extends SourceData {
   const SourcePdf({this.path, this.bytes});
 
@@ -34,23 +34,23 @@ class SourcePdf extends SourceData {
   final Uint8List? bytes;
 }
 
-/// Format terdeteksi tapi belum bisa di-preview (legacy OLE2 / unknown).
+/// Format detected but cannot be previewed yet (legacy OLE2 / unknown).
 class SourceUnsupportedException implements Exception {
   const SourceUnsupportedException();
 }
 
-/// Gagal membaca sumber (file hilang / tidak ada bytes maupun path).
+/// Failed to read source (file missing / no bytes or path).
 class SourceLoadException implements Exception {
   const SourceLoadException(this.message);
 
   final String message;
 }
 
-/// Muat [PdfInput] sebagai [SourceData] sesuai format terdeteksinya.
+/// Load [PdfInput] as [SourceData] according to detected format.
 ///
-/// PDF → [SourcePdf] (diproses viewer); keluarga ZIP+XML → [SourceText]
-/// via [ZipTextPreview] (teks mentah entry utama, tanpa parse penuh);
-/// CSV/RTF → [SourceText] (decode UTF-8 toleran + potong preview).
+/// PDF → [SourcePdf] (processed by viewer); ZIP+XML family → [SourceText]
+/// via [ZipTextPreview] (main entry raw text, without full parse);
+/// CSV/RTF → [SourceText] (tolerant UTF-8 decode + preview truncate).
 /// Legacy OLE2 (.doc/.ppt/.pps/.pot/.xls/.xlsb) & unknown → unsupported.
 Future<SourceData> loadSource(
   PdfInput input, {
@@ -79,11 +79,11 @@ Future<SourceText> loadSourceText(
   PdfInput input, {
   int maxChars = maxSourceChars,
 }) async {
-  // Baca HANYA window preview (maxChars × 4 + 8 byte) — file sumber bisa
-  // ratusan MB; decode penuh di UI thread memblok. Window = maxChars×4
-  // KARENA maxChars dihitung dalam KARAKTER dan UTF-8 maks 4 byte/karakter:
-  // 4× menjamin karakter ke-maxChars selalu utuh di dalam window, sehingga
-  // hasil truncate identik byte-per-byte dengan decode penuh; +8 margin.
+  // Read ONLY preview window (maxChars * 4 + 8 bytes) — source file can
+  // be hundreds of MB; full decode on UI thread blocks. Window = maxChars * 4
+  // BECAUSE maxChars is in CHARACTERS and UTF-8 max 4 bytes/char:
+  // 4x guarantees maxChars-th character is intact within window, so
+  // truncate result is byte-for-byte identical to full decode; +8 margin.
   final raw = await _readPreviewWindow(input, maxChars * 4 + 8);
   final content = utf8.decode(raw, allowMalformed: true);
   final cut = truncateText(content, maxChars: maxChars);
@@ -98,7 +98,7 @@ Future<SourcePdf> loadSourcePdf(PdfInput input) async {
   throw const SourceLoadException('no bytes or path');
 }
 
-/// Argumen kerja zip preview — dikirim ke isolate via compute.
+/// Zip preview worker arguments — passed to isolate via compute.
 class _ZipPreviewArgs {
   const _ZipPreviewArgs({
     required this.path,
@@ -113,7 +113,7 @@ class _ZipPreviewArgs {
   final int maxChars;
 }
 
-/// Hasil kerja zip preview (isolate). [error] non-null = gagal baca/parse.
+/// Zip preview worker result (isolate). [error] non-null = read/parse failed.
 class _ZipPreviewResult {
   const _ZipPreviewResult({this.error, this.content, this.truncated = false});
 
@@ -154,15 +154,15 @@ _ZipPreviewResult _zipPreviewWorker(_ZipPreviewArgs args) {
   );
 }
 
-/// Preview keluarga ZIP+XML: cari entry utama via petunjuk katalog format,
-/// strip tag, truncate. ZIP valid tanpa entry yang dikenal → [SourceLoadException].
+/// ZIP+XML family preview: find main entry via format catalog hints,
+/// strip tags, truncate. Valid ZIP without recognized entry → [SourceLoadException].
 Future<SourceText> _loadZipPreview(
   PdfInput input, {
   required int maxChars,
 }) async {
   final family = kFormatCatalog.firstWhere((f) => f.format == input.format);
-  // Baca + decode ZIP + strip tag DI ISOLATE (desktop); web inline — UI
-  // thread tidak memblok untuk file besar.
+  // Read + decode ZIP + strip tags IN ISOLATE (desktop); web inline — UI
+  // thread does not block for large files.
   final result = await compute(
     _zipPreviewWorker,
     _ZipPreviewArgs(
@@ -178,10 +178,10 @@ Future<SourceText> _loadZipPreview(
   return SourceText(content: result.content!, truncated: result.truncated);
 }
 
-/// Baca paling banyak [windowBytes] byte dari awal file (desktop: window
-/// read via RandomAccessFile; web: sublist bytes) — preview tidak butuh
-/// seluruh isi. Window cukup besar (maxChars × 4 + 8) agar preview
-/// identik dengan truncate atas decode penuh untuk SEMUA konten UTF-8.
+/// Read at most [windowBytes] bytes from file start (desktop: window
+/// read via RandomAccessFile; web: bytes sublist) — preview does not need
+/// full content. Window sufficiently large (maxChars * 4 + 8) so preview
+/// is identical to full decode truncate for ALL UTF-8 content.
 Future<Uint8List> _readPreviewWindow(PdfInput input, int windowBytes) async {
   final bytes = input.bytes;
   if (bytes != null) {

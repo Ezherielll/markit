@@ -5,7 +5,7 @@ import 'package:markit/ui/theme/palette.dart';
 import 'package:markit/ui/theme/spacing.dart';
 import 'package:markit/ui/theme/typography.dart';
 
-/// Tampilan teks mentah file sumber: monospace, no-wrap, seleksi tersedia.
+/// Raw text view for source files: monospace, no-wrap, selection enabled.
 class TextSourceView extends StatelessWidget {
   const TextSourceView({super.key, required this.data});
 
@@ -15,15 +15,15 @@ class TextSourceView extends StatelessWidget {
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final inkMuted = isDark
-        ? PdflowColors.inkMutedDark
-        : PdflowColors.inkMutedLight;
+        ? MarkitColors.inkMutedDark
+        : MarkitColors.inkMutedLight;
     final controller = ScrollController();
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         if (data.truncated)
           Padding(
-            padding: const EdgeInsets.only(bottom: PdflowSpacing.md),
+            padding: const EdgeInsets.only(bottom: MarkitSpacing.md),
             child: Text(
               Strings.sourceTruncated,
               style: TextStyle(
@@ -45,7 +45,7 @@ class TextSourceView extends StatelessWidget {
                   data.content,
                   softWrap: false,
                   style: const TextStyle(
-                    fontFamily: PdflowTypography.mono,
+                    fontFamily: MarkitTypography.mono,
                     fontSize: 12.5,
                     height: 1.5,
                   ),

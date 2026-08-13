@@ -2,8 +2,8 @@ import 'dart:io';
 
 import 'markdown_helpers.dart';
 
-/// Hasil kerja baca file output di background (desktop) — dipakai
-/// `compute()` dari DocumentViewer agar UI thread tidak memblok.
+/// Result of loading output file in background (desktop) — used
+/// by `compute()` from DocumentViewer so UI thread does not block.
 class DocumentLoadResult {
   const DocumentLoadResult({
     required this.content,
@@ -18,12 +18,12 @@ class DocumentLoadResult {
   final MdStats stats;
 }
 
-/// Baca file output, hitung preview terpotong + stats. DIJALANKAN DI
-/// ISOLATE (compute) — jangan panggil langsung dari build.
+/// Read output file, compute truncated preview + stats. EXECUTED IN
+/// ISOLATE (compute) — do not call directly from build.
 ///
-/// Parameter berupa record 2 field agar cocok dikirim sebagai pesan
-/// `compute(loadDocumentWork, (path: …, maxChars: …))` — fungsi multi-param
-/// biasa tidak assignable ke `R Function(M)` dengan M record (Dart 3).
+/// Parameter is a 2-field record so it matches
+/// `compute(loadDocumentWork, (path: …, maxChars: …))` — ordinary multi-param
+/// functions are not assignable to `R Function(M)` with M record in Dart 3.
 DocumentLoadResult loadDocumentWork(({String path, int maxChars}) args) {
   final path = args.path;
   final maxChars = args.maxChars;

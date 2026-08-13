@@ -1,9 +1,9 @@
 import 'download_zip_stub.dart'
     if (dart.library.js_interop) 'download_zip_web.dart';
 
-/// Unduh kumpulan file markdown sebagai satu arsip ZIP.
+/// Download collection of markdown files as a single ZIP archive.
 ///
-/// Web: bangun ZIP di memory (package:archive) → Blob → download.
-/// Desktop/IO: no-op — semua output sudah ditulis ke disk oleh FileOutput.
+/// Web: builds ZIP in memory (package:archive) → Blob → download.
+/// Desktop/IO: no-op — all outputs are written directly to disk by FileOutput.
 void downloadZipFile(String archiveName, Map<String, String> files) =>
     platformDownloadZipFile(archiveName, files);

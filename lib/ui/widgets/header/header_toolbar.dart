@@ -3,8 +3,8 @@ import 'package:markit/i18n/strings.dart';
 import 'package:markit/theme/theme_controller.dart';
 import 'package:markit/ui/theme/palette.dart';
 
-/// Toolbar aksi kanan header — grup rounded container yang kohesif.
-/// Skalabel: tambah aksi (search, notifications, profile, dll) di sini.
+/// Right side action toolbar — cohesive rounded container group.
+/// Scalable: add actions (search, notifications, profile, etc) here.
 class HeaderToolbar extends StatelessWidget {
   const HeaderToolbar({
     super.key,
@@ -17,15 +17,15 @@ class HeaderToolbar extends StatelessWidget {
   final ThemeController themeController;
   final VoidCallback onReset;
 
-  /// Buka halaman About (ikon info).
+  /// Open About screen (info icon).
   final VoidCallback? onAbout;
   final bool resetEnabled;
 
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final surface = isDark ? PdflowColors.surfaceRaisedDark : PdflowColors.surfaceRaisedLight;
-    final hairline = isDark ? PdflowColors.hairlineDark : PdflowColors.hairlineLight;
+    final surface = isDark ? MarkitColors.surfaceRaisedDark : MarkitColors.surfaceRaisedLight;
+    final hairline = isDark ? MarkitColors.hairlineDark : MarkitColors.hairlineLight;
     final hover = Theme.of(context).colorScheme.primary.withValues(alpha: 0.08);
 
     final iconStyle = IconButton.styleFrom(
@@ -68,14 +68,14 @@ class HeaderToolbar extends StatelessWidget {
               );
             },
           ),
-          // Settings — placeholder (fitur belum ada).
+          // Settings — placeholder (feature coming soon).
           IconButton(
             onPressed: null,
             icon: const Icon(Icons.settings_outlined, size: 19),
             tooltip: Strings.settingsTooltip,
             style: iconStyle,
           ),
-          // About — penjelasan aplikasi untuk user awam.
+          // About — app explanation for end users.
           IconButton(
             onPressed: onAbout,
             icon: const Icon(Icons.info_outline, size: 19),

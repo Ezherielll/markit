@@ -1,4 +1,4 @@
-/// Stub untuk platform non-web — desktop menulis langsung ke disk.
+/// Stub for non-web platforms — desktop writes directly to disk.
 void platformDownloadZipFile(String archiveName, Map<String, String> files) {
-  // No-op: semua output sudah ada di filesystem (FileOutput).
+  // No-op: all outputs already exist in filesystem (FileOutput).
 }

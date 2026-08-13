@@ -5,20 +5,20 @@ import 'package:markit/ui/theme/palette.dart';
 import 'package:markit/ui/theme/spacing.dart';
 import 'package:markit/ui/theme/typography.dart';
 
-/// Status kontekstual tengah header — pill/breadcrumb ringkas.
-/// Menunjukkan keadaan workspace: ready / files loaded / processing / done.
+/// Contextual header status pill — compact pill/breadcrumb.
+/// Indicates workspace state: ready / files loaded / processing / done.
 class StatusPill extends StatelessWidget {
   const StatusPill({super.key, required this.controller, this.showLabel = true});
 
   final ConversionController controller;
 
-  /// Sembunyikan label di viewport sempit (hanya ikon).
+  /// Hide label on narrow viewports (icon only).
   final bool showLabel;
 
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final inkMuted = isDark ? PdflowColors.inkMutedDark : PdflowColors.inkMutedLight;
+    final inkMuted = isDark ? MarkitColors.inkMutedDark : MarkitColors.inkMutedLight;
     final scheme = Theme.of(context).colorScheme;
 
     final status = _statusFor(controller);
@@ -31,14 +31,14 @@ class StatusPill extends StatelessWidget {
 
     return Container(
       padding: const EdgeInsets.symmetric(
-        horizontal: PdflowSpacing.md,
-        vertical: PdflowSpacing.xs + 2,
+        horizontal: MarkitSpacing.md,
+        vertical: MarkitSpacing.xs + 2,
       ),
       decoration: BoxDecoration(
-        color: isDark ? PdflowColors.surfaceRaisedDark : PdflowColors.surfaceRaisedLight,
+        color: isDark ? MarkitColors.surfaceRaisedDark : MarkitColors.surfaceRaisedLight,
         borderRadius: BorderRadius.circular(999),
         border: Border.all(
-          color: isDark ? PdflowColors.hairlineDark : PdflowColors.hairlineLight,
+          color: isDark ? MarkitColors.hairlineDark : MarkitColors.hairlineLight,
         ),
       ),
       child: Row(
@@ -50,10 +50,10 @@ class StatusPill extends StatelessWidget {
             Text(
               status.label,
               style: TextStyle(
-                fontFamily: PdflowTypography.ui,
+                fontFamily: MarkitTypography.ui,
                 fontSize: 12.5,
                 fontWeight: FontWeight.w500,
-                color: isDark ? PdflowColors.inkDark : PdflowColors.inkLight,
+                color: isDark ? MarkitColors.inkDark : MarkitColors.inkLight,
               ),
             ),
           ],

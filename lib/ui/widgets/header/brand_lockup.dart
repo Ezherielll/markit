@@ -5,30 +5,30 @@ import 'package:markit/ui/theme/spacing.dart';
 import 'package:markit/ui/theme/typography.dart';
 import 'package:markit/ui/widgets/markit_mark.dart';
 
-/// Brand lockup: logo [M] MarkIt + nama "MarkIt" + subtitle deskriptif.
-/// Bagian kiri header — membangun identitas produk.
-/// Bila [onTap] diberikan, seluruh lockup menjadi clickable (kembali ke
-/// halaman utama / reset) dengan hover & ripple halus.
+/// Brand lockup: MarkIt [M] logo + "MarkIt" title + descriptive subtitle.
+/// Left side of header — establishes product identity.
+/// If [onTap] is provided, lockup is clickable (returns to home / reset)
+/// with hover & ripple effect.
 class BrandLockup extends StatelessWidget {
   const BrandLockup({super.key, this.showSubtitle = true, this.onTap});
 
-  /// Sembunyikan subtitle di viewport sempit (responsive).
+  /// Hide subtitle on narrow viewports (responsive).
   final bool showSubtitle;
 
-  /// Tap brand → reset ke halaman utama. Null = tidak clickable.
+  /// Tap brand → reset to home screen. Null = non-clickable.
   final VoidCallback? onTap;
 
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final ink = isDark ? PdflowColors.inkDark : PdflowColors.inkLight;
-    final inkMuted = isDark ? PdflowColors.inkMutedDark : PdflowColors.inkMutedLight;
+    final ink = isDark ? MarkitColors.inkDark : MarkitColors.inkLight;
+    final inkMuted = isDark ? MarkitColors.inkMutedDark : MarkitColors.inkMutedLight;
     final scheme = Theme.of(context).colorScheme;
 
     final lockup = Row(
       children: [
         const MarkItMark(size: 36),
-        const SizedBox(width: PdflowSpacing.md),
+        const SizedBox(width: MarkitSpacing.md),
         Flexible(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -37,7 +37,7 @@ class BrandLockup extends StatelessWidget {
               Text(
                 Strings.appTitle,
                 style: TextStyle(
-                  fontFamily: PdflowTypography.display,
+                  fontFamily: MarkitTypography.display,
                   fontSize: 20,
                   height: 1.1,
                   fontWeight: FontWeight.w600,
@@ -52,7 +52,7 @@ class BrandLockup extends StatelessWidget {
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: TextStyle(
-                    fontFamily: PdflowTypography.ui,
+                    fontFamily: MarkitTypography.ui,
                     fontSize: 11.5,
                     height: 1.2,
                     color: inkMuted,
