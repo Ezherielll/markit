@@ -5,11 +5,13 @@ import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:irondash_message_channel/irondash_message_channel.dart';
 import 'package:markit/i18n/strings.dart';
+import 'package:markit/core/input_format.dart';
 import 'package:markit/isolate/conversion_controller.dart';
 import 'package:markit/models/pdf_input.dart';
 import 'package:markit/ui/screens/about_screen.dart';
 import 'package:markit/ui/screens/home_screen.dart';
 import 'package:markit/ui/theme/markit_theme.dart';
+import 'package:markit/ui/widgets/document_viewer.dart';
 // ignore: implementation_imports
 import 'package:super_native_extensions/src/native/context.dart' as sne;
 
@@ -179,6 +181,55 @@ void main() {
     await expectLater(
       find.byType(AboutScreen),
       matchesGoldenFile('goldens/about.png'),
+    );
+  });
+
+  testWidgets('golden: mode source (queued TXT)', (tester) async {
+    await _loadFonts();
+    final tmp = Directory.systemTemp.createTempSync('markit_shot_source');
+    addTearDown(() {
+      for (var i = 0; i < 5; i++) {
+        try {
+          tmp.deleteSync(recursive: true);
+          break;
+        } on FileSystemException {
+          sleep(const Duration(milliseconds: 200));
+        }
+      }
+    });
+    final txt = '${tmp.path}/notes.txt';
+    File(txt).writeAsStringSync(
+      '# Catatan rapat\n\n'
+      '- Agenda & target\n'
+      '- Anggaran kuartal\n\n'
+      'Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do '
+      'eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim '
+      'ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut '
+      'aliquip ex ea commodo consequat.\n',
+    );
+    final job = QueuedFile(
+      id: 'src1',
+      input: PdfInput(
+        name: 'notes.txt',
+        path: txt,
+        format: InputFormat.text,
+      ),
+      status: JobStatus.queued,
+    );
+    tester.view.physicalSize = const Size(1440, 900) * 2;
+    tester.view.devicePixelRatio = 2.0;
+    addTearDown(tester.view.reset);
+    await tester.pumpWidget(MaterialApp(
+      theme: PdflowTheme.light(),
+      home: Scaffold(body: DocumentViewer(job: job)),
+    ));
+    await tester.runAsync(() async {
+      await Future<void>.delayed(const Duration(milliseconds: 300));
+      await tester.pump();
+    });
+    await expectLater(
+      find.byType(DocumentViewer),
+      matchesGoldenFile('goldens/source_view.png'),
     );
   });
 }

@@ -5,24 +5,7 @@ import 'package:flutter_markdown_plus/flutter_markdown_plus.dart';
 import 'package:markit/ui/theme/palette.dart';
 import 'package:markit/ui/theme/typography.dart';
 
-/// Potong konten untuk preview — memotong di batas baris agar markdown tetap
-/// valid. Return (preview, apakah terpotong).
-({String preview, bool truncated}) truncateMarkdownPreview(
-  String content, {
-  required int maxChars,
-}) {
-  if (content.length <= maxChars) {
-    return (preview: content, truncated: false);
-  }
-  var cut = content.lastIndexOf('\n', maxChars);
-  if (cut <= 0) cut = maxChars;
-  // Potong di akhir baris (termasuk newline) agar baris terakhir utuh.
-  if (cut < content.length && content[cut] == '\n') cut++;
-  return (
-    preview: content.substring(0, cut),
-    truncated: true,
-  );
-}
+export 'package:markit/core/text_truncate.dart' show truncateMarkdownPreview;
 
 /// Penghitung struktur markdown sederhana (heading/paragraf/list/tabel).
 /// Baris di dalam fenced code block (` ``` `) TIDAK dihitung — itu konten

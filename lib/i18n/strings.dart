@@ -71,6 +71,16 @@ class Strings {
       'Preview truncated for performance — download for the full content.';
   static const showRendered = 'Rendered';
   static const showRaw = 'Raw';
+  static const showSource = 'Source';
+  static const showOutput = 'Output';
+  static const sourceLoadFailed = 'Could not load the source file.';
+  static const sourceTruncated =
+      'Source preview truncated — the full file is still used for conversion.';
+  static const conversionPending =
+      'Conversion pending — the source is shown while waiting.';
+  static const formatNotSupported =
+      'This file type cannot be previewed yet '
+      '(roadmap: DOCX/XLSX/PPTX/EPUB/ZIP/images/audio).';
   static const statsHeading = 'Headings';
   static const statsParagraphs = 'Paragraphs';
   static const statsListItems = 'List items';

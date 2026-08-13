@@ -5,6 +5,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_markdown_plus/flutter_markdown_plus.dart';
 import 'package:markit/i18n/strings.dart';
 import 'package:markit/isolate/conversion_controller.dart';
+import 'package:markit/ui/source/pdf_source_view.dart';
+import 'package:markit/ui/source/source_loader.dart';
+import 'package:markit/ui/source/text_source_view.dart';
 import 'package:markit/ui/theme/palette.dart';
 import 'package:markit/ui/theme/spacing.dart';
 import 'package:markit/ui/theme/typography.dart';
@@ -17,11 +20,7 @@ import 'markdown_helpers.dart';
 /// dengan toolbar sticky (rendered/raw toggle, download/open) + empty state.
 /// Preview mendapat mayoritas ruang layar — fokus utama aplikasi.
 class DocumentViewer extends StatefulWidget {
-  const DocumentViewer({
-    super.key,
-    required this.job,
-    this.onAddFiles,
-  });
+  const DocumentViewer({super.key, required this.job, this.onAddFiles});
 
   /// Dokumen yang ditampilkan; null = empty state.
   final QueuedFile? job;
@@ -33,6 +32,9 @@ class DocumentViewer extends StatefulWidget {
   State<DocumentViewer> createState() => _DocumentViewerState();
 }
 
+/// Mode tampilan viewer: file sumber (input) atau hasil konversi (output).
+enum _ViewMode { source, output }
+
 class _DocumentViewerState extends State<DocumentViewer> {
   static const int maxPreviewChars = 64 * 1024;
 
@@ -41,22 +43,34 @@ class _DocumentViewerState extends State<DocumentViewer> {
   bool _previewTruncated = false;
   MdStats? _stats;
   bool _showRaw = false;
+  _ViewMode _viewMode = _ViewMode.output;
+  SourceData? _source;
+  String? _sourceError;
 
   @override
   void initState() {
     super.initState();
+    _viewMode = widget.job?.status == JobStatus.done
+        ? _ViewMode.output
+        : _ViewMode.source;
     _load();
+    _loadSource();
   }
 
   @override
   void didUpdateWidget(covariant DocumentViewer oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.job?.id != widget.job?.id) {
+      final job = widget.job;
       _showRaw = false;
       _content = null;
       _preview = null;
       _stats = null;
+      _viewMode = job?.status == JobStatus.done
+          ? _ViewMode.output
+          : _ViewMode.source;
       _load();
+      _loadSource();
     }
   }
 
@@ -86,15 +100,72 @@ class _DocumentViewerState extends State<DocumentViewer> {
     });
   }
 
+  Future<void> _loadSource() async {
+    final job = widget.job;
+    if (job == null) return;
+    _source = null;
+    _sourceError = null;
+    try {
+      final data = await loadSource(job.input);
+      if (!mounted) return;
+      setState(() => _source = data);
+    } on SourceUnsupportedException {
+      if (!mounted) return;
+      setState(() => _sourceError = Strings.formatNotSupported);
+    } catch (_) {
+      if (!mounted) return;
+      setState(() => _sourceError = Strings.sourceLoadFailed);
+    }
+  }
+
+  /// Isi panel saat mode Source: pesan status, error, atau tampilan sumber.
+  Widget _buildSourceBody(Color inkMuted) {
+    final job = widget.job!;
+    Widget message(String text) => Center(
+      child: Padding(
+        padding: const EdgeInsets.all(PdflowSpacing.xl),
+        child: Text(
+          text,
+          textAlign: TextAlign.center,
+          style: TextStyle(color: inkMuted),
+        ),
+      ),
+    );
+
+    final error = _sourceError;
+    if (error != null) return message(error);
+
+    final source = _source;
+    if (source != null) {
+      return Padding(
+        padding: const EdgeInsets.symmetric(
+          horizontal: PdflowSpacing.xxxl,
+          vertical: PdflowSpacing.xxl,
+        ),
+        child: switch (source) {
+          final SourceText t => TextSourceView(data: t),
+          final SourcePdf p => PdfSourceView(data: p, name: job.input.name),
+        },
+      );
+    }
+
+    final status = job.status;
+    if (status == JobStatus.queued || status == JobStatus.running) {
+      return message(Strings.conversionPending);
+    }
+    if (status == JobStatus.failed) return message(Strings.sourceLoadFailed);
+    return const _PreviewSkeleton();
+  }
+
   Future<void> _openFolder() async {
     final job = widget.job;
     if (job == null) return;
     final dir = File(job.outputPath).parent.path;
     final ok = await launchUrl(Uri.file(dir));
     if (!ok && mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Could not open folder.')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Could not open folder.')));
     }
   }
 
@@ -103,9 +174,9 @@ class _DocumentViewerState extends State<DocumentViewer> {
     final content = _content;
     if (job == null || content == null) return;
     downloadTextFile(job.input.outputName, content);
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text(Strings.downloadStarted)),
-    );
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(const SnackBar(content: Text(Strings.downloadStarted)));
   }
 
   @override
@@ -117,7 +188,9 @@ class _DocumentViewerState extends State<DocumentViewer> {
 
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final ink = isDark ? PdflowColors.inkDark : PdflowColors.inkLight;
-    final inkMuted = isDark ? PdflowColors.inkMutedDark : PdflowColors.inkMutedLight;
+    final inkMuted = isDark
+        ? PdflowColors.inkMutedDark
+        : PdflowColors.inkMutedLight;
     final stats = _stats;
 
     return Column(
@@ -126,6 +199,8 @@ class _DocumentViewerState extends State<DocumentViewer> {
         _ViewerToolbar(
           job: job,
           stats: stats,
+          viewMode: _viewMode,
+          onViewModeChanged: (mode) => setState(() => _viewMode = mode),
           showRaw: _showRaw,
           onToggleRaw: (raw) => setState(() => _showRaw = raw),
           onDownload: _download,
@@ -137,64 +212,70 @@ class _DocumentViewerState extends State<DocumentViewer> {
           child: RepaintBoundary(
             child: Container(
               color: isDark ? PdflowColors.paperDark : PdflowColors.paperLight,
-              child: _content == null
-                  ? const _PreviewSkeleton()
-                  : SingleChildScrollView(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: PdflowSpacing.xxxl,
-                        vertical: PdflowSpacing.xxl,
-                      ),
-                      child: Center(
-                        child: ConstrainedBox(
-                          constraints: const BoxConstraints(maxWidth: 720),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              if (_previewTruncated)
-                                Padding(
-                                  padding: const EdgeInsets.only(
-                                    bottom: PdflowSpacing.md,
-                                  ),
-                                  child: Text(
-                                    Strings.previewTruncated,
-                                    style: TextStyle(
-                                      fontSize: 12,
-                                      fontStyle: FontStyle.italic,
-                                      color: inkMuted,
-                                    ),
-                                  ),
-                                ),
-                              if (_showRaw)
-                                // Raw view: baris utuh (no-wrap) + scroll
-                                // horizontal; seleksi tetap tersedia (M4).
-                                Scrollbar(
-                                  thumbVisibility: true,
-                                  child: SingleChildScrollView(
-                                    scrollDirection: Axis.horizontal,
-                                    child: SelectionArea(
+              child: switch (_viewMode) {
+                _ViewMode.source => _buildSourceBody(inkMuted),
+                _ViewMode.output =>
+                  _content == null
+                      ? const _PreviewSkeleton()
+                      : SingleChildScrollView(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: PdflowSpacing.xxxl,
+                            vertical: PdflowSpacing.xxl,
+                          ),
+                          child: Center(
+                            child: ConstrainedBox(
+                              constraints: const BoxConstraints(maxWidth: 720),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  if (_previewTruncated)
+                                    Padding(
+                                      padding: const EdgeInsets.only(
+                                        bottom: PdflowSpacing.md,
+                                      ),
                                       child: Text(
-                                        _preview!,
-                                        softWrap: false,
+                                        Strings.previewTruncated,
                                         style: TextStyle(
-                                          fontFamily: PdflowTypography.mono,
-                                          fontSize: 12.5,
-                                          height: 1.6,
-                                          color: ink,
+                                          fontSize: 12,
+                                          fontStyle: FontStyle.italic,
+                                          color: inkMuted,
                                         ),
                                       ),
                                     ),
-                                  ),
-                                )
-                              else
-                                MarkdownBody(
-                                  data: _preview!,
-                                  styleSheet: documentMarkdownStyle(context),
-                                ),
-                            ],
+                                  if (_showRaw)
+                                    // Raw view: baris utuh (no-wrap) + scroll
+                                    // horizontal; seleksi tetap tersedia (M4).
+                                    Scrollbar(
+                                      thumbVisibility: true,
+                                      child: SingleChildScrollView(
+                                        scrollDirection: Axis.horizontal,
+                                        child: SelectionArea(
+                                          child: Text(
+                                            _preview!,
+                                            softWrap: false,
+                                            style: TextStyle(
+                                              fontFamily: PdflowTypography.mono,
+                                              fontSize: 12.5,
+                                              height: 1.6,
+                                              color: ink,
+                                            ),
+                                          ),
+                                        ),
+                                      ),
+                                    )
+                                  else
+                                    MarkdownBody(
+                                      data: _preview!,
+                                      styleSheet: documentMarkdownStyle(
+                                        context,
+                                      ),
+                                    ),
+                                ],
+                              ),
+                            ),
                           ),
                         ),
-                      ),
-                    ),
+              },
             ),
           ),
         ),
@@ -208,6 +289,8 @@ class _ViewerToolbar extends StatelessWidget {
   const _ViewerToolbar({
     required this.job,
     required this.stats,
+    required this.viewMode,
+    required this.onViewModeChanged,
     required this.showRaw,
     required this.onToggleRaw,
     required this.onDownload,
@@ -216,6 +299,8 @@ class _ViewerToolbar extends StatelessWidget {
 
   final QueuedFile job;
   final MdStats? stats;
+  final _ViewMode viewMode;
+  final ValueChanged<_ViewMode> onViewModeChanged;
   final bool showRaw;
   final ValueChanged<bool> onToggleRaw;
   final VoidCallback onDownload;
@@ -225,7 +310,9 @@ class _ViewerToolbar extends StatelessWidget {
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final ink = isDark ? PdflowColors.inkDark : PdflowColors.inkLight;
-    final inkMuted = isDark ? PdflowColors.inkMutedDark : PdflowColors.inkMutedLight;
+    final inkMuted = isDark
+        ? PdflowColors.inkMutedDark
+        : PdflowColors.inkMutedLight;
 
     final s = stats;
     final meta = [
@@ -280,13 +367,19 @@ class _ViewerToolbar extends StatelessWidget {
             ),
           ),
           const SizedBox(width: PdflowSpacing.md),
-          SegmentedButton<bool>(
+          SegmentedButton<_ViewMode>(
             segments: const [
-              ButtonSegment(value: false, label: Text(Strings.showRendered)),
-              ButtonSegment(value: true, label: Text(Strings.showRaw)),
+              ButtonSegment(
+                value: _ViewMode.source,
+                label: Text(Strings.showSource),
+              ),
+              ButtonSegment(
+                value: _ViewMode.output,
+                label: Text(Strings.showOutput),
+              ),
             ],
-            selected: {showRaw},
-            onSelectionChanged: (s) => onToggleRaw(s.first),
+            selected: {viewMode},
+            onSelectionChanged: (s) => onViewModeChanged(s.first),
             style: SegmentedButton.styleFrom(
               visualDensity: VisualDensity.compact,
               textStyle: const TextStyle(
@@ -296,6 +389,25 @@ class _ViewerToolbar extends StatelessWidget {
               ),
             ),
           ),
+          if (viewMode == _ViewMode.output) ...[
+            const SizedBox(width: PdflowSpacing.sm),
+            SegmentedButton<bool>(
+              segments: const [
+                ButtonSegment(value: false, label: Text(Strings.showRendered)),
+                ButtonSegment(value: true, label: Text(Strings.showRaw)),
+              ],
+              selected: {showRaw},
+              onSelectionChanged: (s) => onToggleRaw(s.first),
+              style: SegmentedButton.styleFrom(
+                visualDensity: VisualDensity.compact,
+                textStyle: const TextStyle(
+                  fontFamily: PdflowTypography.ui,
+                  fontSize: 12,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+            ),
+          ],
           const SizedBox(width: PdflowSpacing.sm),
           if (kIsWeb)
             IconButton(
@@ -324,7 +436,9 @@ class _EmptyViewer extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final inkMuted = isDark ? PdflowColors.inkMutedDark : PdflowColors.inkMutedLight;
+    final inkMuted = isDark
+        ? PdflowColors.inkMutedDark
+        : PdflowColors.inkMutedLight;
 
     return Center(
       child: SingleChildScrollView(
@@ -401,19 +515,17 @@ class _PreviewSkeletonState extends State<_PreviewSkeleton>
         : PdflowColors.surfaceRaisedLight;
 
     Widget bar(double width, double height) => FadeTransition(
-          opacity: Tween(begin: 0.45, end: 1.0).animate(_controller),
-          child: Container(
-            width: width,
-            height: height,
-            decoration: BoxDecoration(
-              color: base,
-              borderRadius: BorderRadius.circular(3),
-              gradient: LinearGradient(
-                colors: [base, highlight, base],
-              ),
-            ),
-          ),
-        );
+      opacity: Tween(begin: 0.45, end: 1.0).animate(_controller),
+      child: Container(
+        width: width,
+        height: height,
+        decoration: BoxDecoration(
+          color: base,
+          borderRadius: BorderRadius.circular(3),
+          gradient: LinearGradient(colors: [base, highlight, base]),
+        ),
+      ),
+    );
 
     return Center(
       child: SizedBox(
