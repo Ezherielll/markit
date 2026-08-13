@@ -40,13 +40,13 @@ indexed, and fed to AI systems as input (RAG / LLM).
 
 ## Download
 
-[![Release](https://img.shields.io/github/v/release/Ezherielll/markit?label=Latest%20release&style=flat-square)](https://github.com/Ezherielll/markit/releases/latest)
-[![Downloads](https://img.shields.io/github/downloads/Ezherielll/markit/total?style=flat-square)](https://github.com/Ezherielll/markit/releases)
+[![Release](https://img.shields.io/github/v/release/Ezherielll/MarkIt?label=Latest%20release&style=flat-square)](https://github.com/Ezherielll/MarkIt/releases/latest)
+[![Downloads](https://img.shields.io/github/downloads/Ezherielll/MarkIt/total?style=flat-square)](https://github.com/Ezherielll/MarkIt/releases)
 
 Desktop builds (Windows / macOS / Linux) are published as GitHub Releases
 whenever a version tag (`vX.Y.Z`) is pushed — see
 `docs/desktop-release.md`. Grab the latest from
-[github.com/Ezherielll/markit/releases/latest](https://github.com/Ezherielll/markit/releases/latest).
+[github.com/Ezherielll/MarkIt/releases/latest](https://github.com/Ezherielll/MarkIt/releases/latest).
 
 | Platform | Package | How to run |
 |----------|---------|------------|
@@ -54,7 +54,7 @@ whenever a version tag (`vX.Y.Z`) is pushed — see
 | macOS | `markit-macos-arm64-<ver>.dmg` | Open the DMG and drag **markit** to Applications. Because it is unsigned, right-click the app and choose **Open** the first time (or run `xattr -cr /Applications/markit.app`). Apple Silicon only. |
 | Linux | `markit-linux-x64-<ver>.tar.gz` | Extract and run `./markit` from the `bundle` folder. |
 
-Prefer not to download? Try the [web demo](https://ezherielll.github.io/markit/)
+Prefer not to download? Try the [web demo](https://ezherielll.github.io/MarkIt/)
 instead — same app, runs in the browser, no install.
 
 ## Features (MVP)
@@ -125,7 +125,7 @@ Replace `windows` with `macos` or `linux` for other platforms.
 
 ### Web
 
-- **Live demo (GitHub Pages):** https://ezherielll.github.io/markit/
+- **Live demo (GitHub Pages):** https://ezherielll.github.io/MarkIt/
 - Deployed automatically via GitHub Actions on every push to `master` (see
   `docs/web-deploy.md`).
 - Web supports: multi-file, drag & drop, rendered Markdown preview,

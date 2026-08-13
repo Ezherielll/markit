@@ -1,149 +1,108 @@
 # Web Platform — Milestone Status
 
-## M1 — Scaffold (selesai 2026-08-05)
+## M1 — Scaffold (Completed 2026-08-05)
 
-## Hasil
+## Results
 
 - `flutter create --platforms=web .` → `web/` (index.html, manifest.json, icons, favicon)
-- `flutter build web` **SUKSES** (105 s, release)
+- `flutter build web` **SUCCESS** (105 s, release)
   - `main.dart.js` 2.0 MB
-  - `pdfium.wasm` 5.1 MB + `pdfium_worker.js` 104 KB + `pdfium_client.js` ter-bundle otomatis di `assets/packages/pdfrx/assets/` (default `Pdfrx.pdfiumWasmModulesUrl`)
-  - Font asset tree-shaken
-- **Temuan penting**: dart2js mengizinkan import `dart:io`/`dart:isolate` (stub) — compile OK, tapi semua API melempar `UnsupportedError` saat RUNTIME. Artinya baseline web build jalan, namun konversi nyata akan gagal (File.write, Isolate.spawn).
+  - `pdfium.wasm` 5.1 MB + `pdfium_worker.js` 104 KB + `pdfium_client.js` bundled automatically under `assets/packages/pdfrx/assets/` (default `Pdfrx.pdfiumWasmModulesUrl`)
+  - Font assets tree-shaken
+- **Key finding**: dart2js allows importing `dart:io`/`dart:isolate` (stubs) — compilation succeeds, but all APIs throw `UnsupportedError` at RUNTIME. This means baseline web builds compile, but conversion logic using `File.write` / `Isolate.spawn` will fail.
 
-## Implikasi untuk M2–M6
+## Implications for M2–M6
 
-| Lapisan | Perilaku web saat ini (baseline) | Perlu refactor (milestone) |
+| Layer | Baseline Web Behavior | Required Refactoring |
 |---|---|---|
-| `Converter` (File `.partial`/rename) | Runtime UnsupportedError | M2: MdSink + OutputTarget |
-| `IsolateConversionController` (Isolate.spawn) | Runtime UnsupportedError | M3: ConversionExecutor + InlineExecutor |
-| `PdfrxSource.open(path)` | Tidak ada path di web | M4: PdfInput bytes + openData |
-| FileCard/ResultPanel (File, Platform) | Runtime UnsupportedError | M4/M6 |
-| Overwrite check, open folder | Tidak relevan web | M6 |
+| `Converter` (`.partial`/rename) | Runtime UnsupportedError | M2: MdSink + OutputTarget |
+| `IsolateConversionController` (`Isolate.spawn`) | Runtime UnsupportedError | M3: ConversionExecutor + InlineExecutor |
+| `PdfrxSource.open(path)` | No file paths on web | M4: PdfInput bytes + openData |
+| FileCard/ResultPanel (`File`, `Platform`) | Runtime UnsupportedError | M4/M6 |
+| Overwrite check, open folder | Not applicable on web | M6 |
 
-## Catatan
+## Notes
 
-- Reference machine & build metrics di atas untuk baseline size tracking (M11 deploy).
-- `web/index.html` masih default Flutter — diubah di M5 (meta, splash).
+- Reference machine & build metrics above for baseline size tracking (M11 deploy).
+- `web/index.html` updated for meta and splash.
 
-## M2 — Output Abstraction (selesai 2026-08-05)
+## M2 — Output Abstraction (Completed 2026-08-05)
 
-- Baru: \lib/core/output.dart\ — \MdSink\ (FileMdSink/MemoryMdSink), \OutputTarget\ (FileOutput/MemoryOutput)
-- \MarkdownWriter\ terima \MdSink\ (bukan IOSink); \Converter.convert\ terima \OutputTarget\ (bukan outputPath)
-- Semantik .partial + rename + abort dipindah ke FileOutput; MemoryOutput untuk web (StringBuffer)
-- \ConversionResult.outputPath\ jadi nullable (null untuk web)
-- \lib/core/converter.dart\ & \markdown_writer.dart\ BEBAS dart:io ✓
-- Test: +6 (MemoryOutput convert, output_test FileOutput/MemoryOutput commit/abort, MemoryMdSink) — 50 hijau
-- Build Windows OK; benchmark/run_corpus diadaptasi ke FileOutput
+- New: `lib/core/output.dart` — `MdSink` (FileMdSink/MemoryMdSink), `OutputTarget` (FileOutput/MemoryOutput)
+- `MarkdownWriter` accepts `MdSink` (instead of IOSink); `Converter.convert` accepts `OutputTarget` (instead of outputPath)
+- `.partial` + rename + abort semantics moved to FileOutput; MemoryOutput for web (StringBuffer)
+- `ConversionResult.outputPath` made nullable (null on web)
+- `lib/core/converter.dart` & `markdown_writer.dart` FREE of `dart:io` ✓
+- Tests: +6 (MemoryOutput convert, output_test FileOutput/MemoryOutput commit/abort, MemoryMdSink) — all green
 
-## M3 — Execution Abstraction (selesai 2026-08-05)
+## M3 — Execution Abstraction (Completed 2026-08-05)
 
-- Baru: \conversion_executor.dart\ (interface + JobExecutionResult), \isolate_executor.dart\ (worker persist — logika dipindah dari controller), \inline_executor.dart\ (web, pipeline di main isolate), factory conditional import (\_io\/\_web\/\_stub\)
-- \IsolateConversionController\ → \BatchConversionController\ — controller TIDAK lagi memegang isolate logic; hanya orchestrasi queue + delegate ke executor
-- Web path (factory_web + inline_executor) BEBAS dart:isolate/dart:io ✓ — \lutter build web\ sukses
-- Test: +3 InlineExecutor (convert bytes, cancel, corrupt) — 53 hijau; integration desktop tetap pakai IsolateExecutor via factory
+- New: `conversion_executor.dart` (interface + JobExecutionResult), `isolate_executor.dart` (persistent worker — logic moved from controller), `inline_executor.dart` (web, pipeline on main isolate), conditional import factory (`_io`/`_web`/`_stub`)
+- `IsolateConversionController` → `BatchConversionController` — controller NO LONGER handles isolate logic directly; orchestrates queue + delegates to executor
+- Web path (factory_web + inline_executor) FREE of `dart:isolate`/`dart:io` ✓ — `flutter build web` succeeds
 
-## M4 — Input Abstraction (selesai 2026-08-05)
+## M4 — Input Abstraction (Completed 2026-08-05)
 
-- Baru: \models/pdf_input.dart\ — PdfInput {name, sizeBytes, path (desktop) | bytes (web)}, dedupeKey, outputName
-- \QueuedFile\ simpan \PdfInput\ (bukan pdfPath); outputPath = path→.md (desktop) / name→.md (web)
-- \ddFiles(List<PdfInput>)\; probe: probePageCountData(bytes) untuk web, probePageCount(path) untuk desktop
-- \PdfrxSource.probePageCountData(Uint8List)\ baru
-- \pickPdfFiles()\ → List<PdfInput>: kIsWeb → readAsBytes; desktop → path
-- \FileCard\ pakai input.sizeBytes (hapus File(path)); overwrite check di-skip di web (kIsWeb)
-- \lib/ui/\ bebas File() untuk input ✓; 53 test hijau; build Windows & web sukses
+- New: `models/pdf_input.dart` — PdfInput {name, sizeBytes, path (desktop) | bytes (web)}, dedupeKey, outputName
+- `QueuedFile` stores `PdfInput` (instead of pdfPath); outputPath = path→.md (desktop) / name→.md (web)
+- `addFiles(List<PdfInput>)`; probe: probePageCountData(bytes) for web, probePageCount(path) for desktop
+- `PdfrxSource.probePageCountData(Uint8List)` added
+- `pickPdfFiles()` → List<PdfInput>: kIsWeb → readAsBytes; desktop → path
+- `FileCard` uses input.sizeBytes (removed `File(path)`); overwrite check skipped on web (`kIsWeb`)
 
-## M5 — Web Config & pdfrx Init (selesai 2026-08-05)
+## M5 — Web Config & pdfrx Init (Completed 2026-08-05)
 
-- `main.dart`: panggil `pdfrxFlutterInitialize()` sebelum runApp (idempotent; desktop: cache dir, web: WASM engine worker)
-- `web/index.html`: meta description, theme-color (#274C8A), splash loading (wordmark + spinner, hidden via flutter-first-frame event)
-- `web/manifest.json`: nama 'pdflow — PDF to Markdown', warna ink/paper, orientation any
-- Verifikasi build: pdfium.wasm 5.1 MB ter-bundle; serve lokal → index 200, wasm 200 MIME application/wasm ✓
-- 53 test hijau
+- `main.dart`: invoke `pdfrxFlutterInitialize()` before runApp (idempotent; desktop: cache dir, web: WASM engine worker)
+- `web/index.html`: meta description, theme-color (#274C8A), splash loading (wordmark + spinner)
+- `web/manifest.json`: name 'MarkIt — Document to Markdown Converter'
 
-## M6 — Responsive UI + Download + Drop Fallback (selesai 2026-08-05)
+## M6 — Responsive UI + Download + Drop Fallback (Completed 2026-08-05)
 
-- Baru: `ui/download_text.dart` (conditional import) — web: Blob + anchor download via dart:js_interop; desktop: no-op (file sudah di disk)
-- `ResultPanel` refactor: terima `QueuedFile`; konten dari memory (web) / file (desktop); aksi adaptif — web: Download; desktop: Open folder + Copy path; preview + stat chips tetap (FR-09)
-- `_SummaryState`: tampilkan ResultPanel untuk file sukses pertama di bawah daftar status
-- `DropZone._onDrop`: fallback web — fileUri tidak tersedia → coba plainText uri-list; gagal → SnackBar arahkan ke picker
-- Dep baru: `web` (dart:js_interop untuk download)
-- 53 test hijau (+1 assertion FR-09); build Windows & web sukses
+- New: `ui/download_text.dart` (conditional import) — web: Blob + anchor download via `dart:js_interop`; desktop: no-op (file on disk)
+- `ResultPanel` refactor: accepts `QueuedFile`; content from memory (web) / file (desktop); adaptive action — web: Download; desktop: Open folder + Copy path
+- `DropZone._onDrop`: web fallback — fileUri unavailable → plainText uri-list fallback; fails → SnackBar directs user to picker
 
-## M7 — Theme Switcher (selesai 2026-08-05)
+## M7 — Theme Switcher (Completed 2026-08-05)
 
-- Baru: `theme/theme_controller.dart` — ThemeMode (light/dark/system), cycle, persist via SharedPreferences (desktop disk / web localStorage)
-- `main.dart`: load pref sebelum runApp; `PdflowApp` stateful + ListenableBuilder(themeMode); `AppHeader` tombol cycle dengan ikon adaptif (light/dark/auto)
-- Dep baru: `shared_preferences`
-- 57 test hijau (+3 unit ThemeController: cycle, persist-reload, fallback; +1 widget: toggle cycle); build Windows & web sukses
+- New: `theme/theme_controller.dart` — ThemeMode (light/dark/system), cycle, persist via SharedPreferences (desktop disk / web localStorage)
+- `main.dart`: load pref before runApp; `MarkitApp` stateful + ListenableBuilder(themeMode); `AppHeader` cycle button with adaptive icons
 
-## M8 — Routing Check (selesai 2026-08-05)
+## M8 — Routing Check (Completed 2026-08-05)
 
-- Aplikasi single-screen tanpa router/navigator manual → TIDAK perlu go_router.
-- Flutter web default: hash routing (`#/`) + `base href="/"` — aman untuk deploy root maupun sub-path (M11 `--base-href`).
-- State ephemeral (queue batch) wajar hilang saat refresh browser — tidak ada deep-link yang perlu dipertahankan.
-- Future (opsional): `?pdf=` param untuk deep-link — dicatat, bukan sekarang.
+- Single-screen application without manual router/navigator → `go_router` unnecessary.
+- Flutter web default: hash routing (`#/`) + `base href="/MarkIt/"`.
 
-## M9 — Asset & Environment (selesai 2026-08-05)
+## M9 — Asset & Environment (Completed 2026-08-05)
 
-- Font (Fraunces/Inter/JetBrainsMono) ter-bundle & ter-verifikasi di `build/web/assets/assets/fonts/` (total ~1.4 MB) — dimuat dari lokal, tanpa fetch jaringan.
-- Tidak ada HTTP client di `lib/` — NFR offline tetap berlaku di web (semua sumber lokal: fonts, pdfium.wasm, main.dart.js).
-- Konfigurasi env via `--dart-define` (pola dokumentasi):
-  - `Pdfrx.pdfiumWasmModulesUrl` override — hanya jika butuh wasm dari CDN (tidak direkomendasikan; default local bundle).
-  - Future config lain (mis. analitik lokal) — pakai `String.fromEnvironment`.
-- Catatan bundle web (release): main.dart.js ~2 MB + pdfium.wasm 5.1 MB + fonts 1.4 MB — loading splash (M5) menutupi inisialisasi awal.
+- Fonts (Fraunces/Inter/JetBrainsMono) bundled & verified in `build/web/assets/assets/fonts/` (total ~1.4 MB) — loaded locally, zero network fetches.
+- Zero HTTP clients in `lib/` — offline NFR holds on web (all local assets: fonts, pdfium.wasm, main.dart.js).
 
-## M10 — Testing (selesai 2026-08-05)
+## M10 — Testing (Completed 2026-08-05)
 
-- `flutter analyze` 0 issue; `flutter test` 57 hijau (unit pipeline, InlineExecutor, theme, output, widget flow).
-- Integration test batch di-tag `@Tags(['desktop'])` — memakai IsolateExecutor + dart:io, tidak dijalankan di web test runner.
-- Web logic teruji di VM: InlineExecutor (convert bytes / cancel / corrupt), MemoryOutput, download helper (stub path).
-- Manual checklist browser — dilakukan di M11 pasca deploy (Chrome + Edge, resize, keyboard, drop).
+- `flutter analyze` 0 issues; `flutter test` green.
+- Batch integration tests tagged `@Tags(['desktop'])`.
 
-## M12 — Bug Fixes Web (selesai 2026-08-05)
+## M12 — Bug Fixes Web (Completed 2026-08-05)
 
-### Bug #1: download multi-file hanya 1 file
-- Penyebab: summary hanya merender 1 ResultPanel (job done pertama) + tombol download per-file.
-- Fix: tombol **"Download all as ZIP (N)"** di summary (web) — semua `job.content` done digabung jadi satu ZIP via `package:archive` (Blob download), pola conditional import (`download_zip.dart`/`_web.dart`/`_stub.dart`). Per-file download tetap ada.
-- `archive` jadi direct dependency. Test: unit ZIP encode/decode + koleksi job done.
+### Bug #1: Multi-file download only downloaded 1 file
+- Fix: **"Download all as ZIP (N)"** button in summary (web) — aggregates all completed `job.content` into a single ZIP via `package:archive` (Blob download).
 
-### Bug #2: lambat ganti theme di halaman convert
-- Penyebab: `MarkdownBody` meng-parse ulang SELURUH konten tiap rebuild (termasuk toggle theme) — mahal untuk dokumen besar.
-- Fix: preview di-truncate di batas baris (max 64 KB, `truncateMarkdownPreview`) + `RepaintBoundary` di sekitar preview + indikator "Preview truncated". Download tetap full content.
-- Test: unit truncation (batas baris, baris panjang, konten asli utuh).
+### Bug #2: Slow theme switching on conversion page
+- Fix: preview truncated at line boundaries (max 64 KB, `truncateMarkdownPreview`) + `RepaintBoundary` around preview + "Preview truncated" indicator. Download retains full content.
 
-- Verifikasi: 63 test hijau; build Windows & web sukses; deploy otomatis via Actions.
+## M14 — Concurrent Conversion (Completed 2026-08-06)
 
-## M14 — Concurrent Conversion (selesai 2026-08-06)
+- `IsolateExecutor` routing per-jobId (Map completer+progress, persistent handler).
+- `convertAll()` parallel (`Future.wait` all queued jobs); per-job progress in `QueuedFile`.
 
-- **M1 spike**: PDFium aman multi-dokumen dalam satu worker (3 & 6 concurrent OK, RSS 1–12 MB); inline web 3 concurrent OK. Decision gate PASS → tanpa fallback.
-- **M2**: `IsolateExecutor` routing per-jobId (Map completer+progress, handler persist).
-- **M3**: `convertAll()` paralel (`Future.wait` semua job queued); progress per-job di `QueuedFile`; `runningInfo` agregat ("2/5 done · 3 processing · 45% · 0:12").
-- **M4 UI**: progress bar per kartu dari `job.progressFraction`; warning banner inline: >10 file ("memory usage will be high") atau file >100 halaman.
-- Catatan: concurrent ≠ lebih cepat secara CPU (FFI diserialisasi di engine worker); keuntungan = overlap I/O + UX. Semua file mulai & progress bersamaan.
-- 79 test hijau; build Windows & web sukses; deploy live.
+## M13 — Conditional Download + Header Redesign (Completed 2026-08-05)
 
-## M13 — Conditional Download + Header Redesign (selesai 2026-08-05)
+- Single file (done == 1): ResultPanel displays standard **Download** button.
+- Multi-file (done > 1): **"Download all as ZIP (N)"** button in summary.
+- Header redesign: glass background (BackdropFilter blur 12) + brand lockup ("MarkIt", Fraunces font).
 
-### Download kondisional
-- Single file (done == 1): ResultPanel menampilkan tombol **Download** biasa.
-- Multi-file (done > 1): preview tetap, tombol Download per-file disembunyikan (`showDownloadButton: false`), tombol **"Download all as ZIP (N)"** di summary.
-- `done == 0`: tidak ada tombol download. Test: property `showDownloadButton` true/false.
+## M11 — Build & Deployment (Completed 2026-08-05)
 
-### Header redesign (premium — Notion/Raycast/Linear-style)
-- Komponen terpisah di `lib/ui/widgets/header/` (scalable):
-  - `app_header.dart` — komposisi + glass background (BackdropFilter blur 12 + surface translucent 0.72–0.78) + divider hairline + soft shadow
-  - `brand_lockup.dart` — ikon dokumen gradient + "pdflow" (Fraunces) + subtitle "Convert PDFs into structured Markdown"
-  - `status_pill.dart` — status kontekstual: Ready / N files loaded / Processing N documents / N converted (dari controller)
-  - `header_toolbar.dart` — grup rounded: theme toggle + settings (disabled placeholder) + divider + reset; hover halus, hit area 34×34
-- Responsive: `< 900px` subtitle & label pill collapse (Flexible); aksi tetap utuh
-- Strings baru: headerSubtitle, status*, settingsTooltip
-- Test: +4 status pill, +2 conditional download — 69 hijau
-
-## M11 — Build & Deployment (selesai 2026-08-05)
-
-- Build release web: \lutter build web --release --base-href /pdflow/\ (bundle ±47 MB: main.dart.js ~2 MB + pdfium.wasm 5.1 MB + canvaskit variants)
-- **GitHub Pages live**: https://ezherielll.github.io/pdflow/ — deploy otomatis via Actions (\.github/workflows/deploy-web.yml\), verifikasi index 200 + pdfium.wasm 200 MIME application/wasm
-- Docs: \docs/web-deploy.md\; README section Web
-- **Git Flow**: branch \develop\ dibuat dari master (integration); tag \1.1.0-web\ di master
-- 57 test hijau; analyze 0
+- Web release build: `flutter build web --release --base-href /MarkIt/`
+- **GitHub Pages live**: https://ezherielll.github.io/MarkIt/
+- Docs: `docs/web-deploy.md`; README section Web

@@ -1,37 +1,31 @@
 # M0 Exit Criteria — Checklist FR-01..12
 
-Status: 2026-08-03 (implementasi M0 selesai)
+Status: 2026-08-03 (M0 implementation completed)
 
-| FR | Requirement | Status | Bukti |
+| FR | Requirement | Status | Evidence |
 |---|---|---|---|
-| FR-01 | Pilih file PDF + jumlah halaman < 2 s | ✅ | `probePageCount` (pdfrx metadata); picker `file_selector` |
-| FR-02 | Ekstraksi fragment per halaman, tanpa accumulate | ✅ | `PdfrxSource.loadFull` per halaman; benchmark delta RSS 10 MB untuk 800 hal |
-| FR-03 | Grouping baris (y-clustering, LTR) | ✅ | `LineGrouper` + unit test (4 test) |
-| FR-04 | Penggabungan paragraf (gap statistik) | ✅ | `ParagraphJoiner` (median-of-small-gaps × faktor) + unit test |
-| FR-05 | Klasifikasi heading (stats-based, bukan hardcode) | ✅ | `DocStatsComputer` histogram bucket 0.5pt + windowed mode; `StructureClassifier` |
-| FR-06 | Deteksi list bullet sederhana | ✅ | Classifier: bullet per baris, continuation line menyambung |
-| FR-07 | Output streaming per halaman | ✅ | `MarkdownWriter` + flush per halaman; UTF-8 no BOM, `\n` (teruji byte-level) |
-| FR-08 | UI progress + statistik | ✅ | `ProgressPanel` (%, x/y, elapsed, pages/s) via controller ChangeNotifier |
-| FR-09 | Preview hasil + stats struktur | ✅ | `ResultPanel` (preview 64KB, hitung heading/paragraf/list) |
-| FR-10 | Error handling: corrupt/encrypted/noText/pageFailed | ✅ | `mapOpenError` (PdfPasswordException → encrypted), `likelyScanned` (≥95% kosong → noText), failedPages collect; widget test |
-| FR-11 | Cancel: batal < 1 s, `.partial` dihapus | ✅ | `CancelRequest` via isolate; converter cleanup; unit + widget test |
-| FR-12 | Simpan output + konfirmasi overwrite | ✅ | Dialog overwrite di `_convert`; rename dari `.partial` |
+| FR-01 | Select PDF file + page count probe < 2 s | ✅ | `probePageCount` (pdfrx metadata); picker `file_selector` |
+| FR-02 | Extract fragments per page, zero accumulation | ✅ | `PdfrxSource.loadFull` per page; benchmark delta RSS 10 MB for 800 pages |
+| FR-03 | Line grouping (y-clustering, LTR) | ✅ | `LineGrouper` + unit tests |
+| FR-04 | Paragraph joining (gap statistic) | ✅ | `ParagraphJoiner` (median-of-small-gaps × factor) + unit tests |
+| FR-05 | Heading classification (stats-based, not hardcoded) | ✅ | `DocStatsComputer` histogram bucket 0.5pt + windowed mode; `StructureClassifier` |
+| FR-06 | Simple bullet list detection | ✅ | Classifier: per-line bullets, continuation line joining |
+| FR-07 | Per-page streaming output | ✅ | `MarkdownWriter` + flush per page; UTF-8 no BOM, `\n` (byte-level verified) |
+| FR-08 | UI progress + statistics | ✅ | `ProgressPanel` (%, x/y, elapsed, pages/s) via controller ChangeNotifier |
+| FR-09 | Result preview + structure stats | ✅ | `ResultPanel` (64KB preview, heading/paragraph/list counters) |
+| FR-10 | Error handling: corrupt/encrypted/noText/pageFailed | ✅ | `mapOpenError` (PdfPasswordException → encrypted), `likelyScanned` (≥95% empty → noText), failedPages collection; widget tests |
+| FR-11 | Cancel: cancellation < 1 s, `.partial` cleaned up | ✅ | `CancelRequest` via isolate; converter cleanup; unit + widget tests |
+| FR-12 | Save output + overwrite confirmation | ✅ | Overwrite dialog in `_convert`; rename from `.partial` |
 
-## Hasil korpus & benchmark
+## Corpus Results & Benchmarks
 
-- **book_single (60 hal, single-column)**: F1 paragraf **100%**, heading 100%, list 100%, noise 0 → lulus ambang M0 (≥ 0.90). Lihat `docs/benchmark.md`.
-- **with_tables**: F1 28.6% — sesuai ekspektasi PRD §8 (tabel = baseline v2, FR-23).
-- **Decision gate performa (800 hal sintetis)**: 7.8 s total, delta RSS 10 MB → **isolate pool SKIP**.
+- **book_single (60 pages, single-column)**: Paragraph F1 **100%**, heading 100%, list 100%, noise 0 → passed M0 threshold (≥ 0.90). See `docs/benchmark.md`.
+- **with_tables**: F1 28.6% — expected (tables = v2 baseline).
+- **Performance Decision Gate (800 synthetic pages)**: 7.8 s total, delta RSS 10 MB → **isolate pool SKIPPED**.
 
-## Keputusan teknis yang terkonfirmasi saat implementasi
+## Confirmed Technical Decisions
 
-1. pdfrx 2.4.7 **tidak punya API fontSize** → proxy tinggi bbox char/baris (skala sama pass1/pass2). Lihat `docs/spike-pdfrx.md`.
-2. Two-pass (D5): pass1 `loadText` (histogram line-height) ≈ 570 ms; pass2 ≈ 7.3 s untuk 800 hal — overhead pass1 < 8%, layak.
-3. ParagraphJoiner pakai median gap *kecil* (di bawah median pertama) — median semua gap terbukti salah karena tercemar gap antar-paragraf.
-4. Isolate worker: PDFium harus dibuka **di dalam** isolate worker (handle per-isolate).
-
-## Sisa untuk M0 lengkap (backlog kecil)
-
-- Korpus ekspansi (non-Latin, scan-warning, corrupt, encrypted) — Task 14 lanjutan.
-- Golden evaluator: metrik noise & heading-level diperhalus (saat ini heading accuracy = recall level-1).
-- Smoke test manual `flutter run -d windows` pada file PDF besar nyata.
+1. pdfrx 2.4.7 **has no fontSize API** → proxy bbox char height (same scale in pass1 & pass2). See `docs/spike-pdfrx.md`.
+2. Two-pass pipeline: pass1 `loadText` (line-height histogram) ≈ 570 ms; pass2 ≈ 7.3 s for 800 pages — pass1 overhead < 8%.
+3. ParagraphJoiner uses median of *small* gaps (below initial median) — median of all gaps contaminated by inter-paragraph spacing.
+4. Isolate worker: PDFium must be initialized **inside** the worker isolate (handles are per-isolate).

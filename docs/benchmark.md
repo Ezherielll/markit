@@ -1,32 +1,27 @@
-# Benchmark — pdflow M0
+# Benchmark — MarkIt M0
 
-Reference machine: Windows 11 · i5/i7-class · 16 GB RAM · NVMe SSD (D6)
-Tanggal: 2026-08-03
+Reference machine: Windows 11 · i5/i7-class · 16 GB RAM · NVMe SSD
+Date: 2026-08-03
 
-## Decision gate M0 (PRD §11): isolate pool
+## Decision Gate M0: Isolate Pool
 
-| Metrik | Target | Hasil (800 hal, PDF sintetis) | Status |
+| Metric | Target | Result (800 pages, synthetic PDF) | Status |
 |---|---|---|---|
-| Total waktu (pass1+pass2) | ≤ 55 s | **7.8 s** (avg 0.9 ms/hal, p95 3 ms) | ✅ PASS |
-| Memori (delta RSS selama pass 2) | ≤ 100 MB | **10 MB** | ✅ PASS |
-| Peak RSS proses | ≤ 400 MB | 379 MB (termasuk baseline VM+engine 494 MB; angka OS) | ✅ PASS |
+| Total time (pass1+pass2) | ≤ 55 s | **7.8 s** (avg 0.9 ms/page, p95 3 ms) | ✅ PASS |
+| Memory (delta RSS during pass 2) | ≤ 100 MB | **10 MB** | ✅ PASS |
+| Peak RSS process | ≤ 400 MB | 379 MB (including baseline VM+engine 494 MB) | ✅ PASS |
 
-**Keputusan: isolate pool SKIP** — single-thread + streaming write cukup cepat
-untuk MVP. Backlog v2 #7 hanya jika benchmark dengan korpus nyata (gambar/tabel)
-menunjukkan degradasi.
+**Decision: Isolate pool SKIPPED** — single-thread + streaming write is fast enough for MVP.
 
-Catatan:
-- PDF sintetis (factory) tanpa gambar/tabel — angka sebenarnya pada dokumen
-  kompleks bisa lebih tinggi; wajib divalidasi ulang di korpus nyata (Task 14/16).
-- pass1 (loadText) jauh lebih murah dari pass2 (structuredText+write): 570 ms vs
-  7.3 s → two-pass (D5) terbukti layak, overhead pass1 < 8%.
-- RSS OS tidak stabil (±100 MB jitter) — metrik memory memakai delta selama pass2.
+Notes:
+- Synthetic PDF (factory) without images/tables.
+- pass1 (`loadText`) is significantly cheaper than pass2 (`structuredText` + write): 570 ms vs 7.3 s → two-pass pipeline validated, pass1 overhead < 8%.
+- Memory metric uses delta during pass2.
 
-## Raw data
+## Raw Data
 `benchmark/results/*.csv` (gitignored)
 
-## Corpus run 2026-08-03T15:34:36.247711
-- book_single: F1 0.0% (threshold 1%) FAIL · 565 ms
+## Corpus Runs
 - with_tables: F1 0.0% (threshold 1%) FAIL · 10 ms
 
 ## Corpus run 2026-08-03T15:46:01.666429

@@ -1,90 +1,87 @@
-# Rilis Desktop — GitHub Releases
+# Desktop Release — GitHub Releases
 
-Workflow `.github/workflows/release-desktop.yml` membangun build desktop
-(Windows / macOS / Linux) dan menempelkannya ke **GitHub Release (draft)**
-setiap tag versi di-push. Artefak berupa ZIP portabel (Windows), DMG
-(macOS, ARM64), dan tarball (Linux).
+The `.github/workflows/release-desktop.yml` workflow builds desktop artifacts
+(Windows / macOS / Linux) and attaches them to a **GitHub Release (draft)**
+whenever a version tag is pushed. Artifacts are generated as a portable ZIP (Windows),
+a DMG (macOS, ARM64), and a tarball (Linux).
 
-## Cara merilis
+## How to Release
 
-1. **Bump versi** di `pubspec.yaml` (mis. `1.1.0+1` → `1.2.0+2`),
-   commit, dan push ke master.
+1. **Bump version** in `pubspec.yaml` (e.g. `1.1.0+1` → `1.2.0+2`),
+   commit, and push to master.
 
    ```sh
    git checkout master && git pull
-   # edit version di pubspec.yaml
+   # edit version in pubspec.yaml
    git commit -am "release: bump to v1.2.0"
    git push origin master
    ```
 
-2. **Tag & push** (workflow hanya terpicu oleh tag `v*`, bukan branch):
+2. **Tag & push** (the workflow is triggered by `v*` tags, not branches):
 
    ```sh
    git tag -a v1.2.0 -m "MarkIt v1.2.0"
    git push origin v1.2.0
    ```
 
-3. Tunggu workflow selesai di **Actions → Release Desktop**. Job:
+3. Wait for the workflow to complete in **Actions → Release Desktop**. Jobs:
    - `build-windows` → `markit-windows-x64-v1.2.0.zip`
    - `build-macos`   → `markit-macos-arm64-v1.2.0.dmg`
    - `build-linux`   → `markit-linux-x64-v1.2.0.tar.gz`
-   - `release`       → membuat **Draft Release** berisi ketiga file
-     (release notes otomatis dari commits).
+   - `release`       → creates a **Draft Release** containing all three files
+     (auto-generated release notes from commits).
 
-4. **Review lalu Publish** draft release di
-   [Releases](https://github.com/Ezherielll/markit/releases). Halaman
-   `releases/latest` dan badge README otomatis mengikuti release terbaru.
+4. **Review and Publish** the draft release at
+   [Releases](https://github.com/Ezherielll/MarkIt/releases). The
+   `releases/latest` page and README badges will automatically point to the newest release.
 
-> Tag `*-web` (mis. `v1.1.0-web`) dikecualikan dari build desktop — itu
-> tag milik milestone web.
+> Tags ending in `*-web` (e.g. `v1.1.0-web`) are excluded from desktop builds — they
+> are reserved for web milestones.
 
-## Build manual (tanpa tag)
+## Manual Trigger (Without Tags)
 
-1. **Actions → Release Desktop → Run workflow** (panel can run by sending the
-   button "Run workflow" di UI GitHub).
+1. Go to **Actions → Release Desktop → Run workflow**.
 
-### Build lokal Windows (prasyarat tambahan)
+### Local Windows Build (Additional Prerequisite)
 
-`super_native_extensions` (plugin drag & drop, via cargokit) membutuhkan
-**Rust toolchain** untuk membangun native asset — CI sudah punya (runner
-GitHub meng-install Rust), mesin lokal **belum tentu**.
+`super_native_extensions` (drag & drop plugin, via cargokit) requires the
+**Rust toolchain** to build native assets — CI runners already have it installed,
+local machines may not.
 
 ```sh
-winget install --id Rustlang.Rustup -e          # rustup + stable + target MSVC
-# PATH refresh (shell baru): cargo --version
+winget install --id Rustlang.Rustup -e          # rustup + stable + MSVC target
+# refresh PATH in a new shell: cargo --version
 flutter clean && flutter pub get
 flutter build windows --release
 ```
 
-Tanpa Rust, `flutter build windows` gagal di tahap `dart_build` /
-`super_native_extensions_plugin_cargokit` ("Cargokit BuildTool failed",
-exit -1).
+Without Rust, `flutter build windows` fails at `dart_build` /
+`super_native_extensions_plugin_cargokit` ("Cargokit BuildTool failed", exit -1).
 
-## Catatan per platform
+## Per-Platform Notes
 
-| | Runner | Artefak | Catatan |
-|--|--------|---------|---------|
-| Windows | `windows-latest` | `.zip` (folder `Release/`) | Portable; unsigned → SmartScreen "Unknown publisher". |
-| macOS | `macos-14` (ARM64) | `.dmg` | Arsitektur **Apple Silicon**. Intel belum didukung (v1). Unsigned → Gatekeeper: kanan-klik **Open** atau `xattr -cr`. Membakar **10× billing minutes** (macOS runner). |
-| Linux | `ubuntu-latest` | `.tar.gz` (folder `bundle`) | Ikon jendela dimuat dari `assets/branding/markit_icon.png`. |
+| | Runner | Artifact | Notes |
+|--|--------|---------|-------|
+| Windows | `windows-latest` | `.zip` (`Release/` folder) | Portable; unsigned → SmartScreen "Unknown publisher". |
+| macOS | `macos-14` (ARM64) | `.dmg` | **Apple Silicon** architecture. Intel is unsupported in v1. Unsigned → Gatekeeper: right-click **Open** or run `xattr -cr`. Consumes **10× billing minutes** (macOS runner). |
+| Linux | `ubuntu-latest` | `.tar.gz` (`bundle` folder) | Window icon loaded from `assets/branding/markit_icon.png`. |
 
-Semua artefak dibangun dengan `flutter build --release`.
+All artifacts are built using `flutter build --release`.
 
-## Batasan & roadmap
+## Limitations & Roadmap
 
-- **Signing**: build kini unsigned. Windows SmartScreen & macOS Gatekeeper
-  memberi peringatan. Perbaikan masa depan: sertifikat code-signing Windows
-  (mis. Azure Trusted Signing) dan Apple notarization (butuh Developer ID —
-  biaya tahunan).
-- **macOS Intel**: tambah `--universal` di job macOS bila perlu.
-- **Linux distribusi**: AppImage/Deb via linuxdeploy — follow-up.
+- **Signing**: Builds are currently unsigned. Windows SmartScreen & macOS Gatekeeper
+  display warnings. Future improvement: Windows code-signing certificate
+  (e.g., Azure Trusted Signing) and Apple notarization (requires Developer ID).
+- **macOS Intel**: Add `--universal` to the macOS job if needed.
+- **Linux Distribution**: AppImage/Deb via linuxdeploy — follow-up item.
 
-## Verifikasi build lokal (Windows)
+## Local Build Verification (Windows)
 
 ```sh
 flutter build windows --release
-# jalankan sekali: build\windows\x64\runner\Release\markit.exe
+# test-run once: build\windows\x64\runner\Release\markit.exe
 ```
 
-macOS/Linux tidak dapat dibangun dari Windows — diverifikasi lewat CI logs
-dan artefak yang diunduh dari draft release.
+macOS/Linux cannot be built from Windows — verified via CI logs
+and downloaded artifacts from draft releases.
