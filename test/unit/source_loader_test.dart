@@ -5,6 +5,7 @@ import 'dart:typed_data';
 import 'package:archive/archive.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:markit/core/input_format.dart';
+import 'package:markit/core/text_truncate.dart';
 import 'package:markit/models/pdf_input.dart';
 import 'package:markit/ui/source/source_loader.dart';
 
@@ -98,6 +99,56 @@ void main() {
         () => loadSourceText(PdfInput(name: 'x.csv')),
         throwsA(isA<SourceLoadException>()),
       );
+    });
+  });
+
+  group('loadSourceText — window read (memory/perf)', () {
+    test('file > maxChars: preview identik dengan truncate full-decode', () async {
+      final big = List.filled(5000, 'é\n').join(); // multi-byte + baris pendek
+      final path = await writeFile('big.csv', big);
+      final r = await loadSourceText(
+        PdfInput(name: 'big.csv', path: path, format: InputFormat.csv),
+        maxChars: 100,
+      );
+      final full = truncateText(
+        utf8.decode(await File(path).readAsBytes()),
+        maxChars: 100,
+      );
+      expect(r.content, full.preview);
+      expect(r.truncated, full.truncated);
+      expect(r.content.contains('\uFFFD'), isFalse);
+    });
+
+    test('baris tanpa newline > maxChars: potong di maxChars tanpa artefak',
+        () async {
+      final longLine = 'x' * 20000; // tanpa '\n' sama sekali
+      final path = await writeFile('long.csv', longLine);
+      final r = await loadSourceText(
+        PdfInput(name: 'long.csv', path: path, format: InputFormat.csv),
+        maxChars: 100,
+      );
+      expect(r.truncated, isTrue);
+      expect(r.content.length, 100);
+      expect(r.content, 'x' * 100);
+    });
+
+    test('file multibyte (é) > maxChars: preview identik dengan full-decode',
+        () async {
+      // Regresi desain window: maxChars dihitung KARAKTER, window dalam BYTE —
+      // tanpa faktor 4×, 'é\n' (3 byte/baris) membuat window decode ke <
+      // maxChars karakter → preview lebih pendek dari full-decode.
+      final big = List.filled(5000, 'é\n').join();
+      final path = await writeFile('mb.csv', big);
+      final r = await loadSourceText(
+        PdfInput(name: 'mb.csv', path: path, format: InputFormat.csv),
+        maxChars: 100,
+      );
+      final full = truncateText(
+        utf8.decode(await File(path).readAsBytes()),
+        maxChars: 100,
+      );
+      expect(r.content, full.preview);
+      expect(r.truncated, full.truncated);
     });
   });
 
