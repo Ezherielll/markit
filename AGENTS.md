@@ -10,7 +10,7 @@ flutter analyze          # run after any change
 flutter test             # 319 tests; also runs goldens (must stay green)
 flutter test --update-goldens test/widget/screenshot_golden_test.dart   # regen goldens
 flutter build windows --release    # exe: build\windows\x64\runner\Release\markit.exe
-flutter build web --release --base-href /MarkIt/   # --base-href /MarkIt/ is REQUIRED
+flutter build web --release --base-href /markit/   # --base-href /markit/ is REQUIRED
 dart run benchmark/make_corpus.dart    # one-time corpus gen
 dart run benchmark/run_corpus.dart     # corpus eval
 dart run benchmark/run_benchmark.dart  # perf decision gate (800 pages)

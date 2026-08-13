@@ -3,20 +3,20 @@
 ## Deployment Guide
 
 1. Push to `master` — the `.github/workflows/deploy-web.yml` workflow automatically:
-   - Builds `flutter build web --release --base-href /MarkIt/`
+   - Builds `flutter build web --release --base-href /markit/`
    - Uploads artifact → deploys to GitHub Pages.
-2. Production URL: `https://ezherielll.github.io/MarkIt/` (repository `MarkIt`, base href `/MarkIt/`).
+2. Production URL: `https://ezherielll.github.io/markit/` (repository `markit`, base href `/markit/`).
 
 ## Manual Deployment (Optional)
 
 ```sh
-flutter build web --release --base-href /MarkIt/
+flutter build web --release --base-href /markit/
 # upload build/web contents to gh-pages branch or static hosting
 ```
 
 ## Hosting Notes
 
-- `--base-href /MarkIt/` is required for GitHub Pages project sub-paths. For root domains, set to `/`.
+- `--base-href /markit/` is required for GitHub Pages project sub-paths. For root domains, set to `/`.
 - Flutter web defaults to hash routing — no SPA fallback/rewrite needed.
 - MIME type `application/wasm` is automatically supplied by GitHub Pages.
 - Web release bundle is ~47 MB (including CanvasKit variants); server-side gzip compression reduces payloads significantly (`main.dart.js` ~2 MB → ~500 KB).

@@ -45,5 +45,5 @@ PdfInput {path | bytes, name, format}      ← detectFormat (magic bytes + exten
 
 - `flutter analyze` — 0 issues
 - `flutter test` — all tests green
-- Windows release build OK · Web build `--base-href /MarkIt/` OK
-- GitHub Pages deploy: `https://ezherielll.github.io/MarkIt/`
+- Windows release build OK · Web build `--base-href /markit/` OK
+- GitHub Pages deploy: `https://ezherielll.github.io/markit/`
