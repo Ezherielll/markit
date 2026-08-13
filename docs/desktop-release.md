@@ -7,27 +7,28 @@ a DMG (macOS, ARM64), and a tarball (Linux).
 
 ## How to Release
 
-1. **Bump version** in `pubspec.yaml` (e.g. to `1.2.0+1`),
+1. **Bump version** in `pubspec.yaml` (e.g. to `1.3.0+1`),
    commit, and push to master.
 
    ```sh
    git checkout master && git pull
    # edit version in pubspec.yaml
-   git commit -am "release: bump to v1.2.0"
+   git commit -am "release: bump to v1.3.0"
    git push origin master
    ```
 
 2. **Tag & push** (the workflow is triggered by `v*` tags, not branches):
 
    ```sh
-   git tag -a v1.2.0 -m "MarkIt v1.2.0"
-   git push origin v1.2.0
+   git tag -a v1.3.0 master -m "MarkIt v1.3.0"
+   git describe --tags --exact-match master   # GATE: must print v1.3.0
+   git push origin v1.3.0
    ```
 
 3. Wait for the workflow to complete in **Actions → Release Desktop**. Jobs:
-   - `build-windows` → `markit-windows-x64-v1.2.0.zip`
-   - `build-macos`   → `markit-macos-arm64-v1.2.0.dmg`
-   - `build-linux`   → `markit-linux-x64-v1.2.0.tar.gz`
+   - `build-windows` → `markit-windows-x64-v1.3.0.zip`
+   - `build-macos`   → `markit-macos-arm64-v1.3.0.dmg`
+   - `build-linux`   → `markit-linux-x64-v1.3.0.tar.gz`
    - `release`       → creates a **Draft Release** containing all three files
      (auto-generated release notes from commits).
 
