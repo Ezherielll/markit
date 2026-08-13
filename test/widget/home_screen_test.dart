@@ -438,7 +438,7 @@ void main() {
           }
         });
 
-    testWidgets('batch sukses → pilih folder → .md dipindah + outputPath update',
+    testWidgets('batch sukses → tombol Save → pilih folder → .md dipindah',
         (tester) async {
       // Setup pakai IO sinkron — IO async di body testWidgets tidak selesai
       // (continuation menumpuk di fake microtask queue).
@@ -469,8 +469,17 @@ void main() {
       await tester.runAsync(() async {
         await tester.tap(find.text(Strings.overwriteConfirm));
       });
-      // Batch (2x10ms) + dialog folder + move + snackbar
+      // Batch (2x10ms) — tanpa auto-dialog lagi setelah selesai.
       await drive(tester, 30);
+      // Auto-dialog TIDAK muncul lagi — file belum dipindah sebelum tap Save.
+      expect(File('${dst.path}/a.md').existsSync(), isFalse);
+      expect(find.text('Save (1)'), findsOneWidget); // tombol muncul
+
+      await tester.runAsync(() async {
+        await tester.tap(find.text('Save (1)'));
+      });
+      // Dialog folder + move + snackbar
+      await drive(tester, 10);
 
       expect(File('${dst.path}/a.md').existsSync(), isTrue);
       expect(File(oldPath).existsSync(), isFalse);
@@ -505,6 +514,13 @@ void main() {
         await tester.tap(find.text(Strings.overwriteConfirm));
       });
       await drive(tester, 30);
+
+      // Batch selesai → tombol Save muncul (auto-dialog diganti tombol).
+      expect(find.text('Save (1)'), findsOneWidget);
+      await tester.runAsync(() async {
+        await tester.tap(find.text('Save (1)'));
+      });
+      await drive(tester, 10);
 
       expect(File(job.outputPath).existsSync(), isTrue); // tetap di sumber
       expect(job.outputPath, '${src.path}/a.md');
@@ -541,6 +557,14 @@ void main() {
         await tester.tap(find.text(Strings.overwriteConfirm));
       });
       await drive(tester, 30);
+      // Auto-dialog tidak muncul — file belum dipindah sebelum tap Save.
+      expect(File('${dst.path}/a.md').readAsStringSync(), '# old');
+      expect(find.text('Save (1)'), findsOneWidget);
+
+      await tester.runAsync(() async {
+        await tester.tap(find.text('Save (1)'));
+      });
+      await drive(tester, 10);
       // Dialog konflik (folder tujuan) muncul → tap tombol overwrite
       expect(find.textContaining('already exist'), findsOneWidget);
       await tester.runAsync(() async {
@@ -550,6 +574,26 @@ void main() {
 
       expect(File('${dst.path}/a.md').readAsStringSync(), '# new');
       expect(job.outputPath, '${dst.path}/a.md');
+    });
+
+    testWidgets('tombol Save: muncul saat done>0 & idle; tidak saat running/0 done',
+        (tester) async {
+      final controller = FakeConversionController();
+      await pumpWide(tester, MaterialApp(home: HomeScreen(controller: controller)));
+      controller.addFiles([PdfInput(name: 'a.pdf', path: 'a.pdf')]);
+      await tester.pump();
+      expect(find.text('Save (1)'), findsNothing); // belum convert → done=0
+
+      // runAsync: _confirmOverwrite memakai File.exists (IO nyata).
+      await tester.runAsync(() async {
+        await tester.tap(find.text('Convert (1)'));
+        await Future<void>.delayed(const Duration(milliseconds: 50));
+        await tester.pump(const Duration(milliseconds: 50));
+      });
+      // Batch (2x10ms) selesai → tombol muncul saat idle & done>0.
+      await drive(tester, 30);
+
+      expect(find.text('Save (1)'), findsOneWidget); // batch selesai → tombol muncul
     });
   });
 }

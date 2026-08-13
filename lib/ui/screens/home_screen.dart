@@ -71,12 +71,12 @@ class _HomeScreenState extends State<HomeScreen> {
 
     _startConversion();
     await controller.convertAll();
+  }
 
-    // Fase pilih lokasi (desktop): setelah batch selesai, tawarkan folder
-    // tujuan untuk hasil .md yang sukses. Web selalu download via Blob.
-    if (!kIsWeb && mounted) {
-      await _offerMoveOutputs(controller);
-    }
+  /// Tombol Save di sidebar → pilih folder tujuan hasil .md (desktop).
+  Future<void> _onSaveOutput() async {
+    if (!mounted) return;
+    await _offerMoveOutputs(widget.controller);
   }
 
   /// Dialog konfirmasi overwrite (FR-12): muncul bila ada output .md yang
@@ -315,6 +315,7 @@ class _HomeScreenState extends State<HomeScreen> {
                       controller: c,
                       onAddMore: _addMoreFiles,
                       onConvertAll: _convertAll,
+                      onSaveOutput: _onSaveOutput,
                       onClear: _reset,
                       onRemove: c.removeFile,
                       onSelect: (job) =>

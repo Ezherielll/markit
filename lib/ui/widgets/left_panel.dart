@@ -21,6 +21,7 @@ class LeftPanel extends StatelessWidget {
     required this.onRemove,
     required this.onSelect,
     required this.onDownloadFile,
+    required this.onSaveOutput,
     this.selectedJobId,
     this.isRunning = false,
     this.progressFraction,
@@ -34,6 +35,7 @@ class LeftPanel extends StatelessWidget {
   final void Function(String id) onRemove;
   final void Function(QueuedFile) onSelect;
   final void Function(QueuedFile) onDownloadFile;
+  final VoidCallback onSaveOutput;
   final String? selectedJobId;
   final bool isRunning;
   final double? progressFraction;
@@ -209,6 +211,16 @@ class LeftPanel extends StatelessWidget {
             onPressed: () => _downloadAllZip(queue, done),
             icon: const Icon(Icons.archive_outlined, size: 18),
             label: Text('${Strings.downloadAllZip} ($done)'),
+          ),
+          const SizedBox(height: PdflowSpacing.sm),
+        ],
+        // Desktop: simpan hasil .md ke folder pilihan — muncul saat idle dan
+        // ada output sukses (done > 0).
+        if (!kIsWeb && !isRunning && done > 0) ...[
+          FilledButton.icon(
+            onPressed: onSaveOutput,
+            icon: const Icon(Icons.folder_outlined, size: 18),
+            label: Text('${Strings.saveOutput} ($done)'),
           ),
           const SizedBox(height: PdflowSpacing.sm),
         ],

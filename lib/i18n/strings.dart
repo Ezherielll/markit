@@ -116,6 +116,7 @@ class Strings {
       '%d file(s) already exist in the chosen folder.';
   static const outputSavedTo = 'Saved %d file(s) to %s';
   static const outputKeptInPlace = 'Output kept in the source folder.';
+  static const saveOutput = 'Save';
   static const featureFast = 'Fast';
   static const featureFastSub = 'Hundreds of pages in seconds';
   static const featureOffline = 'Private';
