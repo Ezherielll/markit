@@ -11,16 +11,16 @@ import '../extractor.dart';
 import '../input_format.dart';
 import '../markdown_writer.dart';
 
-/// Ekstraktor Word (Office Open XML: `.docx`/`.docm`) → markdown.
+/// Word (Office Open XML: `.docx`/`.docm`) extractor → markdown.
 ///
-/// Arsitektur: DOCX adalah ZIP berisi XML. Yang dibaca:
-/// - `word/document.xml` — konten utama (w:p paragraf, w:tbl tabel);
-/// - `word/styles.xml` — peta styleId → nama (heading 1..6);
+/// Architecture: DOCX is a ZIP containing XML. Reads:
+/// - `word/document.xml` — main content (w:p paragraphs, w:tbl tables);
+/// - `word/styles.xml` — map styleId → name (heading 1..6);
 /// - `word/numbering.xml` — numFmt "decimal" → ordered list.
-/// Pure Dart, tanpa FFI — jalan di desktop (isolate) & web (inline).
+/// Pure Dart, no FFI — runs on desktop (isolate) & web (inline).
 ///
-/// Kontrak: file korup (bukan zip / tanpa document.xml) → ConvertException
-/// corrupt; tanpa teks → noText; cancel dicek per blok.
+/// Contract: corrupt file (not zip / missing document.xml) → ConvertException
+/// corrupt; no text → noText; cancellation checked per block.
 class DocxExtractor implements FormatExtractor {
   const DocxExtractor();
 
@@ -92,10 +92,10 @@ class DocxExtractor implements FormatExtractor {
     return _emit(blocks, raws, writer, onProgress, isCancelled);
   }
 
-  /// Jalani children `<w:body>`: paragraf → Block, tabel → raw markdown.
+  /// Walk `<w:body>` children: paragraph → Block, table → raw markdown.
   ///
-  /// [orderedCounter] mengikuti blok ordered list berurutan (1-based);
-  /// reset saat keluar dari deretan ordered (paragraf lain / tabel).
+  /// [orderedCounter] tracks consecutive ordered list blocks (1-based);
+  /// resets when leaving ordered sequence (other paragraph / table).
   void _walkBody(
     XmlElement body,
     List<Block> blocks,
@@ -130,7 +130,7 @@ class DocxExtractor implements FormatExtractor {
     }
   }
 
-  /// Tulis blocks + raws ke writer; batal di tengah via [isCancelled].
+  /// Write blocks + raws to writer; cancel mid-way via [isCancelled].
   ExtractionResult _emit(
     List<Block> blocks,
     List<String> raws,
@@ -183,7 +183,7 @@ class DocxExtractor implements FormatExtractor {
     return utf8.decode(entry.content as List<int>, allowMalformed: true);
   }
 
-  /// Peta styleId → level heading (1..6) dari nama style ("heading 1" dst).
+  /// Map styleId → heading level (1..6) from style name ("heading 1" etc).
   Map<String, int> _parseStyles(String? stylesXml) {
     final result = <String, int>{};
     if (stylesXml == null) return result;
@@ -204,12 +204,12 @@ class DocxExtractor implements FormatExtractor {
         if (m != null) result[id] = int.parse(m.group(1)!);
       }
     } on XmlException {
-      // styles.xml korup → semua paragraf dianggap body (tidak fatal).
+      // corrupt styles.xml → all paragraphs treated as body (non-fatal).
     }
     return result;
   }
 
-  /// Peta numId → true bila formatnya decimal (ordered), false = bullet.
+  /// Map numId → true if format is decimal (ordered), false = bullet.
   Map<String, bool> _parseNumbering(String? numberingXml) {
     final result = <String, bool>{};
     if (numberingXml == null) return result;
@@ -230,12 +230,12 @@ class DocxExtractor implements FormatExtractor {
         }
       }
     } on XmlException {
-      // numbering.xml korup → semua numPr dianggap bullet (tidak fatal).
+      // corrupt numbering.xml → all numPr treated as bullet (non-fatal).
     }
     return result;
   }
 
-  /// Peta abstractNumId → true bila numFmt-nya numbered (decimal/letter/roman).
+  /// Map abstractNumId → true if numFmt is numbered (decimal/letter/roman).
   Map<String, bool> _parseAbstractNumFormats(XmlDocument doc) {
     final result = <String, bool>{};
     for (final node in doc.rootElement.descendants.whereType<XmlElement>()) {
@@ -256,7 +256,7 @@ class DocxExtractor implements FormatExtractor {
     return result;
   }
 
-  /// Konversi satu `<w:p>` → Block; null bila paragraf kosong (hanya pPr).
+  /// Convert single `<w:p>` → Block; null if empty paragraph (pPr only).
   Block? _paragraphToBlock(
     XmlElement p,
     Map<String, int> styles,
@@ -267,7 +267,7 @@ class DocxExtractor implements FormatExtractor {
         .where((e) => e.name.local == 'pPr')
         .firstOrNull;
 
-    // Heading dari style paragraf.
+    // Heading from paragraph style.
     final styleId = pPr?.descendants
         .whereType<XmlElement>()
         .where((e) => e.name.local == 'pStyle')
@@ -310,7 +310,7 @@ class DocxExtractor implements FormatExtractor {
     return Block(type: BlockType.paragraph, lines: [text]);
   }
 
-  /// Gabung teks paragraf: w:t (xml:space preserve), w:tab, w:br, hyperlink.
+  /// Join paragraph text: w:t (xml:space preserve), w:tab, w:br, hyperlink.
   String _paragraphText(XmlElement p) {
     final sb = StringBuffer();
     for (final node in p.descendants.whereType<XmlElement>()) {
@@ -329,7 +329,7 @@ class DocxExtractor implements FormatExtractor {
     return sb.toString().replaceAll(RegExp(r'\s+'), ' ').trim();
   }
 
-  /// `<w:tbl>` → tabel markdown (pola sama HtmlExtractor._tableMarkdown).
+  /// `<w:tbl>` → markdown table (same pattern as HtmlExtractor._tableMarkdown).
   String _tableMarkdown(XmlElement tbl) {
     final sb = StringBuffer();
     var first = true;
@@ -346,8 +346,8 @@ class DocxExtractor implements FormatExtractor {
     return sb.toString().trimRight();
   }
 
-  /// Sel satu baris tabel: `<w:tc>` (paragraf di dalam sel) atau `<w:p>`
-  /// langsung sebagai sel (format ringkas); `|` di-escape untuk markdown.
+  /// Table row cells: `<w:tc>` (paragraphs inside cell) or `<w:p>`
+  /// directly as cell (concise format); `|` escaped for markdown.
   List<String> _rowCells(XmlElement tr) {
     final cells = <String>[];
     for (final child in tr.children.whereType<XmlElement>()) {

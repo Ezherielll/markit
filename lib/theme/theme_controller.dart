@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-/// Controller tema (light/dark/system) dengan persistensi lintas sesi.
-/// Desktop: SharedPreferences di disk; Web: localStorage.
+/// Theme controller (light/dark/system) with cross-session persistence.
+/// Desktop: SharedPreferences on disk; Web: localStorage.
 class ThemeController extends ChangeNotifier {
   ThemeController({ThemeMode initial = ThemeMode.system})
       : _mode = initial;
@@ -25,7 +25,7 @@ class ThemeController extends ChangeNotifier {
         notifyListeners();
       }
     } catch (_) {
-      // Persistensi gagal → default system, tidak fatal.
+      // Persistence failure → default to system, non-fatal.
     }
   }
 

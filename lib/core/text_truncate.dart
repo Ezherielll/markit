@@ -1,5 +1,5 @@
-/// Potong konten untuk preview — memotong di batas baris agar markdown tetap
-/// valid. Return (preview, apakah terpotong).
+/// Truncate content for preview — cuts at line boundaries to preserve valid markdown.
+/// Returns (preview, whether truncated).
 ({String preview, bool truncated}) truncateText(
   String content, {
   required int maxChars,
@@ -9,7 +9,7 @@
   }
   var cut = content.lastIndexOf('\n', maxChars);
   if (cut <= 0) cut = maxChars;
-  // Potong di akhir baris (termasuk newline) agar baris terakhir utuh.
+  // Cut at line end (including newline) to keep the last line complete.
   if (cut < content.length && content[cut] == '\n') cut++;
   return (
     preview: content.substring(0, cut),
@@ -17,9 +17,7 @@
   );
 }
 
-/// Alias [truncateText] — nama historis yang dipakai preview markdown
-/// (diduplikasi dari lib/ui/widgets/markdown_helpers.dart agar caller lama
-/// tidak berubah).
+/// Alias for [truncateText] — legacy name used by markdown preview.
 ({String preview, bool truncated}) truncateMarkdownPreview(
   String content, {
   required int maxChars,

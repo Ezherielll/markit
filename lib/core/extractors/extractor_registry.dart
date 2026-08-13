@@ -3,13 +3,13 @@ import '../input_format.dart';
 import 'csv_extractor.dart';
 import 'docx_extractor.dart';
 
-/// Registry extractor per keluarga format.
+/// Extractor registry per format family.
 ///
-/// PDF tidak masuk di sini — jalur PDF adalah pipeline existing
-/// (PdfrxSource → grouper → classifier) yang dirouting di executor
-/// (penyatuan ke seam yang sama ada di roadmap). Keluarga tanpa extractor
-/// (powerpoint/excel/opendocument/rtf/epub) → null: terdeteksi & bisa
-/// dipilih, lalu gagal dengan pesan "not supported yet" yang jelas.
+/// PDF is not included here — PDF path uses existing pipeline
+/// (PdfrxSource → grouper → classifier) routed in executor
+/// (unification into same seam is on roadmap). Families without extractor
+/// (powerpoint/excel/opendocument/rtf/epub) → null: detected & selectable,
+/// failing with clear "not supported yet" error.
 class ExtractorRegistry {
   const ExtractorRegistry._();
 
@@ -18,6 +18,6 @@ class ExtractorRegistry {
     InputFormat.csv: const CsvExtractor(),
   };
 
-  /// Extractors non-PDF; null → format belum didukung konversi.
+  /// Non-PDF extractors; null → format conversion not supported yet.
   static FormatExtractor? forFormat(InputFormat format) => _extractors[format];
 }

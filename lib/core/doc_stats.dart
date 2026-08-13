@@ -1,33 +1,32 @@
 import 'pdf_source.dart';
 
-/// Koefisien heuristik pipeline, disentralkan untuk tuning mudah
-/// (nantinya jadi advanced settings — keputusan D9).
+/// Centralized pipeline heuristic coefficients for easy tuning.
 class PipelineConfig {
   const PipelineConfig({
     this.headingFontFactor = 1.2,
     this.paragraphGapFactor = 1.5,
     this.lineToleranceFactor = 0.6,
-    this.headerZoneFraction = 0.93, // Fase B: yTop > pageHeight * 0.93 = header
-    this.footerZoneFraction = 0.08, // Fase B: yTop < pageHeight * 0.08 = footer
+    this.headerZoneFraction = 0.93,
+    this.footerZoneFraction = 0.08,
   });
 
-  /// Baris dengan fontSize >= body * [headingFontFactor] → heading (FR-05).
+  /// Lines with fontSize >= body * [headingFontFactor] → heading.
   final double headingFontFactor;
 
-  /// Gap antar-baris > medianGap * [paragraphGapFactor] → batas paragraf (FR-04).
+  /// Line gap > medianGap * [paragraphGapFactor] → paragraph boundary.
   final double paragraphGapFactor;
 
-  /// Fragment digabung ke baris jika jarak y < lineHeight * [lineToleranceFactor] (FR-03).
+  /// Fragments joined into line if y-distance < lineHeight * [lineToleranceFactor].
   final double lineToleranceFactor;
 
-  /// Fraksi tinggi halaman untuk zona header (Fase B).
+  /// Page height fraction for header zone.
   final double headerZoneFraction;
 
-  /// Fraksi tinggi halaman untuk zona footer (Fase B).
+  /// Page height fraction for footer zone.
   final double footerZoneFraction;
 }
 
-/// Statistik seluruh dokumen hasil pass 1 (histogram ringan).
+/// Document-wide statistics from pass 1 (lightweight histogram).
 class DocStats {
   DocStats({
     required this.bodyFontSize,
@@ -35,21 +34,20 @@ class DocStats {
     required this.emptyPages,
   });
 
-  /// Proxy fontSize "body text" = bucket paling sering (mode).
-  /// Dasar klasifikasi heading (FR-05), bukan threshold hardcoded.
+  /// Proxy "body text" fontSize = most frequent bucket (mode).
+  /// Basis for heading classification, not a hardcoded threshold.
   final double bodyFontSize;
 
   final int totalPages;
 
-  /// Jumlah halaman tanpa teks terdeteksi (indikasi scan, FR-10d).
+  /// Count of pages without detected text (scanned PDF indication).
   final int emptyPages;
 
-  /// Halaman tanpa teks >= 95% total → kemungkinan besar PDF hasil scan.
+  /// Pages without text >= 95% total → likely a scanned PDF.
   bool get likelyScanned => totalPages > 0 && emptyPages / totalPages >= 0.95;
 }
 
-/// Satu pita ukuran font yang diklasifikasikan sebagai heading level tertentu
-/// (Fase A: multi-band heading detection).
+/// A single font size band classified as a specific heading level.
 class HeadingBand {
   const HeadingBand({
     required this.minSize,
@@ -60,69 +58,67 @@ class HeadingBand {
   final double minSize;
   final double maxSize;
 
-  /// Level heading 1-based (1 = terbesar).
+  /// 1-based heading level (1 = largest).
   final int headingLevel;
 
-  /// Toleransi pencocokan: nilai hidup (un-bucketed) bisa beda hingga satu
-  /// bucket (0.5pt) dari batas band yang tersimpan sebagai bucket center.
+  /// Matching tolerance: un-bucketed values can differ by up to one bucket (0.5pt).
   static const double tolerance = 0.5;
 
   bool contains(double size) =>
       size >= minSize - tolerance && size <= maxSize + tolerance;
 }
 
-/// Profil dokumen hasil pass 1 (Fase A): body font + pita heading + konteks.
+/// Document profile from pass 1: body font + heading bands + page context.
 ///
-/// Menggantikan [DocStats] sebagai output utama [DocStatsComputer] —
-/// [DocStats] dipertahankan untuk backward compat sementara.
+/// Replaces [DocStats] as primary output of [DocStatsComputer].
 class DocProfile {
   const DocProfile({
     required this.bodyFontSize,
     required this.headingBands,
     required this.totalPages,
     required this.emptyPages,
-    this.pageWidth = 0, // Fase B: lebar halaman (median, unit PDF)
-    this.pageHeight = 0, // Fase B: tinggi halaman (median, unit PDF)
-    this.bodyLeftMargin = 0, // Fase B: margin kiri body (mode xLeft)
-    this.bodyRightMargin = 0, // Fase B: margin kanan body
+    this.pageWidth = 0,
+    this.pageHeight = 0,
+    this.bodyLeftMargin = 0,
+    this.bodyRightMargin = 0,
   });
 
-  /// Proxy fontSize "body text" = bucket paling sering (mode).
+  /// Proxy "body text" fontSize = most frequent bucket (mode).
   final double bodyFontSize;
 
-  /// Pita ukuran heading, sorted descending size (H1, H2, ...), max H4.
+  /// Heading font size bands, sorted descending (H1, H2, ...), max H4.
   final List<HeadingBand> headingBands;
 
   final int totalPages;
 
-  /// Jumlah halaman tanpa teks terdeteksi (indikasi scan, FR-10d).
+  /// Count of pages without detected text (scanned indication).
   final int emptyPages;
 
-  /// Lebar halaman (median seluruh halaman) dalam unit PDF (Fase B).
+  /// Page width (median across pages) in PDF units.
   final double pageWidth;
 
-  /// Tinggi halaman (median seluruh halaman) dalam unit PDF (Fase B).
+  /// Page height (median across pages) in PDF units.
   final double pageHeight;
 
-  /// Margin kiri body text (mode xLeft spans body) (Fase B).
+  /// Body text left margin (mode of body span xLeft).
   final double bodyLeftMargin;
 
-  /// Margin kanan body text (default: simetris dengan kiri) (Fase B).
+  /// Body text right margin.
   final double bodyRightMargin;
 
-  /// Lebar konten utama (antara margin kiri dan kanan) (Fase B).
+  /// Main content width (between left and right margin).
   double get bodyWidth => bodyRightMargin - bodyLeftMargin;
 
-  /// Zona header: yTop > [pageHeight] * [fraction] dianggap header (Fase B).
+  /// Header zone: yTop > [pageHeight] * [fraction] considered header.
   double headerZoneBottom(double fraction) => pageHeight * fraction;
 
-  /// Zona footer: yTop < [pageHeight] * [fraction] dianggap footer (Fase B).
+  /// Footer zone: yTop < [pageHeight] * [fraction] considered footer.
   double footerZoneTop(double fraction) => pageHeight * fraction;
 
-  /// Halaman tanpa teks >= 95% total → kemungkinan besar PDF hasil scan.
+  /// Pages without text >= 95% total → likely a scanned PDF.
   bool get likelyScanned => totalPages > 0 && emptyPages / totalPages >= 0.95;
 
-  /// Band heading yang memuat [size]; null bila bukan ukuran heading.
+  /// Heading band containing [size]; null if not a heading size.
   HeadingBand? bandForSize(double size) {
     for (final band in headingBands) {
       if (band.contains(size)) return band;
@@ -130,14 +126,13 @@ class DocProfile {
     return null;
   }
 
-  /// Bangun profil dari histogram tinggi char (bucket = [DocStatsComputer.bucketSize]).
+  /// Build profile from char height histogram (bucket = [DocStatsComputer.bucketSize]).
   ///
-  /// Algoritma (design spec §4.1):
-  /// 1. Cluster bucket berurutan dengan gap <= 1.5pt → band.
-  /// 2. Body band = band yang memuat mode.
-  /// 3. Heading bands = band dengan min > body * 1.1 dan frekuensi >= 2.
-  /// 4. Sort bands desc size → H1, H2, H3, ... (maksimal H4).
-  /// Fase B: pageWidth/pageHeight (median) + bodyLeftMargin (mode xLeft).
+  /// Algorithm:
+  /// 1. Cluster consecutive buckets with gap <= 1.5pt → band.
+  /// 2. Body band = band containing mode.
+  /// 3. Heading bands = bands with min > body * 1.1 and count >= 2.
+  /// 4. Sort bands desc size → H1, H2, H3, ... (max H4).
   static DocProfile fromHistogram(
     Map<double, int> hist, {
     required int totalPages,
@@ -185,10 +180,9 @@ class DocProfile {
   }
 }
 
-/// Petakan band terurut-desc ke level heading H1..H4 (maksimal 4 level).
+/// Map descending-sorted bands to heading levels H1..H4 (max 4 levels).
 ///
-/// Body band dilewati; band yang terlalu dekat dengan body (≤ 1.1×) atau
-/// berfrekuensi < 2 dianggap noise, bukan heading.
+/// Body band skipped; bands too close to body (<= 1.1x) or count < 2 considered noise.
 List<HeadingBand> _levelBands(
   List<_FontBand> sorted,
   double bodySize,
@@ -198,20 +192,20 @@ List<HeadingBand> _levelBands(
   var level = 1;
   for (final band in sorted) {
     if (identical(band, bodyBand)) continue;
-    if (band.minSize <= bodySize * 1.1) continue; // terlalu dekat dengan body
-    if (band.count < 2) continue; // outlier sekali muncul
+    if (band.minSize <= bodySize * 1.1) continue;
+    if (band.count < 2) continue;
     headingBands.add(HeadingBand(
       minSize: band.minSize,
       maxSize: band.maxSize,
       headingLevel: level,
     ));
     level++;
-    if (level > 4) break; // maksimal H4 dalam praktik
+    if (level > 4) break;
   }
   return headingBands;
 }
 
-/// Mode dari list nilai double (rounded ke 1pt).
+/// Mode from double value list (rounded to 1pt).
 double _modeDouble(List<double> values) {
   if (values.isEmpty) return 0;
   final freq = <int, int>{};
@@ -222,7 +216,7 @@ double _modeDouble(List<double> values) {
   return freq.entries.reduce((a, b) => a.value >= b.value ? a : b).key.toDouble();
 }
 
-/// Median dari list double.
+/// Median from double list.
 double _median(List<double> values) {
   if (values.isEmpty) return 0;
   final sorted = [...values]..sort();
@@ -230,8 +224,7 @@ double _median(List<double> values) {
   return sorted.length.isOdd ? sorted[mid] : (sorted[mid - 1] + sorted[mid]) / 2;
 }
 
-/// Cluster bucket histogram berurutan: bucket dengan gap <= 1.5pt dianggap
-/// satu band ukuran font yang sama (menyerap variasi glyph).
+/// Cluster consecutive histogram buckets: gap <= 1.5pt considered same font band.
 List<_FontBand> _clusterBands(Map<double, int> hist) {
   final buckets = hist.keys.toList()..sort();
   final bands = <_FontBand>[];
@@ -264,15 +257,13 @@ class _FontBand {
   bool contains(double size) => size >= minSize && size <= maxSize;
 }
 
-/// Pass 1: bangun histogram tinggi char dari seluruh halaman tanpa
-/// menyimpan layout lengkap (memory O(1) relatif terhadap halaman).
+/// Pass 1: build char height histogram from all pages without storing full layout.
 class DocStatsComputer {
   DocStatsComputer(this._source);
 
   final PdfSource _source;
 
-  /// Ukuran bucket histogram (0.5pt). PDF real bervariasi per glyph,
-  /// jadi mode dihitung pada bucket, bukan nilai presisi.
+  /// Histogram bucket size (0.5pt). Real PDFs vary per glyph, mode is computed on buckets.
   static const double bucketSize = 0.5;
 
   Future<DocStats> compute() async {
@@ -299,8 +290,7 @@ class DocStatsComputer {
     );
   }
 
-  /// Pass 1 (Fase A): hitung [DocProfile] — body font + pita heading
-  /// multi-level + info halaman. Same pass tunggal seperti [compute].
+  /// Pass 1: compute [DocProfile] — body font + multi-level heading bands + page info.
   Future<DocProfile> computeProfile() async {
     final hist = <double, int>{};
     var emptyPages = 0;
@@ -315,7 +305,7 @@ class DocStatsComputer {
         continue;
       }
       if (firstTextPage < 0) firstTextPage = i;
-      // Fase B: kumpulkan geometri halaman (media box)
+      // Collect page geometry (media box)
       if (page.pageWidth > 0) pageWidths.add(page.pageWidth);
       if (page.pageHeight > 0) pageHeights.add(page.pageHeight);
       for (final h in page.lineHeights) {
@@ -325,11 +315,7 @@ class DocStatsComputer {
       }
     }
 
-    // Fase C: loadLight tidak mengekspos xLeft → ambil sampel xLeft dari
-    // halaman pertama berisi teks via loadFull. Hanya span berukuran body
-    // (band ±0.8x..1.1x bodyFontSize) yang disertakan; heading/caption
-    // dieksklusikan agar mode xLeft tidak bergeser. Bila loadFull gagal,
-    // sampel dikosongkan (bodyLeftMargin default 0 — perilaku Fase B).
+    // Sample xLeft from first text-bearing page via loadFull.
     final bodyFontSize = _mode(hist);
     final bodyXLeftSamples = firstTextPage >= 0
         ? await _sampleBodyXLefts(firstTextPage, bodyFontSize)
@@ -345,9 +331,7 @@ class DocStatsComputer {
     );
   }
 
-  /// Sampel xLeft span berukuran body (0.8×..1.1× [bodyFontSize]) dari
-  /// halaman pertama berisi teks. Kosong bila gagal load atau ukuran tidak
-  /// valid (margin default 0).
+  /// Sample xLeft of body-sized spans (0.8x..1.1x [bodyFontSize]) from first text page.
   Future<List<double>> _sampleBodyXLefts(
     int firstTextPage,
     double bodyFontSize,
@@ -364,16 +348,12 @@ class DocStatsComputer {
       }
       return samples;
     } catch (_) {
-      // skip sampling — margin default 0 (kompatibel behavior lama)
+      // skip sampling — default margin 0
       return const [];
     }
   }
 
-  /// Bucket dengan densitas tertinggi di window ±[bucketSize]
-  /// (jumlah bucket kiri + tengah + kanan). Lebih robust dari mode murni:
-  /// variasi glyph di sekitar body font (mis. 11.7/12.0/12.3) terakumulasi
-  /// menjadi satu puncak. Tie → bucket terbesar (konservatif: heading
-  /// tidak pernah jadi body).
+  /// Bucket with highest density in window +/- [bucketSize].
   static double _mode(Map<double, int> hist) {
     if (hist.isEmpty) return 0;
     final buckets = hist.keys.toList()..sort();

@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 
-/// Palet "Document Studio" — kertas, tinta, tinta pulpen, stempel.
-/// Grounded pada subjek (PDF → Markdown): hangat, desaturated, editorial.
-abstract final class PdflowColors {
+/// "Document Studio" palette — paper, ink, pen ink, stamp.
+/// Grounded in the subject (Document → Markdown): warm, desaturated, editorial.
+abstract final class MarkitColors {
   // ── Light ───────────────────────────────────────────────
   static const paperLight = Color(0xFFF6F4EF);
   static const surfaceLight = Color(0xFFFDFCFA);

@@ -7,9 +7,9 @@ import '../extractor.dart';
 import '../input_format.dart';
 import '../markdown_writer.dart';
 
-/// Ekstraktor CSV → tabel markdown (baris pertama = header).
+/// CSV extractor → markdown table (first row = header).
 ///
-/// Mendukung quoted field (`"a,b"` = satu kolom), CRLF, baris kosong.
+/// Supports quoted fields (`"a,b"` = one column), CRLF, empty rows.
 class CsvExtractor implements FormatExtractor {
   const CsvExtractor();
 
@@ -59,7 +59,7 @@ class CsvExtractor implements FormatExtractor {
 
   String? _readRaw(Uint8List? bytes, String? path) {
     if (bytes != null) {
-      // CSV sering latin1/ANSI — decode dengan utf8 lalu fallback.
+      // CSV is often latin1/ANSI — try decoding with utf8 then fallback.
       try {
         return utf8.decode(bytes);
       } on FormatException {
@@ -82,8 +82,8 @@ class CsvExtractor implements FormatExtractor {
     return s;
   }
 
-  /// Parse CSV sederhana: dukung quoted field & CRLF. Baris kosong
-  /// (semua kolom kosong) dilewati.
+  /// Simple CSV parser: supports quoted fields & CRLF. Empty rows
+  /// (all empty columns) are skipped.
   List<List<String>> _parseCsv(String text) {
     final rows = <List<String>>[];
     var row = <String>[];
@@ -95,7 +95,7 @@ class CsvExtractor implements FormatExtractor {
       if (inQuotes) {
         switch (_quoteStep(c, text, i, field)) {
           case _QuoteStep.escaped:
-            i++; // lompati karakter kedua dari quote ganda ('""' → '"')
+            i++; // skip second quote of double quote ('""' → '"')
           case _QuoteStep.closed:
             inQuotes = false;
           case _QuoteStep.plain:
@@ -109,7 +109,7 @@ class CsvExtractor implements FormatExtractor {
             _flushCell(row, field);
             field = StringBuffer();
           case '\r':
-          // Perilaku baseline: case kosong → fall-through; \r mengakhiri baris.
+          // Baseline behavior: empty case → fall-through; \r ends line.
           case '\n':
             _flushCell(row, field);
             field = StringBuffer();
@@ -128,7 +128,7 @@ class CsvExtractor implements FormatExtractor {
     return rows;
   }
 
-  /// Langkah pemrosesan satu karakter di dalam quoted field.
+  /// Processing step for a single character inside a quoted field.
   _QuoteStep _quoteStep(String c, String text, int i, StringBuffer field) {
     if (c != '"') {
       field.write(c);
@@ -141,12 +141,12 @@ class CsvExtractor implements FormatExtractor {
     return _QuoteStep.closed;
   }
 
-  /// Flush field saat ini ke baris (pemisah koma atau akhir baris).
+  /// Flush current field to row (comma separator or end of line).
   void _flushCell(List<String> row, StringBuffer field) {
     row.add(field.toString());
   }
 
-  /// Tambah baris hanya bila ada kolom non-kosong (baris kosong dilewati).
+  /// Add row only if it contains non-empty columns (empty rows skipped).
   void _addRowIfNonEmpty(List<List<String>> rows, List<String> row) {
     if (row.any((f) => f.trim().isNotEmpty)) rows.add(row);
   }
@@ -155,5 +155,5 @@ class CsvExtractor implements FormatExtractor {
       cell.replaceAll('|', r'\|').replaceAll('\n', ' ');
 }
 
-/// Langkah pemrosesan satu karakter di dalam quoted field.
+/// Processing step for a single character inside a quoted field.
 enum _QuoteStep { plain, escaped, closed }

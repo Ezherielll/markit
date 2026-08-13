@@ -7,13 +7,13 @@ import 'theme/theme_controller.dart';
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  // Inisialisasi pdfrx — desktop: cache dir; web: WASM engine worker.
-  // Idempotent & aman untuk semua platform (M5).
+  // Initialize pdfrx — desktop: cache dir; web: WASM engine worker.
+  // Idempotent & safe for all platforms.
   await pdfrxFlutterInitialize();
 
-  // Muat preferensi tema sebelum runApp (M7).
+  // Load theme preferences before runApp.
   final themeController = ThemeController();
   await themeController.load();
 
-  runApp(PdflowApp(themeController: themeController));
+  runApp(MarkitApp(themeController: themeController));
 }

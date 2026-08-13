@@ -1,23 +1,23 @@
 import 'dart:io';
 
-/// Rencana pemindahan output .md ke folder pilihan user (fase "pilih lokasi").
+/// Plan for moving output .md files to user-selected folder.
 class OutputMovePlan {
   const OutputMovePlan({required this.moves, required this.conflicts});
 
-  /// Pasangan (path asal, path tujuan) untuk setiap file.
+  /// Pair (source path, destination path) for each file.
   final List<(String, String)> moves;
 
-  /// Path tujuan yang SUDAH ADA di disk — butuh keputusan overwrite.
+  /// Destination paths that ALREADY EXIST on disk — require overwrite decision.
   final List<String> conflicts;
 
   bool get hasConflicts => conflicts.isNotEmpty;
 }
 
-/// Susun pemindahan: tiap (fromPath, fileName) → `directory/fileName`.
-/// Target yang sudah ada di disk dicatat sebagai konflik (tidak dihapus).
-/// Target duplikat dalam batch yang sama (dua input beda folder, nama sama)
-/// DIBUANG dari [moves] dan targetnya masuk [conflicts] — file tetap di
-/// sumber, tidak boleh saling timpa.
+/// Prepare move plan: each (fromPath, fileName) → `directory/fileName`.
+/// Existing targets on disk recorded as conflicts (not deleted).
+/// Duplicate targets within the same batch (two inputs from different folders, same name)
+/// REMOVED from [moves] and target enters [conflicts] — files remain at
+/// source, avoiding accidental overwrites.
 OutputMovePlan planOutputMoves(
   List<(String fromPath, String fileName)> outputs,
   String directory,
@@ -38,17 +38,16 @@ OutputMovePlan planOutputMoves(
   return OutputMovePlan(moves: moves, conflicts: conflicts);
 }
 
-/// Terapkan rencana. Konflik: di-skip bila [overwrite] false (file tetap di
-/// folder sumber); bila true, target dihapus dulu — File.rename di Windows
-/// menolak tujuan yang sudah ada. Return pasangan (from, to) yang berhasil.
+/// Apply move plan. Conflicts: skipped if [overwrite] false (file remains at
+/// source folder); if true, target is deleted first — File.rename on Windows
+/// rejects existing destination. Returns list of successfully moved (from, to) pairs.
 Future<List<(String, String)>> applyOutputMoves(
   OutputMovePlan plan, {
   required bool overwrite,
 }) async {
   final applied = <(String, String)>[];
   for (final (from, to) in plan.moves) {
-    // Bandingkan path kanonik: `.absolute.uri.toFilePath()` menormalisasi
-    // separator (C:/a.md == C:\a.md di Windows) + membuang redundansi.
+    // Compare canonical paths: normalize separators + remove redundancies.
     if (File(from).absolute.uri.toFilePath() ==
         File(to).absolute.uri.toFilePath()) {
       continue;

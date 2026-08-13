@@ -5,7 +5,7 @@ import 'package:archive/archive.dart';
 
 import 'text_truncate.dart';
 
-/// Hasil preview teks dari dokumen berbasis ZIP.
+/// Text preview result from a ZIP-based document.
 class ZipTextPreviewResult {
   const ZipTextPreviewResult({required this.text, required this.truncated});
 
@@ -13,16 +13,16 @@ class ZipTextPreviewResult {
   final bool truncated;
 }
 
-/// Preview teks CEPAT untuk format ZIP+XML (docx/pptx/xlsx/odt/epub).
+/// FAST text preview for ZIP+XML formats (docx/pptx/xlsx/odt/epub).
 ///
-/// Bukan parser — hanya cari entry utama (via petunjuk dari katalog format),
-/// strip tag XML kasar, lalu truncate. Preview ≠ konversi: cukup untuk
-/// "Source Preview" tanpa biaya parse penuh.
+/// Not a full parser — finds main entry (via hints from format catalog),
+/// strips raw XML tags, then truncates. Preview != conversion: sufficient for
+/// "Source Preview" without full parse cost.
 class ZipTextPreview {
   const ZipTextPreview();
 
-  /// Null bila bytes bukan ZIP yang valid atau tidak ada entry yang cocok
-  /// dengan [entryHints] (mis. dokumen rusak).
+  /// Null if bytes are not a valid ZIP or no entry matches [entryHints]
+  /// (e.g. corrupt document).
   ZipTextPreviewResult? extract(
     Uint8List bytes, {
     required List<String> entryHints,
@@ -51,8 +51,8 @@ class ZipTextPreview {
     return ZipTextPreviewResult(text: cut.preview, truncated: cut.truncated);
   }
 
-  /// Strip tag XML + unescape entity, dengan pemisah baris pada penutup
-  /// blok teks umum (paragraf Word/ODF/PPT, sharedString Excel).
+  /// Strip XML tags + unescape entities, placing line breaks on block closes
+  /// (Word/ODF/PPT paragraphs, Excel sharedStrings).
   String _stripMarkup(String xml) {
     final withBreaks = xml.replaceAll(
       RegExp(r'</(?:w:p|text:p|a:p|p:sp|si|h\d)>', caseSensitive: false),

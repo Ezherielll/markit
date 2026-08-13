@@ -2,16 +2,16 @@ import '../models/layout.dart';
 import 'doc_stats.dart';
 import 'table_detector.dart';
 
-/// Stage 4: klasifikasi struktur (FR-05 heading 2-tier, FR-06 list).
+/// Stage 4: structure classification (heading, list, table).
 ///
-/// Fase A: heading multi-level berbasis [DocProfile.headingBands]
-/// (band ukuran font → level H1..H4); fallback legacy faktor heading
-/// bila profil tidak tersedia. List detection pattern-based:
-/// bullet wajib diikuti whitespace ('o' bukan bullet), ordered list
-/// `1.` / `1)` / `a.` / `a)` didukung.
-/// Fase C: [TableDetector] men-tag paragraf lebih dahulu (grup tabel →
+/// Multi-level heading based on [DocProfile.headingBands]
+/// (font size band → H1..H4 level); fallback heading factor
+/// when profile is unavailable. Pattern-based list detection:
+/// bullet must be followed by whitespace ('o' is not a bullet), ordered list
+/// `1.` / `1)` / `a.` / `a)` supported.
+/// [TableDetector] tags paragraphs first (table group →
 /// BlockType.tableHeader/tableRow); nested list via [DocProfile.bodyLeftMargin]
-/// (Fase D: xLeft ladder → listDepth 0..3, step 1.5 * bodyFontSize).
+/// (xLeft ladder → listDepth 0..3, step 1.5 * bodyFontSize).
 class StructureClassifier {
   StructureClassifier({
     required this.bodyFontSize,
@@ -19,7 +19,7 @@ class StructureClassifier {
     this._profile,
   });
 
-  /// Factory utama (Fase A): profil pass 1 dengan pita heading.
+  /// Main factory: pass 1 profile with heading bands.
   StructureClassifier.withProfile({
     required DocProfile profile,
     PipelineConfig? config,
@@ -32,24 +32,24 @@ class StructureClassifier {
   final double bodyFontSize;
   final PipelineConfig config;
 
-  /// Profil pass 1 (opsional, backward compat) untuk multi-band heading.
+  /// Pass 1 profile (optional, backward compatibility) for multi-band heading.
   final DocProfile? _profile;
 
-  /// Detektor tabel Fase C (stateless, aman sebagai singleton).
+  /// Table detector (stateless, safe as singleton).
   final TableDetector _tableDetector = const TableDetector();
 
-  /// Bullet wajib diikuti whitespace — menghindari false positive
-  /// seperti '-3°C' atau 'o' sebagai huruf biasa (design §4.5).
+  /// Bullet must be followed by whitespace — avoids false positives
+  /// like '-3°C' or 'o' as normal text.
   static final _bulletRe = RegExp(r'^[•\-*▪·◦○●]\s+');
 
-  /// Ordered: angka atau huruf + '.' / ')' + whitespace (design §4.5).
+  /// Ordered: digits or letters + '.' / ')' + whitespace.
   static final _orderedRe = RegExp(r'^(\d+[.)]\s+|[a-zA-Z][.)]\s+)');
   static final _indexRe = RegExp(r'^\d+');
 
-  /// Konversi paragraf (list of lines) → blok markdown.
+  /// Convert paragraphs (list of lines) → markdown blocks.
   ///
-  /// Fase C: [TableDetector] dipanggil lebih dahulu untuk menandai grup
-  /// tabel (baris ber-gap konsisten); grup non-tabel diproses per paragraf.
+  /// [TableDetector] called first to tag table groups
+  /// (lines with consistent gaps); non-table groups processed per paragraph.
   List<Block> classify(List<List<Line>> paragraphs) {
     final profile = _profile ?? _defaultProfile();
     final tagged = _tableDetector.tag(paragraphs, profile);
@@ -67,8 +67,8 @@ class StructureClassifier {
     return blocks;
   }
 
-  /// Profil fallback bila classifier dibangun tanpa profil (konstruktor
-  /// legacy): tanpa band heading dan tanpa geometri margin.
+  /// Fallback profile if classifier constructed without profile:
+  /// no heading bands or margin geometry.
   DocProfile _defaultProfile() => DocProfile(
         bodyFontSize: bodyFontSize,
         headingBands: const [],
@@ -76,9 +76,9 @@ class StructureClassifier {
         emptyPages: 0,
       );
 
-  /// Klasifikasi grup tabel → [BlockType.tableHeader] (baris pertama)
-  /// + [BlockType.tableRow] (baris berikutnya), sel di-ekstrak via
-  /// posisi split median [TableDetector.computeMedianSplitXs].
+  /// Classify table group → [BlockType.tableHeader] (first line)
+  /// + [BlockType.tableRow] (subsequent lines), cells extracted via
+  /// median split positions [TableDetector.computeMedianSplitXs].
   void _classifyTable(List<List<Line>> tableParas, List<Block> blocks) {
     if (tableParas.isEmpty) return;
     final splitXs = _tableDetector.computeMedianSplitXs(tableParas);
@@ -97,25 +97,23 @@ class StructureClassifier {
     }
   }
 
-/// Kedalaman maksimum nested list (0..3 = 4 level, umum di markdown).
-static const int maxListDepth = 3;
+  /// Maximum nested list depth (0..3 = 4 levels, common in markdown).
+  static const int maxListDepth = 3;
 
-/// Hitung kedalaman nested list dari xLeft (Fase D — menggantikan
-/// threshold biner Fase C). Depth = floor((xLeft - bodyLeftMargin) / step),
-/// step = 1.5 * bodyFontSize (konsisten dengan threshold Fase C),
-/// di-clamp ke [0, maxListDepth].
-int _listDepth(Line line) {
-  final p = _profile;
-  if (p == null || p.bodyLeftMargin <= 0) return 0;
-  final xLeft = line.spans.isNotEmpty ? line.spans.first.xLeft : 0;
-  final step = 1.5 * p.bodyFontSize;
-  if (step <= 0) return 0;
-  final depth = ((xLeft - p.bodyLeftMargin) / step).floor();
-  return depth.clamp(0, maxListDepth);
-}
+  /// Calculate nested list depth from xLeft.
+  /// Depth = floor((xLeft - bodyLeftMargin) / step),
+  /// step = 1.5 * bodyFontSize, clamped to [0, maxListDepth].
+  int _listDepth(Line line) {
+    final p = _profile;
+    if (p == null || p.bodyLeftMargin <= 0) return 0;
+    final xLeft = line.spans.isNotEmpty ? line.spans.first.xLeft : 0;
+    final step = 1.5 * p.bodyFontSize;
+    if (step <= 0) return 0;
+    final depth = ((xLeft - p.bodyLeftMargin) / step).floor();
+    return depth.clamp(0, maxListDepth);
+  }
 
-  /// Klasifikasi satu paragraf non-tabel: heading, list, atau paragraph
-  /// (logika Fase A, di-refactor keluar dari [classify]).
+  /// Classify a single non-table paragraph: heading, list, or paragraph.
   void _classifyParagraph(List<Line> para, List<Block> blocks) {
     final firstLine = para.first;
     final text = para.map((l) => l.text.trim()).join(' ').trim();
@@ -139,8 +137,8 @@ int _listDepth(Line line) {
     blocks.add(Block(type: BlockType.paragraph, lines: [text]));
   }
 
-  /// Satu paragraf berisi item list: tiap baris ber-bullet/bernomor jadi
-  /// item list terpisah; baris lanjutan (tanpa marker) menyambung ke item.
+  /// A single paragraph containing list items: each bulleted/numbered line becomes
+  /// a separate list item; continuation lines (without marker) append to item.
   void _classifyList(List<Line> para, List<Block> blocks, {bool ordered = false}) {
     for (final line in para) {
       final t = line.text.trim();
@@ -157,7 +155,7 @@ int _listDepth(Line line) {
     }
   }
 
-  /// Item list baru dari satu baris ber-marker (bullet/ordered).
+  /// New list item from a single line with marker (bullet/ordered).
   Block _buildListItem(Line line, String text, bool ordered) => Block(
         type: ordered ? BlockType.orderedListItem : BlockType.unorderedListItem,
         lines: [ordered ? _stripOrdered(text) : _stripBullet(text)],
@@ -165,8 +163,8 @@ int _listDepth(Line line) {
         listDepth: _listDepth(line),
       );
 
-  /// Sambung baris lanjutan (tanpa marker) ke item list sebelumnya,
-  /// mempertahankan metadata item.
+  /// Append continuation line (without marker) to previous list item,
+  /// preserving item metadata.
   Block _appendLine(Block block, String text) => Block(
         type: block.type,
         lines: [...block.lines, text],
@@ -180,14 +178,14 @@ int _listDepth(Line line) {
     return line.fontSize >= bodyFontSize * config.headingFontFactor;
   }
 
-  /// Level heading: band profil lebih diutamakan; fallback faktor → level 1.
+  /// Heading level: profile band preferred; fallback factor → level 1.
   int _headingLevel(Line line) {
     final band = _profile?.bandForSize(line.fontSize);
     if (band != null) return band.headingLevel;
     return 1;
   }
 
-  /// Public wrapper untuk paragraph joiner.
+  /// Public wrapper for paragraph joiner.
   bool isHeading(Line line) => _isHeading(line);
 
   bool _isBullet(String text) {
@@ -195,13 +193,13 @@ int _listDepth(Line line) {
     return _bulletRe.hasMatch(text);
   }
 
-  /// Hapus bullet + whitespace ('• item' → 'item').
+  /// Strip bullet + whitespace ('• item' → 'item').
   String _stripBullet(String text) => text.substring(1).trim();
 
-  /// Hapus marker ordered ('1. First' / 'a) Alpha' → 'First' / 'Alpha').
+  /// Strip ordered marker ('1. First' / 'a) Alpha' → 'First' / 'Alpha').
   String _stripOrdered(String text) => text.replaceFirst(_orderedRe, '').trim();
 
-  /// Nomor item ('1.' / '1)' → 1); null untuk marker huruf.
+  /// Item index number ('1.' / '1)' → 1); null for letter markers.
   int? _parseIndex(String text) =>
       int.tryParse(_indexRe.firstMatch(text)?.group(0) ?? '');
 }

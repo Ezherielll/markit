@@ -6,13 +6,13 @@ import '../models/layout.dart';
 import 'errors.dart';
 import 'pdf_source.dart';
 
-/// Implementasi [PdfSource] berbasis pdfrx (PDFium).
+/// Implementation of [PdfSource] based on pdfrx (PDFium).
 class PdfrxSource implements PdfSource {
   PdfrxSource._(this._doc);
 
   final PdfDocument _doc;
 
-  /// Buka PDF dari file. Melempar [ConvertException] bila corrupt/encrypted.
+  /// Open PDF from file. Throws [ConvertException] if corrupt/encrypted.
   static Future<PdfrxSource> open(String path) async {
     try {
       final doc = await PdfDocument.openFile(path);
@@ -22,7 +22,7 @@ class PdfrxSource implements PdfSource {
     }
   }
 
-  /// Buka PDF dari bytes (untuk test).
+  /// Open PDF from bytes (for tests/web).
   static Future<PdfrxSource> openData(Uint8List data, {String sourceName = 'memory'}) async {
     try {
       final doc = await PdfDocument.openData(
@@ -36,7 +36,7 @@ class PdfrxSource implements PdfSource {
     }
   }
 
-  /// Probe cepat: buka, baca jumlah halaman, tutup (FR-01, < 2 s).
+  /// Fast probe: open, read page count, close (< 2 s).
   static Future<int> probePageCount(String path) async {
     final src = await open(path);
     try {
@@ -46,7 +46,7 @@ class PdfrxSource implements PdfSource {
     }
   }
 
-  /// Probe cepat dari bytes (web — tanpa filesystem).
+  /// Fast probe from bytes (web — without filesystem).
   static Future<int> probePageCountData(Uint8List data) async {
     final src = await openData(data);
     try {
@@ -69,8 +69,8 @@ class PdfrxSource implements PdfSource {
     final fullText = raw?.fullText ?? '';
     final rects = raw?.charRects ?? const [];
 
-    // Group rects per baris (PDFium memasukkan \n pada line break),
-    // ambil tinggi bounding box tiap baris — skala sama dengan loadFull.
+    // Group rects per line (PDFium inserts \n at line breaks),
+    // take line bounding box height — same scale as loadFull.
     final lineHeights = <double>[];
     var lineStart = 0;
     for (var i = 0; i < fullText.length; i++) {
@@ -85,13 +85,13 @@ class PdfrxSource implements PdfSource {
       pageIndex: pageIndex,
       charCount: fullText.length,
       lineHeights: lineHeights.where((h) => h > 0).toList(),
-      pageWidth: page.width, // Fase B: dari MediaBox pdfrx
+      pageWidth: page.width,
       pageHeight: page.height,
     );
   }
 
-  /// Tinggi bounding box baris (maxTop - minBottom) — skala identik dengan
-  /// bounds fragment pada [loadFull] (yang merupakan boundingRect kata).
+  /// Line bounding box height (maxTop - minBottom) — scale identical to
+  /// fragment bounds in [loadFull] (which are word boundingRects).
   static double _lineBBoxHeight(List<PdfRect> rects, int start, int end) {
     double minBottom = double.infinity;
     double maxTop = double.negativeInfinity;
@@ -116,8 +116,8 @@ class PdfrxSource implements PdfSource {
       final maxCharH = f.charRects
           .where((r) => r.isNotEmpty)
           .fold<double>(0, (a, r) => r.height > a ? r.height : a);
-      // Guard: PDFium bisa memberi bounds terflip (glyph mirror / teks
-      // diputar) → tanpa normalize, assert TextSpan (xLeft<=xRight) crash.
+      // Guard: PDFium can return flipped bounds (glyph mirror / rotated text)
+      // → without normalize, TextSpan assertion (xLeft<=xRight) crashes.
       final b = normalizeTextSpanBounds(
         left: f.bounds.left,
         right: f.bounds.right,

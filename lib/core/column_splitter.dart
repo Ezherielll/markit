@@ -1,43 +1,39 @@
 import '../models/layout.dart';
 import 'doc_stats.dart';
 
-/// Stage baru (Fase B): memisahkan [TextSpan] per halaman ke kolom-kolom
-/// berdasarkan deteksi gap horizontal, lalu menyusun kolom dalam reading order.
+/// Stage: separates [TextSpan]s per page into columns
+/// based on horizontal gap detection, then arranges columns in reading order.
 ///
-/// Algoritma (design spec §4.2 — gap-based, bukan histogram xLeft):
-/// 1. Sortir spans (tanpa whitespace-only) left-to-right.
-/// 2. Cluster greedy dengan "running max xRight": span masuk cluster saat ini
-///    selama xLeft-nya `<= maxXR + [_gapThreshold]% pageWidth`. Gap yang diukur
-///    adalah jarak antar-span (xRight → xLeft), bukan selisih xLeft —
-///    selisih xLeft antar kata panjang bisa besar walau teks bersambung.
-/// 3. 2 cluster = 2 kolom; split di titik tengah gap. Lebih dari 2 cluster →
-///    fallback single-column (maksimum 2 kolom didukung).
+/// Algorithm (gap-based):
+/// 1. Sort spans (excluding whitespace-only) left-to-right.
+/// 2. Greedy cluster with "running max xRight": span enters current cluster
+///    as long as xLeft is `<= maxXR + [_gapThreshold]% pageWidth`. Measured gap
+///    is inter-span distance (xRight → xLeft), not xLeft difference.
+/// 3. 2 clusters = 2 columns; split at gap midpoint. More than 2 clusters →
+///    fallback single-column (maximum 2 columns supported).
 ///
-/// Confidence gate: gap < [_gapThreshold]% pageWidth → bukan kolom.
+/// Confidence gate: gap < [_gapThreshold]% pageWidth → not a column.
 class ColumnSplitter {
   const ColumnSplitter();
 
-  /// Threshold minimum lebar gap antar-kolom (8% pageWidth).
-  /// Gabungan gap threshold + confidence gate dari design spec (5% + 8%)
-  /// — 8% terbukti membedakan gap kata (<= 60pt) dari gap kolom (>= 120pt)
-  /// pada halaman 612pt dengan teks 12pt.
+  /// Minimum gap width threshold between columns (8% pageWidth).
   static const _gapThreshold = 0.08;
 
-  /// Pisahkan [spans] ke kolom-kolom berdasarkan [profile].
+  /// Separate [spans] into columns based on [profile].
   ///
-  /// Return: list berisi daftar [TextSpan] per kolom (sudah diurutkan
-  /// top-to-bottom). Reading order: kolom kiri dahulu, lalu kanan.
+  /// Returns list of [TextSpan]s per column (sorted top-to-bottom).
+  /// Reading order: left column first, then right.
   List<List<TextSpan>> split(List<TextSpan> spans, DocProfile profile) {
     if (spans.isEmpty) return [];
-    if (profile.pageWidth <= 0) return [spans]; // tidak ada info geometry
+    if (profile.pageWidth <= 0) return [spans]; // no geometry info
 
     final splitX = _detectColumnSplit(spans, profile.pageWidth);
     if (splitX == null) {
-      // Single-column: return semua spans sebagai satu kolom, top-to-bottom
+      // Single-column: return all spans as one column, top-to-bottom
       return [[...spans]..sort((a, b) => b.yCenter.compareTo(a.yCenter))];
     }
 
-    // Pisahkan ke kiri dan kanan berdasarkan splitX
+    // Separate left and right by splitX
     final leftSpans = <TextSpan>[];
     final rightSpans = <TextSpan>[];
     for (final span in spans) {
@@ -48,22 +44,21 @@ class ColumnSplitter {
       }
     }
 
-    // Urutkan masing-masing top-to-bottom (y PDF besar = atas)
+    // Sort each top-to-bottom (higher PDF Y = top)
     leftSpans.sort((a, b) => b.yCenter.compareTo(a.yCenter));
     rightSpans.sort((a, b) => b.yCenter.compareTo(a.yCenter));
 
-    // Reading order: kolom kiri dahulu
+    // Reading order: left column first
     final result = <List<TextSpan>>[];
     if (leftSpans.isNotEmpty) result.add(leftSpans);
     if (rightSpans.isNotEmpty) result.add(rightSpans);
     return result;
   }
 
-  /// Cari titik split horizontal. Return null jika single-column.
+  /// Find horizontal split point. Returns null for single-column.
   double? _detectColumnSplit(List<TextSpan> spans, double pageWidth) {
-    // Cluster left-to-right dengan running max xRight.
-    // Span whitespace-only diabaikan (fragment spasi pdfrx tidak punya
-    // anchor posisi yang berarti).
+    // Cluster left-to-right with running max xRight.
+    // Whitespace-only spans ignored.
     final sorted = spans
         .where((s) => s.text.trim().isNotEmpty)
         .toList()
@@ -86,10 +81,10 @@ class ColumnSplitter {
     }
     clusters.add(current);
 
-    // Single-column / lebih dari 2 kolom (3+ kolom → fallback)
+    // Single-column / more than 2 columns (3+ columns → fallback)
     if (clusters.length != 2) return null;
 
-    // Split di titik tengah gap antara kolom kiri dan kanan
+    // Split at gap midpoint between left and right columns
     final leftEdge = clusters[0].last.xRight;
     final rightEdge = clusters[1].first.xLeft;
     return (leftEdge + rightEdge) / 2;

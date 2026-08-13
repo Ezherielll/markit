@@ -1,8 +1,8 @@
-/// Keluarga format input yang didukung MarkIt.
+/// Input format families supported by MarkIt.
 ///
-/// Nilai enum = KELUARGA format (daftar "Supported formats" di UI: Word,
-/// PowerPoint, Excel, OpenDocument, RTF, EPUB, CSV, PDF). Detail per
-/// ekstensi (deteksi, legacy, preview) ada di `format_catalog.dart`.
+/// Enum value = format FAMILY ("Supported formats" list in UI: Word,
+/// PowerPoint, Excel, OpenDocument, RTF, EPUB, CSV, PDF). Extension details
+/// (detection, legacy, preview) reside in `format_catalog.dart`.
 enum InputFormat {
   word,
   powerpoint,

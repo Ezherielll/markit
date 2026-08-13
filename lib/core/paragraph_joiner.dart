@@ -3,21 +3,21 @@ import 'dart:math' as math;
 import '../models/layout.dart';
 import 'doc_stats.dart';
 
-/// Stage 3: penggabungan baris → paragraf (FR-04).
+/// Stage 3: joining lines → paragraphs.
 ///
-/// Batas paragraf: gap vertikal antar-baris > median gap × [PipelineConfig.paragraphGapFactor],
-/// atau indent baris pertama. Heading selalu menjadi blok tersendiri.
+/// Paragraph boundary: vertical line gap > median gap * [PipelineConfig.paragraphGapFactor],
+/// or first line indent. Headings always form separate blocks.
 class ParagraphJoiner {
   ParagraphJoiner({this.config = const PipelineConfig()});
 
   final PipelineConfig config;
 
-  /// [lines] harus sudah terurut top-to-bottom (dari [LineGrouper]).
-  /// [isHeading] callback dari classifier (baris heading memutus paragraf).
+  /// [lines] must be sorted top-to-bottom (from [LineGrouper]).
+  /// [isHeading] callback from classifier (heading lines split paragraphs).
   List<List<Line>> join(List<Line> lines, {required bool Function(Line) isHeading}) {
     if (lines.isEmpty) return [];
 
-    // BARU (Fase C): pre-pass untuk hiphenasi intra-halaman
+    // Pre-pass for intra-page dehyphenation
     final processed = _deHyphenate(lines);
 
     final gaps = <double>[];
@@ -60,8 +60,8 @@ class ParagraphJoiner {
     return paragraphs;
   }
 
-  /// Pre-pass: gabungkan pasangan baris yang terhifen.
-  /// Rule: baris A berakhir '-' DAN karakter pertama baris B adalah [a-z].
+  /// Pre-pass: join hyphenated line pairs.
+  /// Rule: line A ends with '-' AND first character of line B is [a-z].
   List<Line> _deHyphenate(List<Line> lines) {
     if (lines.length < 2) return lines;
 
@@ -76,7 +76,7 @@ class ParagraphJoiner {
           lineText.length > 1) {
         final nextText = lines[i + 1].text.trimLeft();
         if (nextText.isNotEmpty && RegExp(r'^[a-z]').hasMatch(nextText)) {
-          // Gabungkan: hapus '-', gabung spans
+          // Merge: remove '-', join spans
           result.add(_mergeHyphenated(line, lines[i + 1]));
           i += 2;
           continue;
@@ -89,9 +89,9 @@ class ParagraphJoiner {
     return result;
   }
 
-  /// Buat Line baru dengan menggabungkan baris A (tanpa trailing '-') + baris B.
+  /// Create new Line by merging line A (without trailing '-') + line B.
   Line _mergeHyphenated(Line a, Line b) {
-    // Salin spans baris A, hapus '-' dari span terakhir
+    // Copy line A spans, remove '-' from last span
     final aSpans = a.spans.toList();
     if (aSpans.isNotEmpty && b.spans.isNotEmpty) {
       final last = aSpans.last;
@@ -99,12 +99,12 @@ class ParagraphJoiner {
       if (trimmed.endsWith('-')) {
         aSpans[aSpans.length - 1] = TextSpan(
           text: trimmed.substring(0, trimmed.length - 1),
-          // xRight diteruskan ke xLeft span pertama baris B sehingga gap X
-          // antar-fragmen = 0 → Line.text tidak menyisipkan spasi
-          // ("docu-" + "ment" → "document", bukan "docu ment").
-          // Clamp: baris lanjutan yang dimulai lebih kiri (list wrap) membuat
-          // xLeft baris B < xLeft baris A — tanpa max() assertion xLeft<=xRight
-          // gagal di debug untuk list wrap yang ter-merge hiphenasi.
+          // xRight passed to xLeft of first span of line B so X-gap
+          // between fragments = 0 → Line.text inserts no space
+          // ("docu-" + "ment" → "document", not "docu ment").
+          // Clamp: continuation line starting further left (list wrap)
+          // makes xLeft of line B < xLeft of line A — without max() assertion
+          // xLeft<=xRight fails in debug for hyphen-merged list wraps.
           xLeft: last.xLeft,
           xRight: math.max(last.xLeft, b.spans.first.xLeft),
           yBottom: last.yBottom,
@@ -118,17 +118,16 @@ class ParagraphJoiner {
 
   double _gapBetween(Line a, Line b) => a.yBottom - b.yTop;
 
-  /// Indent baris pertama paragraf: xLeft baris ini > xLeft baris sebelumnya
-  /// (dan sebelumnya bukan heading).
+  /// First line paragraph indent: xLeft of this line > xLeft of previous line
+  /// (and previous line is not a heading).
   bool _hasFirstLineIndent(Line prev, Line line) {
     return line.spans.isNotEmpty &&
         prev.spans.isNotEmpty &&
         line.spans.first.xLeft > prev.spans.first.xLeft + prev.fontSize * 0.5;
   }
 
-  /// Threshold pemisah paragraf: median dari gap "normal" (di bawah median
-  /// pertama) × faktor. Gap antar-paragraf (outlier besar) tidak ikut
-  /// mencemari median — lihat test gap besar.
+  /// Paragraph split threshold: median of "normal" gaps (below first median)
+  /// * factor. Large gap outliers do not contaminate median.
   static double _splitThreshold(List<double> gaps, double factor) {
     if (gaps.isEmpty) return double.infinity;
     final m1 = _median(gaps);

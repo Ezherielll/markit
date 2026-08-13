@@ -3,8 +3,8 @@ import 'dart:typed_data';
 import 'extractors/extractor_registry.dart';
 import 'input_format.dart';
 
-/// Satu keluarga format dalam katalog: keluarga (enum), daftar ekstensi,
-/// dan petunjuk entry ZIP untuk preview teks (lihat [ZipTextPreview]).
+/// A single format family in the catalog: family (enum), list of extensions,
+/// and ZIP entry hints for text preview (see [ZipTextPreview]).
 class FormatFamily {
   const FormatFamily({
     required this.format,
@@ -14,21 +14,21 @@ class FormatFamily {
 
   final InputFormat format;
 
-  /// Ekstensi tanpa titik, mis. `['doc', 'docx', 'docm']`.
+  /// Extensions without dot, e.g. `['doc', 'docx', 'docm']`.
   final List<String> extensions;
 
-  /// Substring nama entry ZIP yang memuat konten utama (docx/pptx/xlsx/
-  /// odt/epub) — dipakai [ZipTextPreview] untuk preview cepat tanpa parse
-  /// penuh. Kosong untuk format non-ZIP.
+  /// Substring of ZIP entry names containing main content (docx/pptx/xlsx/
+  /// odt/epub) — used by [ZipTextPreview] for fast preview without
+  /// full parsing. Empty for non-ZIP formats.
   final List<String> zipEntryHints;
 }
 
-/// Katalog format — sumber tunggal pengetahuan format.
+/// Format catalog — single source of truth for format knowledge.
 ///
-/// Daftar keluarga PERSIS mengikuti daftar "Supported formats" produk
-/// (Word, PowerPoint, Excel, OpenDocument, RTF, EPUB, CSV, PDF). Fakta
-/// lain diturunkan dari sini: [kDetectableExtensions] (filter picker),
-/// deteksi ekstensi di [detectFormat], dan daftar di About.
+/// Family list EXACTLY matches product "Supported formats"
+/// (Word, PowerPoint, Excel, OpenDocument, RTF, EPUB, CSV, PDF). Other facts
+/// are derived from here: [kDetectableExtensions] (picker filter),
+/// extension detection in [detectFormat], and list in About screen.
 const List<FormatFamily> kFormatCatalog = [
   FormatFamily(
     format: InputFormat.word,
@@ -59,21 +59,21 @@ const List<FormatFamily> kFormatCatalog = [
   FormatFamily(format: InputFormat.pdf, extensions: ['pdf']),
 ];
 
-/// Semua ekstensi yang dikenali [detectFormat] — dipakai filter file picker.
-/// Diturunkan dari [kFormatCatalog] (sumber tunggal).
+/// All extensions recognized by [detectFormat] — used for file picker filter.
+/// Derived from [kFormatCatalog] (single source of truth).
 final List<String> kDetectableExtensions = [
   for (final family in kFormatCatalog) ...family.extensions,
 ];
 
-/// True bila format didukung konversi: punya extractor terdaftar (atau
-/// jalur PDF existing). Diturunkan dari [ExtractorRegistry] — menambah
-/// extractor = otomatis didukung, tanpa edit di sini.
+/// True if format is supported for conversion: has registered extractor (or
+/// existing PDF path). Derived from [ExtractorRegistry] — adding an
+/// extractor automatically enables support without editing here.
 bool isFormatSupported(InputFormat format) =>
     format == InputFormat.pdf ||
     ExtractorRegistry.forFormat(format) != null;
 
-/// True untuk anggota keluarga ZIP+XML (docx/pptx/xlsx/odt/epub) — keluarga
-/// yang kontennya bisa di-preview via [ZipTextPreview].
+/// True for members of ZIP+XML family (docx/pptx/xlsx/odt/epub) — families
+/// whose content can be previewed via [ZipTextPreview].
 bool isZipBasedFormat(InputFormat format) =>
     format == InputFormat.word ||
     format == InputFormat.powerpoint ||
@@ -81,10 +81,10 @@ bool isZipBasedFormat(InputFormat format) =>
     format == InputFormat.opendocument ||
     format == InputFormat.epub;
 
-/// True untuk ekstensi legacy (OLE2 binary) dalam satu keluarga — terdeteksi
-/// & bisa dipilih, tapi belum ada parser (error "not supported yet" yang
-/// jelas, bukan gagal "corrupt"). Ditentukan dari nama file (bukan format
-/// keluarga) karena satu keluarga menampung format modern + legacy.
+/// True for legacy extensions (OLE2 binary) in a family — detected
+/// & selectable, but no parser available yet (clear "not supported yet"
+/// error, not a "corrupt" failure). Determined from file name (not family
+/// format) because a family holds both modern + legacy formats.
 bool isLegacyFormatExtension(InputFormat format, String name) {
   final lower = name.toLowerCase();
   return switch (format) {
@@ -97,11 +97,11 @@ bool isLegacyFormatExtension(InputFormat format, String name) {
   };
 }
 
-/// Deteksi format dari nama + konten (magic bytes).
+/// Detect format from name + content (magic bytes).
 ///
-/// Prioritas: magic bytes kuat (PDF, ZIP-based, OLE2 legacy, RTF), lalu
-/// ekstensi. ZIP-based dibedakan dari ekstensi + inspeksi nama entry ZIP
-/// (agar file yang di-rename ekstensinya tetap terdeteksi).
+/// Priority: strong magic bytes (PDF, ZIP-based, OLE2 legacy, RTF), then
+/// extension. ZIP-based distinguished by extension + ZIP entry name inspection
+/// (so renamed files are still detected correctly).
 InputFormat detectFormat(String name, Uint8List bytes) {
   if (isUrlName(name)) return InputFormat.unknown;
 
@@ -111,7 +111,7 @@ InputFormat detectFormat(String name, Uint8List bytes) {
     return InputFormat.pdf; // %PDF
   }
   if (_startsWith(bytes, [0x50, 0x4B, 0x03, 0x04])) {
-    return _detectZipBased(lower, bytes); // PK.. — kontainer ZIP
+    return _detectZipBased(lower, bytes); // PK.. — ZIP container
   }
   if (_startsWith(bytes, [0xD0, 0xCF, 0x11, 0xE0, 0xA1, 0xB1, 0x1A, 0xE1])) {
     return _detectOle2(lower); // OLE2 compound file (.doc/.ppt/.xls/.xlsb)
@@ -122,8 +122,8 @@ InputFormat detectFormat(String name, Uint8List bytes) {
   return _detectByExtension(lower);
 }
 
-/// Deteksi via ekstensi (nama sudah di-lowercase) — fallback untuk teks dan
-/// format tanpa magic bytes.
+/// Detect via extension (name already lowercased) — fallback for text and
+/// formats without magic bytes.
 InputFormat _detectByExtension(String lower) {
   for (final family in kFormatCatalog) {
     for (final ext in family.extensions) {
@@ -133,8 +133,8 @@ InputFormat _detectByExtension(String lower) {
   return InputFormat.unknown;
 }
 
-/// Deteksi keluarga ZIP-based: ekstensi tepercaya menang; inspeksi entry ZIP
-/// untuk file yang di-rename. Polos (bukan keluarga yang dikenal) → unknown.
+/// Detect ZIP-based family: trusted extension wins; inspect ZIP entries
+/// for renamed files. Plain ZIP (not a known family) → unknown.
 InputFormat _detectZipBased(String lower, Uint8List bytes) {
   final byExt = _detectByExtension(lower);
   if (isZipBasedFormat(byExt)) return byExt;
@@ -149,7 +149,7 @@ InputFormat _detectZipBased(String lower, Uint8List bytes) {
   return InputFormat.unknown;
 }
 
-/// Deteksi OLE2 (legacy binary): hanya ekstensi yang memutuskan keluarga.
+/// Detect OLE2 (legacy binary): extension alone decides family.
 InputFormat _detectOle2(String lower) {
   if (lower.endsWith('.doc')) return InputFormat.word;
   if (lower.endsWith('.ppt') ||
@@ -163,8 +163,8 @@ InputFormat _detectOle2(String lower) {
   return InputFormat.unknown;
 }
 
-/// True bila nama terlihat seperti URL (drop dari browser) — butuh jaringan,
-/// tidak didukung (NG3: 100% lokal).
+/// True if name looks like a URL (dropped from browser) — requires network,
+/// unsupported (100% local).
 bool isUrlName(String name) {
   final lower = name.toLowerCase();
   return lower.startsWith('http://') ||
@@ -180,8 +180,8 @@ bool _startsWith(Uint8List bytes, List<int> magic) {
   return true;
 }
 
-/// Scan kasar nama entry ZIP pada bytes (local file header menyimpan nama
-/// entry di bagian awal archive — cukup tanpa decode penuh).
+/// Rough scan of ZIP entry names in bytes (local file header stores entry
+/// names near start of archive — sufficient without full decode).
 bool _zipContains(Uint8List bytes, String needle) {
   final ascii = String.fromCharCodes(
     bytes.take(bytes.length > 65536 ? 65536 : bytes.length),
