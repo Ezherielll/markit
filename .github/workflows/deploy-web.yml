@@ -36,6 +36,16 @@ jobs:
       - name: Build web
         run: flutter build web --release --base-href /markit/
 
+      - name: Verify base href
+        shell: pwsh
+        run: |
+          $hit = Select-String -Path build\web\index.html `
+            -Pattern 'base href="/markit/"' -CaseSensitive -Quiet
+          if (-not $hit) {
+            Write-Error "index.html must contain <base href=/markit/> — check the --base-href flag"
+            exit 1
+          }
+
       - name: Setup Pages
         uses: actions/configure-pages@v5
 
