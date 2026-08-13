@@ -101,7 +101,7 @@ class FakeConversionController extends ConversionController {
       if (failAll || failNames.contains(job.fileName)) {
         job.status = JobStatus.failed;
         job.errorType = 'corrupt';
-        job.errorMessage = 'Simulasi gagal parsing.';
+        job.errorMessage ??= 'Simulasi gagal parsing.';
       } else {
         job.status = JobStatus.done;
       }
@@ -188,6 +188,26 @@ void main() {
 
     expect(find.text('b.pdf'), findsNothing);
     expect(find.text('Convert (1)'), findsOneWidget);
+  });
+
+  testWidgets('failed job: pesan error tampil lengkap di kartu (bukan ellipsis)',
+      (tester) async {
+    final controller = FakeConversionController()
+      ..failAll = true
+      ..addFiles([PdfInput(name: 'a.pdf', path: 'a.pdf')]);
+    final job = controller.queue.single;
+    job.errorType = 'corrupt';
+    job.errorMessage = 'Detail error yang cukup panjang untuk memastikan '
+        'tidak terpotong oleh ellipsis pada kartu sidebar.';
+    await pumpWide(tester, MaterialApp(home: HomeScreen(controller: controller)));
+    // runAsync: _confirmOverwrite memakai File.exists (IO nyata) & timer
+    // batch berjalan real-time.
+    await tester.runAsync(() async {
+      await tester.tap(find.text('Convert (1)'));
+      await Future<void>.delayed(const Duration(milliseconds: 50));
+      await tester.pump(const Duration(milliseconds: 50));
+    });
+    expect(find.textContaining('tidak terpotong oleh ellipsis'), findsOneWidget);
   });
 
   testWidgets('running state: progress + file status (FR-08, FR-11)',

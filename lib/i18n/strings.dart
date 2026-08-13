@@ -106,6 +106,8 @@ class Strings {
   static const errorUnsupported = 'This file type is not supported yet '
       '(roadmap: DOCX/XLSX/PPTX/EPUB/ZIP/images/audio).';
   static const errorGeneric = 'Something went wrong: %s';
+  static const showFullError = 'Show full error';
+  static const close = 'Close';
   static const pickFileFilterName = 'All supported files';
   static const overwriteTitle = 'Overwrite existing files?';
   static const overwriteBody = '%d file(s) already have a .md output. '

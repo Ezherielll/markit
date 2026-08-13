@@ -5,6 +5,7 @@ import 'package:markit/isolate/conversion_controller.dart';
 import 'package:markit/ui/theme/palette.dart';
 import 'package:markit/ui/theme/spacing.dart';
 import 'package:markit/ui/theme/typography.dart';
+import 'package:markit/ui/widgets/job_error_view.dart';
 
 /// Ikon per format input (M5 multi-format).
 IconData iconForFormat(InputFormat format) => switch (format) {
@@ -108,7 +109,7 @@ class _FileCardState extends State<FileCard> {
                 children: [
                   _buildIcon(primary),
                   const SizedBox(width: PdflowSpacing.md),
-                  Expanded(child: _buildInfo(ink, inkMuted, isDark, size)),
+                  Expanded(child: _buildInfo(ink, inkMuted, size)),
                   ..._buildActions(),
                 ],
               ),
@@ -157,7 +158,7 @@ class _FileCardState extends State<FileCard> {
   }
 
   /// Kolom info: nama file, ukuran + halaman, pesan error (bila failed).
-  Widget _buildInfo(Color ink, Color inkMuted, bool isDark, String? size) {
+  Widget _buildInfo(Color ink, Color inkMuted, String? size) {
     final job = widget.job;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -185,18 +186,8 @@ class _FileCardState extends State<FileCard> {
           ),
         ),
         if (widget.showStatus && job.status == JobStatus.failed) ...[
-          const SizedBox(height: 2),
-          Text(
-            _errorText(job),
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: TextStyle(
-              fontSize: 10.5,
-              color: isDark
-                  ? PdflowColors.stampRedDark
-                  : PdflowColors.stampRedLight,
-            ),
-          ),
+          const SizedBox(height: 4),
+          JobErrorView(job: job),
         ],
       ],
     );
@@ -287,21 +278,6 @@ class _FileCardState extends State<FileCard> {
         ),
       ),
     ];
-  }
-
-  static String _errorText(QueuedFile job) {
-    // Pesan asli dari extractor/executor lebih akurat (mis. "Invalid JSON: …",
-    // "Could not read the CSV file."). Mapping statis hanya fallback bila
-    // executor tidak mengirim pesan detail.
-    final message = job.errorMessage;
-    if (message != null && message.isNotEmpty) return message;
-    return switch (job.errorType) {
-      'encrypted' => Strings.errorEncrypted,
-      'noText' => Strings.errorNoText,
-      'corrupt' => Strings.errorCorrupt,
-      'unsupported' => Strings.errorUnsupported,
-      _ => Strings.errorGeneric.replaceFirst('%s', ''),
-    };
   }
 
   /// Metadata progress: "12 of 300 pages · 4%" (tabular figures).
