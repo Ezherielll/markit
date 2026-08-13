@@ -117,5 +117,17 @@ void main() {
       expect(File(path).existsSync(), isTrue);
       expect(File(path).readAsStringSync(), 'isi');
     });
+
+    test('from == to beda separator (path kanonik): di-skip, tanpa exception', () async {
+      final from = '${dst.path}/a.md';
+      final to = from.replaceAll('/', r'\');
+      File(from).writeAsStringSync('isi');
+      final plan = OutputMovePlan(moves: [(from, to)], conflicts: []);
+      final applied = await applyOutputMoves(plan, overwrite: true);
+
+      expect(applied, isEmpty);
+      expect(File(from).existsSync(), isTrue);
+      expect(File(from).readAsStringSync(), 'isi');
+    });
   });
 }

@@ -47,7 +47,12 @@ Future<List<(String, String)>> applyOutputMoves(
 }) async {
   final applied = <(String, String)>[];
   for (final (from, to) in plan.moves) {
-    if (from == to) continue;
+    // Bandingkan path kanonik: `.absolute.uri.toFilePath()` menormalisasi
+    // separator (C:/a.md == C:\a.md di Windows) + membuang redundansi.
+    if (File(from).absolute.uri.toFilePath() ==
+        File(to).absolute.uri.toFilePath()) {
+      continue;
+    }
     final exists = await File(to).exists();
     if (exists && !overwrite) continue;
     if (exists) await File(to).delete();
