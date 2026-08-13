@@ -5,6 +5,7 @@ import 'package:file_selector/file_selector.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:markit/i18n/strings.dart';
+import 'package:markit/ui/frame_coalescer.dart';
 import 'package:markit/ui/screens/about_screen.dart';
 import 'package:markit/ui/theme/palette.dart';
 import 'package:markit/ui/theme/spacing.dart';
@@ -42,16 +43,21 @@ class _HomeScreenState extends State<HomeScreen> {
   String? _selectedJobId;
   late final ThemeController _theme =
       widget.themeController ?? ThemeController();
+  // Koalesensi rebuild: notifikasi controller berfrekuensi tinggi hanya
+  // memicu satu setState per frame (di akhir frame).
+  late final FrameCoalescer _rebuilds =
+      FrameCoalescer(onFrame: _flushControllerChanged);
 
   @override
   void initState() {
     super.initState();
-    widget.controller.addListener(_onControllerChanged);
+    widget.controller.addListener(_rebuilds.schedule);
   }
 
   @override
   void dispose() {
-    widget.controller.removeListener(_onControllerChanged);
+    widget.controller.removeListener(_rebuilds.schedule);
+    _rebuilds.dispose();
     _ticker?.cancel();
     super.dispose();
   }
@@ -189,7 +195,7 @@ class _HomeScreenState extends State<HomeScreen> {
     _startTime = DateTime.now();
     _ticker?.cancel();
     _ticker = Timer.periodic(const Duration(milliseconds: 250), (_) {
-      if (mounted) setState(() {});
+      if (mounted) _rebuilds.schedule();
     });
   }
 
@@ -211,7 +217,9 @@ class _HomeScreenState extends State<HomeScreen> {
     widget.controller.addFiles(inputs);
   }
 
-  void _onControllerChanged() {
+  /// Flush perubahan controller yang dikoalesen: paling banyak sekali per
+  /// frame, bukan per notifikasi.
+  void _flushControllerChanged() {
     if (!mounted) return;
     setState(() {
       if (!widget.controller.isRunning) {
