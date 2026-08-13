@@ -122,7 +122,7 @@ void main() {
       await executor.shutdown();
     });
 
-    test('format tanpa extractor (docx) → unsupported failure', () async {
+    test('format tanpa extractor (zip) → unsupported failure', () async {
       final executor = InlineExecutor();
       await executor.initialize();
 
@@ -131,7 +131,7 @@ void main() {
         pdfPath: '',
         pdfBytes: Uint8List.fromList([0x50, 0x4B, 0x03, 0x04, 1, 2, 3]),
         outputPath: 'doc.md',
-        format: InputFormat.docx,
+        format: InputFormat.zip,
       );
 
       expect(result.success, isFalse);

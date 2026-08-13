@@ -147,10 +147,9 @@ void main() {
       expect(r, isA<SourcePdf>());
     });
 
-    test('format belum didukung (docx/zip/unknown) → SourceUnsupported',
+    test('format belum didukung (zip/unknown) → SourceUnsupported',
         () async {
       for (final f in [
-        InputFormat.docx,
         InputFormat.xlsx,
         InputFormat.pptx,
         InputFormat.epub,

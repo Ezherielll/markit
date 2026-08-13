@@ -108,7 +108,7 @@ void main() {
 
   testWidgets('format belum didukung: pesan formatNotSupported tampil',
       (tester) async {
-    final job = _job('a.docx', InputFormat.docx, status: JobStatus.queued);
+    final job = _job('a.zip', InputFormat.zip, status: JobStatus.queued);
 
     await _pump(tester, job);
 
