@@ -104,13 +104,18 @@ class _DocumentViewerState extends State<DocumentViewer> {
       truncated = cut.truncated;
       stats = computeMdStats(content);
     } else {
-      final file = File(job.outputPath);
-      if (!await file.exists()) return;
-      // Read + decode + stats IN ISOLATE — output file can be several MB.
-      final result = await compute(
-        loadDocumentWork,
-        (path: job.outputPath, maxChars: maxPreviewChars),
-      );
+      final DocumentLoadResult result;
+      try {
+        // Read + decode + stats IN ISOLATE - output file can be several MB.
+        // No exists() pre-check: the try/catch below is the single guard
+        // (no TOCTOU window between check and read).
+        result = await compute(
+          loadDocumentWork,
+          (path: job.outputPath, maxChars: maxPreviewChars),
+        );
+      } on FileSystemException {
+        return; // output file gone/deleted — keep the silent skeleton behavior
+      }
       content = result.content;
       preview = result.preview;
       truncated = result.truncated;
@@ -134,7 +139,9 @@ class _DocumentViewerState extends State<DocumentViewer> {
     _sourceError = null;
     try {
       final data = await loadSource(job.input);
-      if (!mounted) return;
+      // Stale-job guard: a slow load (zip preview / big file) must not paint
+      // results for a job the user already switched away from.
+      if (!mounted || widget.job?.id != job.id) return;
       setState(() => _source = data);
     } on SourceUnsupportedException {
       if (!mounted) return;

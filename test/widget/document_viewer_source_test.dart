@@ -237,4 +237,24 @@ void main() {
 
     expect(find.text(Strings.sourceLoadFailed), findsOneWidget);
   });
+
+  testWidgets('done job with missing output file: skeleton, no exception',
+      (tester) async {
+    // Regression guard for TOCTOU: _load must not rely on the exists()
+    // pre-check; if the FileSystemException catch is removed, compute throws
+    // unhandled and this test goes RED.
+    final job = _job(
+      'ghost.md',
+      InputFormat.csv,
+      path: '${tmp.path}/ghost.md', // never created
+      status: JobStatus.done,
+    );
+
+    await _pump(tester, job);
+
+    expect(tester.takeException(), isNull);
+    expect(find.byType(MarkdownBody), findsNothing);
+    // Skeleton loading preview still visible (legacy behavior).
+    expect(find.text(Strings.previewTruncated), findsNothing);
+  });
 }

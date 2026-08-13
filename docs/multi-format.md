@@ -1,3 +1,9 @@
+> **ARCHIVED** — historical plan/status documents from the pre-1.2.0 era.
+> They describe the TXT/MD/JSON/XML/HTML input formats that were removed in
+> MarkIt 1.2.0. Current truth lives in `README.md`, `AGENTS.md`, and
+> `lib/core/format_catalog.dart`. Kept for the record — do not edit the
+> content below.
+
 # Multi-Format — Implementation Status
 
 Status: **Phase 1 COMPLETED** · Date: 2026-08-06 · Plan revision: `docs/multi-format-plan.md` (v1.1)

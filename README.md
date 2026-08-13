@@ -281,8 +281,8 @@ Benchmark results live in `docs/benchmark.md`; the M0 exit criteria live in
   line-height proxy; PDFium is not safe to spawn/teardown repeatedly in one
   process → one persistent worker + probe only before the first worker).
 - `docs/known-issues.md` — known framework/app issues and their status.
-- `docs/multi-format.md` — multi-format conversion implementation status.
-- `docs/multi-format-plan.md` — multi-format conversion implementation plan.
+- `docs/multi-format.md` - multi-format conversion status (ARCHIVED — historical, pre-1.2.0).
+- `docs/multi-format-plan.md` - multi-format implementation plan (ARCHIVED — historical, pre-1.2.0).
 - `docs/desktop-release.md` — desktop release workflow (GitHub Releases).
 - `docs/web-deploy.md` — web deployment guide (GitHub Pages).
 - `docs/web-m1.md` — web platform milestone notes.
