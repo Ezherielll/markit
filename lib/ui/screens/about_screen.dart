@@ -19,6 +19,7 @@ class AboutScreen extends StatelessWidget {
     final ink = isDark ? MarkitColors.inkDark : MarkitColors.inkLight;
     final inkMuted = isDark ? MarkitColors.inkMutedDark : MarkitColors.inkMutedLight;
     final primary = Theme.of(context).colorScheme.primary;
+    final onPrimary = Theme.of(context).colorScheme.onPrimary;
 
     return Scaffold(
       backgroundColor: paper,
@@ -64,10 +65,13 @@ class AboutScreen extends StatelessWidget {
                         ),
                         borderRadius: BorderRadius.circular(12),
                       ),
-                      child: const Icon(
+                      child: Icon(
                         Icons.description_rounded,
                         size: 24,
-                        color: Colors.white,
+                        // onPrimary: white on the dark-blue gradient (light),
+                        // dark ink on the light-blue gradient (dark) — plain
+                        // Colors.white would vanish on dark-mode primary.
+                        color: onPrimary,
                       ),
                     ),
                     const SizedBox(width: MarkitSpacing.lg),

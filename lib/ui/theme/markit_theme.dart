@@ -24,7 +24,10 @@ abstract final class MarkitTheme {
           )
         : const ColorScheme.dark(
             primary: MarkitColors.penBlueDark,
-            onPrimary: MarkitColors.inkDark,
+            // Dark ink on the light-blue primary: the near-white inkDark
+            // gives only ~1.8:1 on penBlueDark (unreadable FilledButton
+            // labels in dark mode); inkLight reaches ~7.6:1 (WCAG AA).
+            onPrimary: MarkitColors.inkLight,
             surface: MarkitColors.surfaceDark,
             onSurface: MarkitColors.inkDark,
             surfaceContainerHighest: MarkitColors.surfaceRaisedDark,
@@ -65,7 +68,14 @@ abstract final class MarkitTheme {
         style: OutlinedButton.styleFrom(
           minimumSize: const Size(0, 44),
           padding: const EdgeInsets.symmetric(horizontal: MarkitSpacing.xl),
-          side: BorderSide(color: hairline),
+          // Dark mode: hairlineDark (~1.4:1 against the surface) is nearly
+          // invisible as a button border; a 60% inkMutedDark tint passes the
+          // 3:1 non-text contrast requirement.
+          side: BorderSide(
+            color: isLight
+                ? hairline
+                : MarkitColors.inkMutedDark.withValues(alpha: 0.6),
+          ),
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(MarkitSpacing.radiusCard),
           ),
