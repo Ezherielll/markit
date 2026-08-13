@@ -96,7 +96,7 @@ whenever a version tag (`vX.Y.Z`) is pushed — see
 | macOS | `markit-macos-arm64-v1.2.0.dmg` | Open the DMG and drag **markit** to Applications. Because it is unsigned, right-click the app and choose **Open** the first time (or run `xattr -cr /Applications/markit.app`). Apple Silicon only. |
 | Linux | `markit-linux-x64-v1.2.0.tar.gz` | Extract and run `./markit` from the `bundle` folder. |
 
-Prefer not to download? Try the [web demo](https://ezherielll.github.io/MarkIt/)
+Prefer not to download? Try the [web demo](https://ezherielll.github.io/markit/)
 instead — same app, runs in the browser, no install.
 
 ## Architecture
@@ -251,7 +251,7 @@ lib/
 flutter pub get
 flutter run -d windows        # run in debug mode (also: macos / linux / chrome)
 flutter build windows --release
-flutter build web --release --base-href /MarkIt/   # --base-href /MarkIt/ is required for GitHub Pages
+flutter build web --release --base-href /markit/   # --base-href /markit/ is required for GitHub Pages
 ```
 
 Web deployment is automatic on every push to `master` (see `docs/web-deploy.md`).
