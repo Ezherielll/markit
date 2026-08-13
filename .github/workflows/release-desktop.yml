@@ -1,11 +1,11 @@
 name: Release Desktop
 
-# Build desktop releases (Windows ZIP, macOS DMG, Linux tarball) dan
-# menempelkannya ke GitHub Release (draft) ketika tag versi di-push:
+# Build desktop releases (Windows ZIP, macOS DMG, Linux tarball) and
+# attach them to a draft GitHub Release when a version tag is pushed:
 #
 #   git tag v1.1.0 && git push origin v1.1.0
 #
-# Tag '*-web' (milestone web) dikecualikan.
+# Tags ending in '-web' (web milestones) are excluded.
 
 on:
   push:
@@ -18,7 +18,7 @@ permissions:
 
 jobs:
   build-windows:
-    # Tag milestone web (v1.1.0-web dsb.) bukan rilis desktop.
+    # Web milestone tags (e.g. v1.1.0-web) are not desktop releases.
     if: "!endsWith(github.ref_name, '-web')"
     runs-on: windows-latest
     steps:

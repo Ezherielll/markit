@@ -34,7 +34,7 @@
   <link rel="manifest" href="manifest.json">
 
   <style>
-    /* Splash sederhana selama Flutter + pdfium.wasm (≈5 MB) dimuat. */
+    /* Minimal splash screen while Flutter + pdfium.wasm (≈5 MB) are loading. */
     html, body {
       margin: 0;
       height: 100%;
@@ -73,7 +73,7 @@
   </div>
 
   <script>
-    // Sembunyikan splash setelah Flutter siap.
+    // Hide splash after Flutter is ready.
     window.addEventListener('flutter-first-frame', function () {
       var el = document.getElementById('markit-splash');
       if (el) el.classList.add('hidden');

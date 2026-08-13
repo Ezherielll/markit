@@ -34,7 +34,7 @@ jobs:
         run: flutter config --enable-web
 
       - name: Build web
-        run: flutter build web --release --base-href /markit/
+        run: flutter build web --release --base-href /MarkIt/
 
       - name: Setup Pages
         uses: actions/configure-pages@v5

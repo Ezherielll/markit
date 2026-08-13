@@ -46,18 +46,18 @@ static void my_application_activate(GApplication* application) {
   if (use_header_bar) {
     GtkHeaderBar* header_bar = GTK_HEADER_BAR(gtk_header_bar_new());
     gtk_widget_show(GTK_WIDGET(header_bar));
-    gtk_header_bar_set_title(header_bar, "markit");
+    gtk_header_bar_set_title(header_bar, "MarkIt");
     gtk_header_bar_set_show_close_button(header_bar, TRUE);
     gtk_window_set_titlebar(window, GTK_WIDGET(header_bar));
   } else {
-    gtk_window_set_title(window, "markit");
+    gtk_window_set_title(window, "MarkIt");
   }
 
   gtk_window_set_default_size(window, 1280, 720);
 
-  // Ikon jendela MarkIt — dimuat dari bundle assets
+  // MarkIt window icon — loaded from bundle assets
   // (<bundle>/data/flutter_assets/assets/branding/markit_icon.png).
-  // Gagal diam-diam bila file tidak ditemukan (mis. dev run).
+  // Fails silently if file is not found (e.g. dev run).
   g_autofree gchar* exe_path = g_file_read_link("/proc/self/exe", nullptr);
   if (exe_path != nullptr) {
     g_autofree gchar* exe_dir = g_path_get_dirname(exe_path);

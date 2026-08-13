@@ -1,14 +1,14 @@
 # MarkIt [M] icon generator.
 #
-# Merender logo "M dalam tile rounded pen-blue dengan dua bracket" dari
-# font Fraunces (aset aplikasi) menggunakan System.Drawing, lalu menulis
-# semua format ikon platform:
+# Renders the "M in pen-blue rounded tile with two brackets" logo from
+# the Fraunces font (app asset) using System.Drawing, then writes
+# all platform icon formats:
 #   - windows/runner/resources/app_icon.ico   (16..256, PNG-encoded entries)
 #   - macos/.../AppIcon.appiconset/app_icon_*.png
 #   - web/favicon.png, web/icons/Icon-*.png, Icon-maskable-*.png
-#   - assets/branding/markit_icon.png         (icon jendela Linux, 512)
+#   - assets/branding/markit_icon.png         (Linux window icon, 512)
 #
-# Usage: pwsh tools/generate_icons.ps1  (idempotent; tulis-menimpa)
+# Usage: pwsh tools/generate_icons.ps1  (idempotent; overwrites existing)
 
 $ErrorActionPreference = "Stop"
 
@@ -16,7 +16,7 @@ Add-Type -AssemblyName System.Drawing
 
 $repoRoot = Split-Path -Parent $PSScriptRoot
 $fontPath = Join-Path $repoRoot "assets\fonts\Fraunces.ttf"
-if (-not (Test-Path $fontPath)) { throw "Font tidak ditemukan: $fontPath" }
+if (-not (Test-Path $fontPath)) { throw "Font not found: $fontPath" }
 
 # ── Brand colors ──────────────────────────────────────────────
 $tileColor  = [System.Drawing.Color]::FromArgb(255, 39, 76, 138)     # penBlue #274C8A
@@ -24,16 +24,16 @@ $edgeColor  = [System.Drawing.Color]::FromArgb(255, 31, 63, 115)     # #1F3F73
 $glyphColor = [System.Drawing.Color]::FromArgb(255, 255, 255, 255)   # white
 $bracketColor = [System.Drawing.Color]::FromArgb(252, 246, 244, 239) # paper #F6F4EF a≈0.99
 
-# ── Geometry (fraksi dari tile) ───────────────────────────────
+# ── Geometry (fraction of tile) ───────────────────────────────
 $tile        = 1024.0
-$cornerF     = 0.090     # radius sudut tile
-$edgeW       = 0.004     # hairline tepi tile
-$boxWF       = 0.420     # lebar kotak huruf M
-$boxHF       = 0.580     # tinggi kotak huruf M
-$barInsetF   = 0.088     # jarak bracket dari tepi tile
-$barWidthF   = 0.055     # lebar bracket
-$barHeightF  = 0.600     # tinggi bracket
-$minBarsPx   = 56.0      # ukuran < ini: tanpa bracket (agar tetap bersih)
+$cornerF     = 0.090     # tile corner radius
+$edgeW       = 0.004     # tile edge hairline
+$boxWF       = 0.420     # letter M box width
+$boxHF       = 0.580     # letter M box height
+$barInsetF   = 0.088     # bracket inset from tile edge
+$barWidthF   = 0.055     # bracket width
+$barHeightF  = 0.600     # bracket height
+$minBarsPx   = 56.0      # size < this: omit brackets for clean rendering
 
 $pfc = New-Object System.Drawing.Text.PrivateFontCollection
 $pfc.AddFontFile($fontPath)
@@ -63,7 +63,7 @@ function Draw-Mark([System.Drawing.Graphics]$g, [int]$size, [bool]$withBars, [do
     $brush = New-Object System.Drawing.SolidBrush($tileColor)
     $g.FillPath($brush, $tilePath)
 
-    # hairline tepi
+    # edge hairline
     $pen = New-Object System.Drawing.Pen($edgeColor, [Math]::Max(1.0, $S * $edgeW))
     $pen.Alignment = [System.Drawing.Drawing2D.PenAlignment]::Inset
     $g.DrawPath($pen, $tilePath)
@@ -73,7 +73,7 @@ function Draw-Mark([System.Drawing.Graphics]$g, [int]$size, [bool]$withBars, [do
     $boxW = $S * $boxWF * $scale
     $boxH = $S * $boxHF * $scale
 
-    # M serif Fraunces — diukur lalu diskalakan agar pas dalam kotak
+    # Fraunces serif M — measured and scaled to fit bounding box
     $fmt = [System.Drawing.StringFormat]::GenericTypographic
     $trial = $S * 0.72 * $scale
     $measureBmp = New-Object System.Drawing.Bitmap([int]$S, [int]$S, [System.Drawing.Imaging.PixelFormat]::Format32bppArgb)
@@ -96,7 +96,7 @@ function Draw-Mark([System.Drawing.Graphics]$g, [int]$size, [bool]$withBars, [do
         $gap = $S * $barInsetF
         foreach ($bx in @($gap, ($S - $gap - $bw))) {
             $bp = New-Object System.Drawing.Drawing2D.GraphicsPath
-            # pill vertikal: cap atas & bawah, diameter = bw (bw < bh selalu)
+            # vertical pill: top & bottom caps, diameter = bw (bw < bh always)
             $bp.AddArc([single]$bx, [single]$by, [single]$bw, [single]$bw, 180, 180)
             $bp.AddArc([single]$bx, [single]($by + $bh - $bw), [single]$bw, [single]$bw, 0, 180)
             $bp.CloseFigure()
@@ -126,7 +126,7 @@ function New-Transparent([int]$size) {
     return (New-Canvas $size).bmp
 }
 
-# ── Render master 1024 (dengan & tanpa bracket) ───────────────
+# ── Render master 1024 (with & without brackets) ───────────────
 $cFull = New-Canvas 1024; Draw-Mark $cFull.g 1024 $true; $masterFull = $cFull.bmp
 $cPlain = New-Canvas 1024; Draw-Mark $cPlain.g 1024 $false; $masterPlain = $cPlain.bmp
 
@@ -179,7 +179,7 @@ foreach ($sz in @(192, 512)) {
     $bmp.Dispose()
 }
 foreach ($sz in @(192, 512)) {
-    # maskable: M+bracket dalam safe-zone 66%, tile tetap full-bleed
+    # maskable: M+brackets inside 66% safe-zone, tile remains full-bleed
     $c = New-Canvas $sz
     Draw-Mark $c.g $sz $true 0.66
     $bmp = $c.bmp
@@ -202,6 +202,6 @@ $cFull.g.Dispose(); $cPlain.g.Dispose()
 $pfc.Dispose()
 
 Write-Host ""
-Write-Host "Done: semua ikon [M] MarkIt dihasilkan."
+Write-Host "Done: all [M] MarkIt icons generated."
 
 
