@@ -7,7 +7,7 @@ Flutter app **MarkIt** (package `markit`, repo `Ezherielll/MarkIt`, local dir `m
 ```sh
 flutter pub get
 flutter analyze          # run after any change
-flutter test             # 319 tests; also runs goldens (must stay green)
+flutter test             # 325 tests; also runs goldens (must stay green)
 flutter test --update-goldens test/widget/screenshot_golden_test.dart   # regen goldens
 flutter build windows --release    # exe: build\windows\x64\runner\Release\markit.exe
 flutter build web --release --base-href /markit/   # --base-href /markit/ is REQUIRED

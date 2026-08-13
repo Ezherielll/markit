@@ -5,7 +5,7 @@ Status: **Phase 1 COMPLETED** · Date: 2026-08-06 · Plan revision: `docs/multi-
 ## Summary
 
 MarkIt converts formats beyond PDF: TXT/MD/CSV/JSON/XML/HTML → Markdown,
-implemented entirely in pure Dart (offline, desktop **and** web). Rebranded app to **MarkIt** (package `markit`, base-href `/MarkIt/`,
+implemented entirely in pure Dart (offline, desktop **and** web). Rebranded app to **MarkIt** (package `markit`, base-href `/markit/`,
 GitHub repo `Ezherielll/MarkIt`).
 
 ## Supported Formats (Phase 1)
