@@ -175,11 +175,11 @@ void main() {
       expect(isFormatSupported(InputFormat.pdf), isTrue);
       expect(isFormatSupported(InputFormat.word), isTrue);
       expect(isFormatSupported(InputFormat.csv), isTrue);
-      expect(isFormatSupported(InputFormat.powerpoint), isFalse);
-      expect(isFormatSupported(InputFormat.excel), isFalse);
-      expect(isFormatSupported(InputFormat.opendocument), isFalse);
-      expect(isFormatSupported(InputFormat.rtf), isFalse);
-      expect(isFormatSupported(InputFormat.epub), isFalse);
+      expect(isFormatSupported(InputFormat.rtf), isTrue);
+      expect(isFormatSupported(InputFormat.opendocument), isTrue);
+      expect(isFormatSupported(InputFormat.powerpoint), isTrue);
+      expect(isFormatSupported(InputFormat.excel), isTrue);
+      expect(isFormatSupported(InputFormat.epub), isTrue);
     });
 
     test('legacy extension per keluarga (OLE2)', () {
@@ -196,14 +196,15 @@ void main() {
       expect(isLegacyFormatExtension(InputFormat.csv, 'a.csv'), isFalse);
     });
 
-    test('registry: word → DocxExtractor, csv → CsvExtractor, lain null', () {
+    test('registry: word → DocxExtractor, csv → CsvExtractor, rtf → RtfExtractor, opendocument → OdfExtractor, excel → XlsxExtractor, others null',
+        () {
       expect(ExtractorRegistry.forFormat(InputFormat.word), isNotNull);
       expect(ExtractorRegistry.forFormat(InputFormat.csv), isNotNull);
-      expect(ExtractorRegistry.forFormat(InputFormat.powerpoint), isNull);
-      expect(ExtractorRegistry.forFormat(InputFormat.excel), isNull);
-      expect(ExtractorRegistry.forFormat(InputFormat.opendocument), isNull);
-      expect(ExtractorRegistry.forFormat(InputFormat.rtf), isNull);
-      expect(ExtractorRegistry.forFormat(InputFormat.epub), isNull);
+      expect(ExtractorRegistry.forFormat(InputFormat.rtf), isNotNull);
+      expect(ExtractorRegistry.forFormat(InputFormat.opendocument), isNotNull);
+      expect(ExtractorRegistry.forFormat(InputFormat.powerpoint), isNotNull);
+      expect(ExtractorRegistry.forFormat(InputFormat.excel), isNotNull);
+      expect(ExtractorRegistry.forFormat(InputFormat.epub), isNotNull);
     });
   });
 }

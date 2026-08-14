@@ -6,6 +6,41 @@ import 'package:markit/core/input_format.dart';
 import 'package:markit/isolate/inline_executor.dart';
 
 import '../helpers/pdf_factory.dart';
+import '../helpers/zip_factory.dart';
+
+// ---- Synthetic fixtures (copied from the per-parser tests; kept inline —
+// ---- duplicating 5 small builders beats refactoring 5 parser test files).
+
+const _epubContainer = '<?xml version="1.0"?>'
+    '<container xmlns="urn:oasis:names:tc:opendocument:xmlns:container" version="1.0">'
+    '<rootfiles><rootfile full-path="OEBPS/content.opf" '
+    'media-type="application/oebps-package+xml"/></rootfiles></container>';
+
+const _epubOpf = '<?xml version="1.0"?>'
+    '<package xmlns="http://www.idpf.org/2007/opf" version="3.0">'
+    '<manifest><item id="ch1" href="ch1.xhtml" media-type="application/xhtml+xml"/>'
+    '<item id="ch2" href="ch2.xhtml" media-type="application/xhtml+xml"/></manifest>'
+    '<spine><itemref idref="ch1"/><itemref idref="ch2"/></spine></package>';
+
+String _odfContent(String body) => '<?xml version="1.0" encoding="UTF-8"?>'
+    '<office:document-content xmlns:office="urn:oasis:names:tc:opendocument:xmlns:office:1.0" '
+    'xmlns:text="urn:oasis:names:tc:opendocument:xmlns:text:1.0" '
+    'xmlns:table="urn:oasis:names:tc:opendocument:xmlns:table:1.0" '
+    'xmlns:draw="urn:oasis:names:tc:opendocument:xmlns:drawing:1.0">'
+    '<office:body>$body</office:body></office:document-content>';
+
+String _pptxSlide(String title, String body, {String? bullets, String? table}) =>
+    '<?xml version="1.0" encoding="UTF-8"?>'
+    '<p:sld xmlns:p="http://schemas.openxmlformats.org/presentationml/2006/main" '
+    'xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main">'
+    '<p:cSld><p:spTree>'
+    '<p:sp><p:nvSpPr><p:cNvPr id="1" name="Title"/><p:nvPr><p:ph type="title"/></p:nvPr></p:nvSpPr>'
+    '<p:txBody><a:p><a:r><a:t>$title</a:t></a:r></a:p></p:txBody></p:sp>'
+    '<p:sp><p:nvSpPr><p:cNvPr id="2" name="Body"/><p:nvPr/></p:nvSpPr>'
+    '<p:txBody><a:p><a:r><a:t>$body</a:t></a:r></a:p>'
+    '$bullets</p:txBody></p:sp>'
+    '$table'
+    '</p:spTree></p:cSld></p:sld>';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
@@ -122,7 +157,7 @@ void main() {
       await executor.shutdown();
     });
 
-    test('format tanpa extractor (powerpoint) → unsupported failure',
+    test('epub corrupt (not ZIP) → corrupt failure, batch continues',
         () async {
       final executor = InlineExecutor();
       await executor.initialize();
@@ -130,14 +165,13 @@ void main() {
       final result = await executor.runJob(
         jobId: 'j6',
         pdfPath: '',
-        pdfBytes: Uint8List.fromList([0x50, 0x4B, 0x03, 0x04, 1, 2, 3]),
-        outputPath: 'doc.md',
-        format: InputFormat.powerpoint,
+        pdfBytes: Uint8List.fromList(utf8.encode('ZIP')),
+        outputPath: 'book.md',
+        format: InputFormat.epub,
       );
 
       expect(result.success, isFalse);
-      expect(result.errorType, 'unsupported');
-      expect(result.errorMessage, contains('PowerPoint'));
+      expect(result.errorType, 'corrupt');
 
       await executor.shutdown();
     });
@@ -180,6 +214,155 @@ void main() {
       expect(result.success, isFalse);
       expect(result.errorType, 'unsupported');
       expect(result.errorMessage, contains('Choose Files'));
+
+      await executor.shutdown();
+    });
+  });
+
+  group('inline: end-to-end per family (web path)', () {
+    test('powerpoint pptx bytes → slide markdown via executor', () async {
+      final executor = InlineExecutor();
+      await executor.initialize();
+
+      final result = await executor.runJob(
+        jobId: 'e2e-pptx',
+        pdfPath: '',
+        pdfBytes: buildZip({
+          'ppt/slides/slide1.xml': _pptxSlide(
+            'Intro',
+            'Welcome to the deck.',
+            bullets: '<a:p><a:pPr><a:buChar char="&#8226;"/></a:pPr>'
+                '<a:r><a:t>Point one</a:t></a:r></a:p>',
+          ),
+          'ppt/slides/slide2.xml': _pptxSlide('Closing', 'Thanks.'),
+        }),
+        outputPath: 'deck.md',
+        format: InputFormat.powerpoint,
+      );
+
+      expect(result.success, isTrue);
+      expect(result.content, contains('# Intro'));
+      expect(result.content, contains('Welcome to the deck.'));
+      expect(result.content, contains('- Point one'));
+      expect(result.content, contains('# Closing'));
+
+      await executor.shutdown();
+    });
+
+    test('excel xlsx bytes → workbook markdown via executor', () async {
+      final executor = InlineExecutor();
+      await executor.initialize();
+
+      final result = await executor.runJob(
+        jobId: 'e2e-xlsx',
+        pdfPath: '',
+        pdfBytes: buildZip({
+          '[Content_Types].xml': '<x/>',
+          'xl/workbook.xml': '<?xml version="1.0"?>'
+              '<workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" '
+              'xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">'
+              '<sheets><sheet name="Data" sheetId="1" r:id="rId1"/></sheets></workbook>',
+          'xl/_rels/workbook.xml.rels': '<?xml version="1.0"?>'
+              '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">'
+              '<Relationship Id="rId1" Target="worksheets/sheet1.xml"/></Relationships>',
+          'xl/sharedStrings.xml': '<?xml version="1.0"?>'
+              '<sst xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">'
+              '<si><t>Name</t></si><si><t>Age</t></si><si><t>Alice</t></si></sst>',
+          'xl/worksheets/sheet1.xml': '<?xml version="1.0"?>'
+              '<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">'
+              '<sheetData><row r="1"><c r="A1" t="s"><v>0</v></c>'
+              '<c r="B1" t="s"><v>1</v></c></row>'
+              '<row r="2"><c r="A2" t="s"><v>2</v></c><c r="B2"><v>30</v></c></row>'
+              '</sheetData></worksheet>',
+        }),
+        outputPath: 'data.md',
+        format: InputFormat.excel,
+      );
+
+      expect(result.success, isTrue);
+      expect(result.content, contains('# Data'));
+      expect(result.content, contains('| Name | Age |'));
+      expect(result.content, contains('| Alice | 30 |'));
+
+      await executor.shutdown();
+    });
+
+    test('opendocument odt bytes → document markdown via executor', () async {
+      final executor = InlineExecutor();
+      await executor.initialize();
+
+      final result = await executor.runJob(
+        jobId: 'e2e-odf',
+        pdfPath: '',
+        pdfBytes: buildZip({
+          'content.xml': _odfContent(
+            '<office:text>'
+            '<text:h text:outline-level="1">Chapter One</text:h>'
+            '<text:p>First paragraph.</text:p>'
+            '<text:list><text:list-item><text:p>Alpha</text:p></text:list-item>'
+            '<text:list-item><text:p>Beta</text:p></text:list-item></text:list>'
+            '</office:text>',
+          ),
+        }),
+        outputPath: 'doc.md',
+        format: InputFormat.opendocument,
+      );
+
+      expect(result.success, isTrue);
+      expect(result.content, contains('# Chapter One'));
+      expect(result.content, contains('First paragraph.'));
+      expect(result.content, contains('- Alpha'));
+      expect(result.content, contains('- Beta'));
+
+      await executor.shutdown();
+    });
+
+    test('rtf bytes → text markdown via executor', () async {
+      final executor = InlineExecutor();
+      await executor.initialize();
+
+      final result = await executor.runJob(
+        jobId: 'e2e-rtf',
+        pdfPath: '',
+        pdfBytes:
+            Uint8List.fromList(utf8.encode(r'{\rtf1\ansi Hello {\b bold} and {\i italic}.\par Second paragraph.}')),
+        outputPath: 'text.md',
+        format: InputFormat.rtf,
+      );
+
+      expect(result.success, isTrue);
+      expect(result.content, contains('Hello **bold** and *italic*.'));
+      expect(result.content, contains('Second paragraph.'));
+
+      await executor.shutdown();
+    });
+
+    test('epub bytes → spine chapters markdown via executor', () async {
+      final executor = InlineExecutor();
+      await executor.initialize();
+
+      final result = await executor.runJob(
+        jobId: 'e2e-epub',
+        pdfPath: '',
+        pdfBytes: buildZip({
+          'META-INF/container.xml': _epubContainer,
+          'OEBPS/content.opf': _epubOpf,
+          'OEBPS/ch1.xhtml': '<html><body><h1>Chapter One</h1>'
+              '<p>First <strong>bold</strong> paragraph.</p>'
+              '<ul><li>One</li><li>Two</li></ul></body></html>',
+          'OEBPS/ch2.xhtml': '<html><body><h2>Section Two</h2>'
+              '<p>See <a href="https://example.com">docs</a>.</p></body></html>',
+        }),
+        outputPath: 'book.md',
+        format: InputFormat.epub,
+      );
+
+      expect(result.success, isTrue);
+      expect(result.content, contains('# Chapter One'));
+      expect(result.content, contains('First **bold** paragraph.'));
+      expect(result.content, contains('- One'));
+      expect(result.content, contains('## Section Two'));
+      expect(result.content, contains('docs (https://example.com)'));
 
       await executor.shutdown();
     });
