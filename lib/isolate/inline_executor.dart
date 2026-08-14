@@ -4,7 +4,6 @@ import '../core/converter.dart';
 import '../core/errors.dart';
 import '../core/extractors/extractor_registry.dart';
 import '../core/input_format.dart';
-import '../core/markdown_writer.dart';
 import '../core/output.dart';
 import '../core/pdfrx_source.dart';
 import 'conversion_executor.dart';
@@ -111,19 +110,13 @@ class InlineExecutor implements ConversionExecutor {
     }
 
     final output = MemoryOutput();
-    final sink = await output.openSink();
-    final writer = MarkdownWriter(sink);
 
     final result = await extractor.extract(
       bytes: bytes,
-      writer: writer,
-      onProgress: (done, total) {
-        onProgress?.call(done, total, 1, 0);
-      },
+      output: output,
+      onProgress: onProgress,
       isCancelled: () => _cancelled,
     );
-    await writer.close();
-    await output.commit();
 
     return JobExecutionResult(
       success: true,

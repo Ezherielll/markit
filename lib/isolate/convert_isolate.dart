@@ -4,7 +4,6 @@ import '../core/converter.dart';
 import '../core/errors.dart';
 import '../core/extractors/extractor_registry.dart';
 import '../core/input_format.dart';
-import '../core/markdown_writer.dart';
 import '../core/output.dart';
 import '../core/pdfrx_source.dart';
 import 'messages.dart';
@@ -145,27 +144,23 @@ Future<void> _runSemantic(
     }
 
     output = FileOutput(start.outputPath);
-    final sink = await output.openSink();
-    final writer = MarkdownWriter(sink);
 
     final result = await extractor.extract(
       bytes: null,
       path: start.pdfPath,
-      writer: writer,
-      onProgress: (done, total) {
+      output: output,
+      onProgress: (done, total, phase, elapsedMs) {
         mainPort.send(ConvertProgress(
           jobId: start.jobId,
           page: done,
           total: total,
-          elapsedMs: 0,
-          phase: 1,
+          elapsedMs: elapsedMs,
+          phase: phase,
         ));
       },
       isCancelled: () => isCancelled(),
     );
 
-    await writer.close();
-    await output.commit();
     mainPort.send(ConvertDone(
       jobId: start.jobId,
       outputPath: start.outputPath,
