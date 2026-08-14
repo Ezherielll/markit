@@ -1,6 +1,6 @@
 # AGENTS.md
 
-Flutter app **MarkIt** (package `markit`, repo `Ezherielll/MarkIt`, local dir `markit`) — document → Markdown converter. Desktop (Windows/macOS/Linux) **and** web; NOT a mobile app. Dart SDK `^3.12.2`, version `1.2.0+1`.
+Flutter app **MarkIt** (package `markit`, repo `Ezherielll/MarkIt`, local dir `markit`) — document → Markdown converter. Desktop (Windows/macOS/Linux) **and** web; NOT a mobile app. Dart SDK `^3.12.2`, version `1.3.0+1`.
 
 ## Commands
 
