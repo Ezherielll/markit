@@ -122,7 +122,7 @@ void main() {
       await executor.shutdown();
     });
 
-    test('format without extractor (epub) → unsupported failure',
+    test('epub corrupt (bukan ZIP) → corrupt failure, batch tetap lanjut',
         () async {
       final executor = InlineExecutor();
       await executor.initialize();
@@ -130,14 +130,13 @@ void main() {
       final result = await executor.runJob(
         jobId: 'j6',
         pdfPath: '',
-        pdfBytes: Uint8List.fromList([0x50, 0x4B, 0x03, 0x04, 1, 2, 3]),
-        outputPath: 'doc.md',
+        pdfBytes: Uint8List.fromList(utf8.encode('ZIP')),
+        outputPath: 'book.md',
         format: InputFormat.epub,
       );
 
       expect(result.success, isFalse);
-      expect(result.errorType, 'unsupported');
-      expect(result.errorMessage, contains('EPUB'));
+      expect(result.errorType, 'corrupt');
 
       await executor.shutdown();
     });

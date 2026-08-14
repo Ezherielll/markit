@@ -179,7 +179,7 @@ void main() {
       expect(isFormatSupported(InputFormat.opendocument), isTrue);
       expect(isFormatSupported(InputFormat.powerpoint), isTrue);
       expect(isFormatSupported(InputFormat.excel), isTrue);
-      expect(isFormatSupported(InputFormat.epub), isFalse);
+      expect(isFormatSupported(InputFormat.epub), isTrue);
     });
 
     test('legacy extension per keluarga (OLE2)', () {
@@ -204,7 +204,7 @@ void main() {
       expect(ExtractorRegistry.forFormat(InputFormat.opendocument), isNotNull);
       expect(ExtractorRegistry.forFormat(InputFormat.powerpoint), isNotNull);
       expect(ExtractorRegistry.forFormat(InputFormat.excel), isNotNull);
-      expect(ExtractorRegistry.forFormat(InputFormat.epub), isNull);
+      expect(ExtractorRegistry.forFormat(InputFormat.epub), isNotNull);
     });
   });
 }
