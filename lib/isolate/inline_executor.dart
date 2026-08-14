@@ -1,11 +1,9 @@
 import 'dart:typed_data';
 
-import '../core/converter.dart';
 import '../core/errors.dart';
 import '../core/extractors/extractor_registry.dart';
 import '../core/input_format.dart';
 import '../core/output.dart';
-import '../core/pdfrx_source.dart';
 import 'conversion_executor.dart';
 
 /// Inline execution on main isolate (WEB — `Isolate.spawn` not supported).
@@ -30,47 +28,40 @@ class InlineExecutor implements ConversionExecutor {
   }) async {
     _cancelled = false;
     try {
-      if (format != InputFormat.pdf) {
-        return await _runSemantic(
-          jobId: jobId,
-          bytes: pdfBytes,
-          path: pdfPath,
-          outputPath: outputPath,
-          format: format,
-          onProgress: onProgress,
+      final extractor = ExtractorRegistry.forFormat(format);
+      if (extractor == null) {
+        return JobExecutionResult.failure(
+          'unsupported',
+          'Format ${format.label} is not yet supported for conversion.',
         );
       }
-      final source = pdfBytes != null
-          ? await PdfrxSource.openData(pdfBytes, sourceName: jobId)
-          : await PdfrxSource.open(pdfPath);
-      try {
-        final output = MemoryOutput();
-        // Phase 1 (reading): histogram — page 0 marker.
-        onProgress?.call(0, source.pageCount, 0, 0);
-        final result = await Converter().convert(
-          source: source,
-          output: output,
-          onProgress: (p) {
-            onProgress?.call(
-              p.page,
-              p.total,
-              1,
-              p.elapsed.inMilliseconds,
-            );
-          },
-          isCancelled: () => _cancelled,
+      if (pdfBytes == null) {
+        // Web has NO filesystem — every format (PDF included) needs bytes.
+        // A null payload (e.g. drag & drop giving a dummy path) fails with a
+        // clear message instead of a generic corrupt error.
+        return JobExecutionResult.failure(
+          'unsupported',
+          'File data not available in memory (web) — use "Choose Files" '
+          'or drag & drop files directly.',
         );
-        return JobExecutionResult(
-          success: true,
-          pageCount: result.pageCount,
-          failedPages: result.failedPages.map((p) => p + 1).toList(),
-          bodyFontSize: result.profile.bodyFontSize,
-          outputPath: outputPath,
-          content: output.content,
-        );
-      } finally {
-        await source.dispose();
       }
+
+      final output = MemoryOutput();
+      final result = await extractor.extract(
+        bytes: pdfBytes,
+        path: pdfPath,
+        output: output,
+        onProgress: onProgress,
+        isCancelled: () => _cancelled,
+      );
+      return JobExecutionResult(
+        success: true,
+        pageCount: result.itemCount,
+        failedPages: result.failedPages,
+        bodyFontSize: result.bodyFontSize,
+        outputPath: outputPath,
+        content: output.content,
+      );
     } on ConvertException catch (e) {
       return JobExecutionResult.failure(e.type.name, e.message);
     } catch (e) {
@@ -79,53 +70,6 @@ class InlineExecutor implements ConversionExecutor {
         'Unexpected error: $e',
       );
     }
-  }
-
-  /// Semantic path (web): pure Dart extractor → MemoryOutput.
-  ///
-  /// Web DOES NOT have a filesystem — extractor can only read [bytes].
-  /// If [bytes] is null (e.g. drag & drop giving dummy path),
-  /// fails immediately with a clear error message.
-  Future<JobExecutionResult> _runSemantic({
-    required String jobId,
-    required Uint8List? bytes,
-    required String path,
-    required String outputPath,
-    required InputFormat format,
-    void Function(int page, int total, int phase, int elapsedMs)? onProgress,
-  }) async {
-    final extractor = ExtractorRegistry.forFormat(format);
-    if (extractor == null) {
-      return JobExecutionResult.failure(
-        'unsupported',
-        'Format ${format.label} is not yet supported for conversion.',
-      );
-    }
-    if (bytes == null) {
-      return JobExecutionResult.failure(
-        'unsupported',
-        'File data not available in memory (web) — use "Choose Files" '
-        'or drag & drop files directly.',
-      );
-    }
-
-    final output = MemoryOutput();
-
-    final result = await extractor.extract(
-      bytes: bytes,
-      output: output,
-      onProgress: onProgress,
-      isCancelled: () => _cancelled,
-    );
-
-    return JobExecutionResult(
-      success: true,
-      pageCount: result.itemCount,
-      failedPages: const [],
-      bodyFontSize: 0,
-      outputPath: outputPath,
-      content: output.content,
-    );
   }
 
   @override
