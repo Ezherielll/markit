@@ -44,12 +44,7 @@ class RtfExtractor implements FormatExtractor {
         );
       }
       final text = _parse(decoded);
-      final blocks = text
-          .split('\n')
-          .map((l) => l.trim())
-          .where((l) => l.isNotEmpty)
-          .map((l) => Block(type: BlockType.paragraph, lines: [l]))
-          .toList();
+      final blocks = _textToBlocks(text);
       if (blocks.isEmpty) {
         throw ConvertException(
           ConvertError.noText,
@@ -67,12 +62,31 @@ class RtfExtractor implements FormatExtractor {
     });
   }
 
+  /// Split parsed text into blocks: lines starting with '- ' (written by
+  /// `\bullet`) become list items — a plain paragraph would have the dash
+  /// escaped by the writer; everything else is a plain paragraph.
+  List<Block> _textToBlocks(String text) {
+    return text
+        .split('\n')
+        .map((l) => l.trim())
+        .where((l) => l.isNotEmpty)
+        .map((l) {
+      if (l.startsWith('- ')) {
+        return Block(type: BlockType.unorderedListItem, lines: [l.substring(2)]);
+      }
+      return Block(type: BlockType.paragraph, lines: [l]);
+    }).toList();
+  }
+
   /// Parse RTF source → plain text with `\n` paragraph separators and inline
   /// markdown emphasis markers.
   String _parse(String src) {
     final sb = StringBuffer();
     var bold = false;
     var italic = false;
+    // Emphasis state per group depth: pushed on '{' (content groups only),
+    // popped on '}' so emphasis closes exactly where the group changes.
+    final stateStack = <({bool bold, bool italic})>[];
     var i = 0;
 
     void toggleBold(bool on) {
@@ -90,11 +104,11 @@ class RtfExtractor implements FormatExtractor {
     while (i < src.length) {
       final c = src[i];
       if (c == '{') {
-        i = _skipDestinationGroup(src, i);
+        i = _openGroup(src, i, stateStack, bold, italic);
         continue;
       }
       if (c == '}') {
-        i = _closeEmphasis(i, toggleBold, toggleItalic);
+        i = _closeEmphasis(i, toggleBold, toggleItalic, stateStack);
         continue;
       }
       if (c == '\\') {
@@ -111,15 +125,39 @@ class RtfExtractor implements FormatExtractor {
     return sb.toString();
   }
 
-  /// Close an emphasis group (toggle bold/italic off); returns the index
-  /// after the '}'.
+  /// Handle a '{' at [i]: skip destination groups wholesale; a content group
+  /// (not skipped) records the emphasis state at its opening so the matching
+  /// '}' can restore exactly what changed. Returns the index after the group
+  /// opening (or after the whole skipped group).
+  int _openGroup(
+    String src,
+    int i,
+    List<({bool bold, bool italic})> stateStack,
+    bool bold,
+    bool italic,
+  ) {
+    final end = _skipDestinationGroup(src, i);
+    if (end == i + 1) {
+      stateStack.add((bold: bold, italic: italic));
+    }
+    return end;
+  }
+
+  /// Close an emphasis group: restore the bold/italic state recorded when the
+  /// group opened, emitting closing markers only for the emphasis that
+  /// changed inside this group (inner groups close before outer ones).
+  /// Returns the index after the '}'.
   int _closeEmphasis(
     int i,
     void Function(bool) toggleBold,
     void Function(bool) toggleItalic,
+    List<({bool bold, bool italic})> stateStack,
   ) {
-    toggleBold(false);
-    toggleItalic(false);
+    final saved = stateStack.isEmpty
+        ? (bold: false, italic: false)
+        : stateStack.removeLast();
+    toggleBold(saved.bold);
+    toggleItalic(saved.italic);
     return i + 1;
   }
 
@@ -144,15 +182,18 @@ class RtfExtractor implements FormatExtractor {
   }
 
   /// Skip a destination group from the '{' at [i] ('{' + '\' + word,
-  /// possibly preceded by '\*'); non-destination groups just consume '{'.
+  /// possibly preceded by '\*'). Per the RTF spec, ANY `\*` group is ignored
+  /// regardless of the word; plain destinations are skipped only when the
+  /// word is in [_destinations]. Non-destination groups just consume '{'.
   int _skipDestinationGroup(String src, int i) {
     final j = i + 1;
     if (j < src.length && src[j] == '\\') {
       var k = j + 1;
-      if (k < src.length && src[k] == '*') k++;
+      final star = k < src.length && src[k] == '*';
+      if (star) k++;
       if (k < src.length && src[k] == '\\') k++;
       final word = _readWord(src, k);
-      if (_isSkippedDestination(word)) {
+      if (word.isNotEmpty && (star || _isSkippedDestination(word))) {
         return _skipGroup(src, i);
       }
     }

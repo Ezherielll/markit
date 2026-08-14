@@ -171,15 +171,12 @@ void main() {
   });
 
   group('isFormatSupported & isLegacyFormatExtension', () {
-    test('pdf/word/csv didukung konversi; sisanya roadmap', () {
-      expect(isFormatSupported(InputFormat.pdf), isTrue);
-      expect(isFormatSupported(InputFormat.word), isTrue);
-      expect(isFormatSupported(InputFormat.csv), isTrue);
-      expect(isFormatSupported(InputFormat.rtf), isTrue);
-      expect(isFormatSupported(InputFormat.opendocument), isTrue);
-      expect(isFormatSupported(InputFormat.powerpoint), isTrue);
-      expect(isFormatSupported(InputFormat.excel), isTrue);
-      expect(isFormatSupported(InputFormat.epub), isTrue);
+    test('all 8 format families are convertible; legacy OLE2 extensions stay '
+        'detected-but-unsupported', () {
+      for (final family in kFormatCatalog) {
+        expect(isFormatSupported(family.format), isTrue,
+            reason: family.format.label);
+      }
     });
 
     test('legacy extension per keluarga (OLE2)', () {
@@ -196,15 +193,11 @@ void main() {
       expect(isLegacyFormatExtension(InputFormat.csv, 'a.csv'), isFalse);
     });
 
-    test('registry: word → DocxExtractor, csv → CsvExtractor, rtf → RtfExtractor, opendocument → OdfExtractor, excel → XlsxExtractor, others null',
-        () {
-      expect(ExtractorRegistry.forFormat(InputFormat.word), isNotNull);
-      expect(ExtractorRegistry.forFormat(InputFormat.csv), isNotNull);
-      expect(ExtractorRegistry.forFormat(InputFormat.rtf), isNotNull);
-      expect(ExtractorRegistry.forFormat(InputFormat.opendocument), isNotNull);
-      expect(ExtractorRegistry.forFormat(InputFormat.powerpoint), isNotNull);
-      expect(ExtractorRegistry.forFormat(InputFormat.excel), isNotNull);
-      expect(ExtractorRegistry.forFormat(InputFormat.epub), isNotNull);
+    test('registry: all 8 families resolve to a concrete extractor', () {
+      for (final family in kFormatCatalog) {
+        expect(ExtractorRegistry.forFormat(family.format), isNotNull,
+            reason: family.format.label);
+      }
     });
   });
 }

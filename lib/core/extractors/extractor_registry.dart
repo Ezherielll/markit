@@ -28,6 +28,7 @@ class ExtractorRegistry {
     InputFormat.epub: const EpubExtractor(),
   };
 
-  /// Extractors for all convertible formats; null → not supported yet.
+  /// Extractors for all 8 convertible format families; null only for
+  /// [InputFormat.unknown].
   static FormatExtractor? forFormat(InputFormat format) => _extractors[format];
 }
