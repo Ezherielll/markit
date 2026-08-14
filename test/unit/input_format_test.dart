@@ -177,7 +177,7 @@ void main() {
       expect(isFormatSupported(InputFormat.csv), isTrue);
       expect(isFormatSupported(InputFormat.rtf), isTrue);
       expect(isFormatSupported(InputFormat.opendocument), isTrue);
-      expect(isFormatSupported(InputFormat.powerpoint), isFalse);
+      expect(isFormatSupported(InputFormat.powerpoint), isTrue);
       expect(isFormatSupported(InputFormat.excel), isFalse);
       expect(isFormatSupported(InputFormat.epub), isFalse);
     });
@@ -202,7 +202,7 @@ void main() {
       expect(ExtractorRegistry.forFormat(InputFormat.csv), isNotNull);
       expect(ExtractorRegistry.forFormat(InputFormat.rtf), isNotNull);
       expect(ExtractorRegistry.forFormat(InputFormat.opendocument), isNotNull);
-      expect(ExtractorRegistry.forFormat(InputFormat.powerpoint), isNull);
+      expect(ExtractorRegistry.forFormat(InputFormat.powerpoint), isNotNull);
       expect(ExtractorRegistry.forFormat(InputFormat.excel), isNull);
       expect(ExtractorRegistry.forFormat(InputFormat.epub), isNull);
     });

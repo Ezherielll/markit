@@ -122,7 +122,7 @@ void main() {
       await executor.shutdown();
     });
 
-    test('format tanpa extractor (powerpoint) → unsupported failure',
+    test('format tanpa extractor (excel) → unsupported failure',
         () async {
       final executor = InlineExecutor();
       await executor.initialize();
@@ -132,12 +132,12 @@ void main() {
         pdfPath: '',
         pdfBytes: Uint8List.fromList([0x50, 0x4B, 0x03, 0x04, 1, 2, 3]),
         outputPath: 'doc.md',
-        format: InputFormat.powerpoint,
+        format: InputFormat.excel,
       );
 
       expect(result.success, isFalse);
       expect(result.errorType, 'unsupported');
-      expect(result.errorMessage, contains('PowerPoint'));
+      expect(result.errorMessage, contains('Excel'));
 
       await executor.shutdown();
     });
