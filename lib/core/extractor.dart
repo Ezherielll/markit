@@ -40,8 +40,8 @@ class ExtractionResult {
 /// Abstraction of a per-format extractor.
 ///
 /// The extractor OWNS the output lifecycle: it opens the sink via
-/// [ExtractionResult.outputPath] handling, writes, closes, and commits — or
-/// aborts on failure. Writer-based (semantic) extractors use
+/// [OutputTarget.openSink], writes, closes, and commits — or aborts on
+/// failure. Writer-based (semantic) extractors use
 /// [withMarkdownWriter]; the PDF extractor streams through [Converter].
 ///
 /// Contract (error, partial-content, cancel, and progress semantics):

@@ -163,5 +163,25 @@ void main() {
 
       await executor.shutdown();
     });
+
+    test('inline: pdf without bytes → unsupported (web null-bytes guard)',
+        () async {
+      final executor = InlineExecutor();
+      await executor.initialize();
+
+      final result = await executor.runJob(
+        jobId: 'j-null-pdf',
+        pdfPath: 'C:/fakepath/book.pdf',
+        pdfBytes: null,
+        outputPath: 'book.md',
+        format: InputFormat.pdf,
+      );
+
+      expect(result.success, isFalse);
+      expect(result.errorType, 'unsupported');
+      expect(result.errorMessage, contains('Choose Files'));
+
+      await executor.shutdown();
+    });
   });
 }

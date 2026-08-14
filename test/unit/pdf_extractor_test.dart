@@ -7,7 +7,7 @@ import 'package:markit/core/output.dart';
 import '../helpers/pdf_factory.dart';
 
 void main() {
-  test('pdf bytes → markdown via MemoryOutput; phase 0 lalu 1', () async {
+  test('pdf bytes → markdown via MemoryOutput; phase 0 then 1', () async {
     final output = MemoryOutput();
     final phases = <int>[];
     final result = await const PdfExtractor().extract(
@@ -26,8 +26,7 @@ void main() {
     expect(phases.sublist(1), everyElement(1));
   });
 
-  test('bukan PDF (bytes acak) → error dilempar (executor memetakan ke corrupt)',
-      () async {
+  test('random bytes → error thrown (executor maps to corrupt)', () async {
     expect(
       () => const PdfExtractor().extract(
         bytes: Uint8List.fromList([1, 2, 3]),
@@ -37,7 +36,7 @@ void main() {
     );
   });
 
-  test('cancel sejak awal → error dilempar (executor memetakan ke failed)',
+  test('cancel from the start → error thrown (executor maps to failed)',
       () async {
     expect(
       () => const PdfExtractor().extract(
