@@ -88,14 +88,14 @@ read, indexed, and fed to AI systems as input (RAG / LLM).
 
 Desktop builds (Windows / macOS / Linux) are published as GitHub Releases
 whenever a version tag (`vX.Y.Z`) is pushed — see
-`docs/desktop-release.md`. Grab **v1.2.0** from
+`docs/desktop-release.md`. Grab **v1.3.0** from
 [github.com/Ezherielll/MarkIt/releases/latest](https://github.com/Ezherielll/MarkIt/releases/latest).
 
 | Platform | Package | How to run |
 |----------|---------|------------|
-| Windows | `markit-windows-x64-v1.2.0.zip` | Extract and run `markit.exe`. If SmartScreen shows "Unknown publisher", click **More info → Run anyway** (the build is unsigned). |
-| macOS | `markit-macos-arm64-v1.2.0.dmg` | Open the DMG and drag **markit** to Applications. Because it is unsigned, right-click the app and choose **Open** the first time (or run `xattr -cr /Applications/markit.app`). Apple Silicon only. |
-| Linux | `markit-linux-x64-v1.2.0.tar.gz` | Extract and run `./markit` from the `bundle` folder. |
+| Windows | `markit-windows-x64-v1.3.0.zip` | Extract and run `markit.exe`. If SmartScreen shows "Unknown publisher", click **More info → Run anyway** (the build is unsigned). |
+| macOS | `markit-macos-arm64-v1.3.0.dmg` | Open the DMG and drag **markit** to Applications. Because it is unsigned, right-click the app and choose **Open** the first time (or run `xattr -cr /Applications/markit.app`). Apple Silicon only. |
+| Linux | `markit-linux-x64-v1.3.0.tar.gz` | Extract and run `./markit` from the `bundle` folder. |
 
 Prefer not to download? Try the [web demo](https://ezherielll.github.io/markit/)
 instead — same app, runs in the browser, no install.
