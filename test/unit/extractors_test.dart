@@ -3,6 +3,7 @@ import 'dart:typed_data';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:markit/core/errors.dart';
+import 'package:markit/core/extractor.dart';
 import 'package:markit/core/extractors/csv_extractor.dart';
 import 'package:markit/core/output.dart';
 
@@ -18,7 +19,7 @@ Future<String> _run(
   return output.content;
 }
 
-Future<dynamic> _extract(
+Future<ExtractionResult> _extract(
   Object extractor,
   Uint8List bytes,
   MemoryOutput output,
