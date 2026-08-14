@@ -10,6 +10,7 @@ import '../errors.dart';
 import '../extractor.dart';
 import '../input_format.dart';
 import '../markdown_writer.dart';
+import '../output.dart';
 
 /// Word (Office Open XML: `.docx`/`.docm`) extractor → markdown.
 ///
@@ -31,65 +32,67 @@ class DocxExtractor implements FormatExtractor {
   Future<ExtractionResult> extract({
     required Uint8List? bytes,
     String? path,
-    required MarkdownWriter writer,
-    void Function(int done, int total)? onProgress,
+    required OutputTarget output,
+    void Function(int done, int total, int phase, int elapsedMs)? onProgress,
     bool Function()? isCancelled,
-  }) async {
-    final raw = await _readBytes(bytes, path);
-    if (raw == null) {
-      throw ConvertException(
-        ConvertError.corrupt,
-        'Could not read the DOCX file.',
+  }) {
+    return withMarkdownWriter(output, run: (writer) async {
+      final raw = await _readBytes(bytes, path);
+      if (raw == null) {
+        throw ConvertException(
+          ConvertError.corrupt,
+          'Could not read the DOCX file.',
+        );
+      }
+
+      final archive = _openZip(raw);
+      final documentXml = _entryText(archive, 'word/document.xml');
+      if (documentXml == null) {
+        throw ConvertException(
+          ConvertError.corrupt,
+          'The DOCX file has no word/document.xml.',
+        );
+      }
+
+      final styles = _parseStyles(_entryText(archive, 'word/styles.xml'));
+      final orderedNumIds = _parseNumbering(
+        _entryText(archive, 'word/numbering.xml'),
       );
-    }
 
-    final archive = _openZip(raw);
-    final documentXml = _entryText(archive, 'word/document.xml');
-    if (documentXml == null) {
-      throw ConvertException(
-        ConvertError.corrupt,
-        'The DOCX file has no word/document.xml.',
-      );
-    }
+      final XmlDocument doc;
+      try {
+        doc = XmlDocument.parse(documentXml);
+      } on XmlException catch (e) {
+        throw ConvertException(
+          ConvertError.corrupt,
+          'The DOCX document.xml is not valid XML: ${e.message}',
+        );
+      }
 
-    final styles = _parseStyles(_entryText(archive, 'word/styles.xml'));
-    final orderedNumIds = _parseNumbering(
-      _entryText(archive, 'word/numbering.xml'),
-    );
+      final body = doc.rootElement.children
+          .where((n) => n is XmlElement && n.name.local == 'body')
+          .cast<XmlElement>()
+          .firstOrNull;
+      if (body == null) {
+        throw ConvertException(
+          ConvertError.corrupt,
+          'The DOCX document has no body.',
+        );
+      }
 
-    final XmlDocument doc;
-    try {
-      doc = XmlDocument.parse(documentXml);
-    } on XmlException catch (e) {
-      throw ConvertException(
-        ConvertError.corrupt,
-        'The DOCX document.xml is not valid XML: ${e.message}',
-      );
-    }
+      final blocks = <Block>[];
+      final raws = <String>[];
+      _walkBody(body, blocks, raws, styles, orderedNumIds);
 
-    final body = doc.rootElement.children
-        .where((n) => n is XmlElement && n.name.local == 'body')
-        .cast<XmlElement>()
-        .firstOrNull;
-    if (body == null) {
-      throw ConvertException(
-        ConvertError.corrupt,
-        'The DOCX document has no body.',
-      );
-    }
+      if (blocks.isEmpty && raws.isEmpty) {
+        throw ConvertException(
+          ConvertError.noText,
+          'No text could be extracted from the DOCX document.',
+        );
+      }
 
-    final blocks = <Block>[];
-    final raws = <String>[];
-    _walkBody(body, blocks, raws, styles, orderedNumIds);
-
-    if (blocks.isEmpty && raws.isEmpty) {
-      throw ConvertException(
-        ConvertError.noText,
-        'No text could be extracted from the DOCX document.',
-      );
-    }
-
-    return _emit(blocks, raws, writer, onProgress, isCancelled);
+      return _emit(blocks, raws, writer, onProgress, isCancelled);
+    });
   }
 
   /// Walk `<w:body>` children: paragraph → Block, table → raw markdown.
@@ -135,7 +138,7 @@ class DocxExtractor implements FormatExtractor {
     List<Block> blocks,
     List<String> raws,
     MarkdownWriter writer,
-    void Function(int done, int total)? onProgress,
+    void Function(int done, int total, int phase, int elapsedMs)? onProgress,
     bool Function()? isCancelled,
   ) {
     var done = 0;
@@ -143,13 +146,13 @@ class DocxExtractor implements FormatExtractor {
       if (isCancelled?.call() ?? false) break;
       writer.writeBlock(block);
       done++;
-      onProgress?.call(done, blocks.length + raws.length);
+      onProgress?.call(done, blocks.length + raws.length, 1, 0);
     }
     for (final raw in raws) {
       if (isCancelled?.call() ?? false) break;
       writer.writeRaw(raw);
       done++;
-      onProgress?.call(done, blocks.length + raws.length);
+      onProgress?.call(done, blocks.length + raws.length, 1, 0);
     }
     return ExtractionResult(itemCount: done);
   }

@@ -4,7 +4,6 @@ import 'dart:typed_data';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:markit/core/errors.dart';
 import 'package:markit/core/extractors/csv_extractor.dart';
-import 'package:markit/core/markdown_writer.dart';
 import 'package:markit/core/output.dart';
 
 Uint8List _utf8(String s) => Uint8List.fromList(utf8.encode(s));
@@ -14,11 +13,7 @@ Future<String> _run(
   Uint8List bytes,
 ) async {
   final output = MemoryOutput();
-  final sink = await output.openSink();
-  final writer = MarkdownWriter(sink);
-  final result = await _extract(extractor, bytes, writer);
-  await writer.close();
-  await output.commit();
+  final result = await _extract(extractor, bytes, output);
   expect(result, isNotNull);
   return output.content;
 }
@@ -26,10 +21,11 @@ Future<String> _run(
 Future<dynamic> _extract(
   Object extractor,
   Uint8List bytes,
-  MarkdownWriter writer,
+  MemoryOutput output,
 ) {
   return switch (extractor) {
-    CsvExtractor() => extractor.extract(bytes: bytes, writer: writer),
+    CsvExtractor() =>
+      extractor.extract(bytes: bytes, output: output),
     _ => throw UnsupportedError('unreachable'),
   };
 }

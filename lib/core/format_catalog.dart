@@ -65,11 +65,10 @@ final List<String> kDetectableExtensions = [
   for (final family in kFormatCatalog) ...family.extensions,
 ];
 
-/// True if format is supported for conversion: has registered extractor (or
-/// existing PDF path). Derived from [ExtractorRegistry] — adding an
-/// extractor automatically enables support without editing here.
+/// True when the format is convertible: it has a registered extractor
+/// adapter (PDF included). Derived from [ExtractorRegistry] — adding an
+/// extractor automatically makes the format supported.
 bool isFormatSupported(InputFormat format) =>
-    format == InputFormat.pdf ||
     ExtractorRegistry.forFormat(format) != null;
 
 /// True for members of ZIP+XML family (docx/pptx/xlsx/odt/epub) — families
