@@ -13,8 +13,9 @@ import 'package:markit/ui/theme/typography.dart';
 import 'package:super_drag_and_drop/super_drag_and_drop.dart';
 
 /// Open file picker dialog (multi-select, all formats recognized by MarkIt —
-/// including DOCX/XLSX/etc not yet supported for conversion; user receives
-/// clear "not supported yet" message, not silent failure).
+/// all 8 format families are convertible; legacy OLE2 extensions stay
+/// detected-but-unsupported and show a clear "not supported yet" message,
+/// not silent failure).
 /// Desktop: PdfInput contains path; Web: contains bytes (no filesystem).
 Future<List<PdfInput>> pickPdfFiles() async {
   final typeGroup = XTypeGroup(
