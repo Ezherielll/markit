@@ -129,7 +129,7 @@ class OdfExtractor implements FormatExtractor {
   void _page(XmlElement node, List<Block> blocks, int listDepth) {
     final name = node.getAttribute('name', namespace: '*');
     if (name != null && name.isNotEmpty) {
-      blocks.add(Block(type: BlockType.heading, headingLevel: 1, lines: ['# $name']));
+      blocks.add(Block(type: BlockType.heading, headingLevel: 1, lines: [name]));
     }
     _walk(node, blocks, listDepth);
   }
@@ -168,32 +168,55 @@ class OdfExtractor implements FormatExtractor {
     }
   }
 
-  /// table:table → markdown table (cells = joined text:p texts).
+  /// table:table → `# {name}` heading + markdown table (cells = joined
+  /// text:p texts, expanding table:number-columns-repeated / -rows-repeated).
   void _walkTable(XmlElement table, List<Block> blocks) {
     final rows = <List<String>>[];
     for (final row in table.descendants.whereType<XmlElement>()) {
       if (row.name.local != 'table-row') continue;
-      final cells = <String>[];
-      for (final cell in row.children.whereType<XmlElement>()) {
-        if (cell.name.local != 'table-cell') continue;
-        final texts = cell.descendants
-            .whereType<XmlElement>()
-            .where((e) => e.name.local == 'p')
-            .map(_inlineText)
-            .where((t) => t.isNotEmpty)
-            .toList();
-        cells.add(texts.join(' '));
-      }
-      if (cells.isNotEmpty) rows.add(cells);
+      final cells = _rowCells(row);
+      final times = int.tryParse(row.getAttribute('number-rows-repeated', namespace: '*') ?? '') ?? 1;
+      _addRowCells(cells, times, rows);
     }
     if (rows.isNotEmpty) {
       final name = table.getAttribute('name', namespace: '*');
       if (name != null && name.isNotEmpty) {
-        blocks.add(Block(type: BlockType.heading, headingLevel: 1, lines: ['# $name']));
+        blocks.add(Block(type: BlockType.heading, headingLevel: 1, lines: [name]));
       }
       blocks.add(Block(type: BlockType.paragraph, lines: [tableToMarkdown(rows)]));
     }
   }
+
+  /// Build one row's cells, expanding table:number-columns-repeated
+  /// (repeat count clamped to [kMaxRepeat]).
+  List<String> _rowCells(XmlElement row) {
+    final cells = <String>[];
+    for (final cell in row.children.whereType<XmlElement>()) {
+      if (cell.name.local != 'table-cell') continue;
+      final texts = cell.descendants
+          .whereType<XmlElement>()
+          .where((e) => e.name.local == 'p')
+          .map(_inlineText)
+          .where((t) => t.isNotEmpty)
+          .toList();
+      final span = int.tryParse(cell.getAttribute('number-columns-repeated', namespace: '*') ?? '') ?? 1;
+      for (var i = 0; i < span.clamp(1, kMaxRepeat); i++) {
+        cells.add(texts.join(' '));
+      }
+    }
+    return cells;
+  }
+
+  /// Append [cells] to [rows] [times] times (table:number-rows-repeated,
+  /// count clamped to [kMaxRepeat]); empty rows are dropped.
+  void _addRowCells(List<String> cells, int times, List<List<String>> rows) {
+    for (var i = 0; i < times.clamp(1, kMaxRepeat); i++) {
+      if (cells.isNotEmpty) rows.add(cells);
+    }
+  }
+
+  /// Upper bound for table:number-columns-repeated / -rows-repeated.
+  static const int kMaxRepeat = 1000;
 
   String? _entryText(Uint8List raw, String name) {
     try {

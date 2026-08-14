@@ -44,6 +44,7 @@ void main() {
     expect(md, contains('- Alpha'));
     expect(md, contains('| A | B |'));
     expect(md, contains('| 1 | 2 |'));
+    expect(md, isNot(contains(r'\#')));
   });
 
   test('odp: draw:page → slide headings', () async {
@@ -53,9 +54,10 @@ void main() {
       '<draw:page draw:name="Slide 2"><text:p>Second slide.</text:p></draw:page>'
       '</office:presentation>',
     ));
-    expect(md, contains('# Slide 1'));
+    expect(md, contains('# Slide 1\n'));
     expect(md, contains('Welcome text.'));
-    expect(md, contains('# Slide 2'));
+    expect(md, contains('# Slide 2\n'));
+    expect(md, isNot(contains(r'\#')));
   });
 
   test('ods: spreadsheet tables', () async {
@@ -67,8 +69,23 @@ void main() {
       '</table:table-row></table:table>'
       '</office:spreadsheet>',
     ));
-    expect(md, contains('# Sheet1'));
+    expect(md, contains('# Sheet1\n'));
     expect(md, contains('| H1 | H2 |'));
+    expect(md, isNot(contains(r'\#')));
+  });
+
+  test('ods: number-columns-repeated and number-rows-repeated expand', () async {
+    final md = await _run(_content(
+      '<office:spreadsheet>'
+      '<table:table table:name="R"><table:table-row>'
+      '<table:table-cell office:value-type="string" table:number-columns-repeated="3"><text:p>A</text:p></table:table-cell>'
+      '</table:table-row><table:table-row table:number-rows-repeated="2">'
+      '<table:table-cell office:value-type="string"><text:p>B</text:p></table:table-cell>'
+      '</table:table-row></table:table>'
+      '</office:spreadsheet>',
+    ));
+    expect(md, contains('| A | A | A |'));
+    expect('| B |'.allMatches(md).length, 2);
   });
 
   test('notes and tracked changes are skipped', () async {
