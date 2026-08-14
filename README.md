@@ -19,13 +19,14 @@ read, indexed, and fed to AI systems as input (RAG / LLM).
   ZIP containers, OLE2 compound files, and RTF, plus extension fallback.
   ZIP-based families (DOCX/PPTX/XLSX/ODT/EPUB) are distinguished by inspecting
   the ZIP entry names, so renamed files are still detected correctly.
-- **Convertible today**: PDF (two-pass heuristic pipeline), Word
-  (`.docx` / `.docm` via `DocxExtractor`), and CSV (via `CsvExtractor`).
-- **Graceful "not supported yet"** — PowerPoint/Excel/OpenDocument/RTF/EPUB
-  and legacy OLE2 formats (`.doc` / `.ppt` / `.pps` / `.pot` / `.xls` /
-  `.xlsb`) are detected and selectable, but fail with a clear per-file message
-  without blocking the rest of the batch. Conversion for these families is on
-  the roadmap.
+- **Convertible**: PDF (two-pass heuristic pipeline), Word (`.docx` / `.docm`),
+  PowerPoint (`.pptx` / `.pptm` / `.ppsx` / `.ppsm`), Excel (`.xlsx` /
+  `.xlsm`), OpenDocument (`.odt` / `.ods` / `.odp`), RTF, EPUB, and CSV — 8
+  families, all dispatched through the extractor registry.
+- **Graceful "not supported yet"** — legacy OLE2 formats (`.doc` / `.ppt` /
+  `.pps` / `.pot` / `.xls` / `.xlsb`) are detected and selectable, but fail
+  with a clear per-file message without blocking the rest of the batch.
+  Conversion for these legacy families is on the roadmap.
 - **Two-pass PDF pipeline** — a cheap text pass builds a per-document font
   histogram; a full layout pass extracts positioned text spans. Structure
   thresholds are derived from the document's own statistics, not hardcoded.
