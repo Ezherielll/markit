@@ -178,7 +178,7 @@ void main() {
       expect(isFormatSupported(InputFormat.rtf), isTrue);
       expect(isFormatSupported(InputFormat.opendocument), isTrue);
       expect(isFormatSupported(InputFormat.powerpoint), isTrue);
-      expect(isFormatSupported(InputFormat.excel), isFalse);
+      expect(isFormatSupported(InputFormat.excel), isTrue);
       expect(isFormatSupported(InputFormat.epub), isFalse);
     });
 
@@ -196,14 +196,14 @@ void main() {
       expect(isLegacyFormatExtension(InputFormat.csv, 'a.csv'), isFalse);
     });
 
-    test('registry: word → DocxExtractor, csv → CsvExtractor, rtf → RtfExtractor, opendocument → OdfExtractor, others null',
+    test('registry: word → DocxExtractor, csv → CsvExtractor, rtf → RtfExtractor, opendocument → OdfExtractor, excel → XlsxExtractor, others null',
         () {
       expect(ExtractorRegistry.forFormat(InputFormat.word), isNotNull);
       expect(ExtractorRegistry.forFormat(InputFormat.csv), isNotNull);
       expect(ExtractorRegistry.forFormat(InputFormat.rtf), isNotNull);
       expect(ExtractorRegistry.forFormat(InputFormat.opendocument), isNotNull);
       expect(ExtractorRegistry.forFormat(InputFormat.powerpoint), isNotNull);
-      expect(ExtractorRegistry.forFormat(InputFormat.excel), isNull);
+      expect(ExtractorRegistry.forFormat(InputFormat.excel), isNotNull);
       expect(ExtractorRegistry.forFormat(InputFormat.epub), isNull);
     });
   });
