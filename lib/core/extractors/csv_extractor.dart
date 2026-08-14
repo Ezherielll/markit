@@ -5,7 +5,7 @@ import 'dart:typed_data';
 import '../errors.dart';
 import '../extractor.dart';
 import '../input_format.dart';
-import '../markdown_writer.dart';
+import '../output.dart';
 
 /// CSV extractor → markdown table (first row = header).
 ///
@@ -20,41 +20,44 @@ class CsvExtractor implements FormatExtractor {
   Future<ExtractionResult> extract({
     required Uint8List? bytes,
     String? path,
-    required MarkdownWriter writer,
-    void Function(int done, int total)? onProgress,
+    required OutputTarget output,
+    void Function(int done, int total, int phase, int elapsedMs)? onProgress,
     bool Function()? isCancelled,
-  }) async {
-    final raw = _readRaw(bytes, path);
-    if (raw == null) {
-      throw ConvertException(
-        ConvertError.corrupt,
-        'Could not read the CSV file.',
-      );
-    }
-    if (isCancelled?.call() ?? false) {
-      return ExtractionResult(itemCount: 0);
-    }
+  }) {
+    return withMarkdownWriter(output, run: (writer) async {
+      final raw = _readRaw(bytes, path);
+      if (raw == null) {
+        throw ConvertException(
+          ConvertError.corrupt,
+          'Could not read the CSV file.',
+        );
+      }
+      if (isCancelled?.call() ?? false) {
+        return ExtractionResult(itemCount: 0);
+      }
 
-    final rows = _parseCsv(_stripBom(raw));
-    final dataRows = rows.where((r) => r.any((c) => c.trim().isNotEmpty)).toList();
-    if (dataRows.isEmpty) {
-      throw ConvertException(ConvertError.noText, 'The CSV file is empty.');
-    }
+      final rows = _parseCsv(_stripBom(raw));
+      final dataRows =
+          rows.where((r) => r.any((c) => c.trim().isNotEmpty)).toList();
+      if (dataRows.isEmpty) {
+        throw ConvertException(ConvertError.noText, 'The CSV file is empty.');
+      }
 
-    final header = dataRows.first;
-    final body = dataRows.skip(1).toList();
+      final header = dataRows.first;
+      final body = dataRows.skip(1).toList();
 
-    final sb = StringBuffer()
-      ..writeln('| ${header.map(_escapeCell).join(' | ')} |')
-      ..writeln('| ${header.map((_) => '---').join(' | ')} |');
-    for (final row in body) {
-      sb.writeln('| ${row.map(_escapeCell).join(' | ')} |');
-      if (isCancelled?.call() ?? false) break;
-    }
+      final sb = StringBuffer()
+        ..writeln('| ${header.map(_escapeCell).join(' | ')} |')
+        ..writeln('| ${header.map((_) => '---').join(' | ')} |');
+      for (final row in body) {
+        sb.writeln('| ${row.map(_escapeCell).join(' | ')} |');
+        if (isCancelled?.call() ?? false) break;
+      }
 
-    writer.writeRaw(sb.toString().trimRight());
-    onProgress?.call(dataRows.length, dataRows.length);
-    return ExtractionResult(itemCount: dataRows.length);
+      writer.writeRaw(sb.toString().trimRight());
+      onProgress?.call(dataRows.length, dataRows.length, 1, 0);
+      return ExtractionResult(itemCount: dataRows.length);
+    });
   }
 
   String? _readRaw(Uint8List? bytes, String? path) {

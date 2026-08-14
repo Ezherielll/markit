@@ -4,24 +4,20 @@ import 'dart:typed_data';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:markit/core/errors.dart';
 import 'package:markit/core/extractors/docx_extractor.dart';
-import 'package:markit/core/markdown_writer.dart';
 import 'package:markit/core/output.dart';
 
 import '../helpers/docx_factory.dart';
 
-/// Jalankan extractor → string markdown (MemoryMdSink).
+/// Run the extractor → markdown string (MemoryOutput).
 Future<String> _extract(Uint8List bytes, {String? path}) async {
-  final buffer = StringBuffer();
-  final sink = MemoryMdSink(buffer);
-  final writer = MarkdownWriter(sink);
+  final output = MemoryOutput();
   final result = await const DocxExtractor().extract(
     bytes: path == null ? bytes : null,
     path: path,
-    writer: writer,
+    output: output,
   );
-  await writer.close();
   expect(result.itemCount, greaterThan(0));
-  return buffer.toString();
+  return output.content;
 }
 
 /// Sel tabel `<w:tc>` berisi satu paragraf polos (tanpa styleId/numId).
@@ -89,7 +85,7 @@ void main() {
       await expectLater(
         () => const DocxExtractor().extract(
           bytes: Uint8List.fromList([1, 2, 3]),
-          writer: MarkdownWriter(MemoryMdSink(StringBuffer())),
+          output: MemoryOutput(),
         ),
         throwsA(isA<ConvertException>()
             .having((e) => e.type, 'type', ConvertError.corrupt)),
@@ -101,7 +97,7 @@ void main() {
       await expectLater(
         () => const DocxExtractor().extract(
           bytes: bytes,
-          writer: MarkdownWriter(MemoryMdSink(StringBuffer())),
+          output: MemoryOutput(),
         ),
         throwsA(isA<ConvertException>()
             .having((e) => e.type, 'type', ConvertError.corrupt)),
@@ -116,7 +112,7 @@ void main() {
       await expectLater(
         () => const DocxExtractor().extract(
           bytes: bytes,
-          writer: MarkdownWriter(MemoryMdSink(StringBuffer())),
+          output: MemoryOutput(),
         ),
         throwsA(isA<ConvertException>()
             .having((e) => e.type, 'type', ConvertError.corrupt)
@@ -135,7 +131,7 @@ void main() {
       await expectLater(
         () => const DocxExtractor().extract(
           bytes: bytes,
-          writer: MarkdownWriter(MemoryMdSink(StringBuffer())),
+          output: MemoryOutput(),
         ),
         throwsA(isA<ConvertException>()
             .having((e) => e.type, 'type', ConvertError.noText)),
@@ -255,18 +251,16 @@ void main() {
       );
       var calls = 0;
       var cancelled = false;
-      final buffer = StringBuffer();
-      final writer = MarkdownWriter(MemoryMdSink(buffer));
+      final output = MemoryOutput();
       final result = await const DocxExtractor().extract(
         bytes: bytes,
-        writer: writer,
-        onProgress: (done, total) => calls = done,
+        output: output,
+        onProgress: (done, total, phase, elapsedMs) => calls = done,
         isCancelled: () {
           cancelled = true;
           return true; // cancel sejak awal → berhenti setelah blok pertama
         },
       );
-      await writer.close();
       expect(result.itemCount, lessThan(3));
       expect(calls, lessThan(3));
       expect(cancelled, isTrue);
